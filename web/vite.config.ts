@@ -8,6 +8,8 @@ import react from "@vitejs/plugin-react";
 // websocket, so a laptop on the LAN needs exactly one address: https://<this machine's IP>:5173
 const certDir = path.resolve(__dirname, "certs");
 const haveCert = fs.existsSync(path.join(certDir, "dev.crt"));
+// The token endpoint (`marvin-web`) listens on MARVIN_TOKEN_PORT (default 8080); keep the proxy in step with it.
+const apiPort = process.env.MARVIN_TOKEN_PORT || "8080";
 
 export default defineConfig({
   plugins: [react()],
@@ -16,7 +18,7 @@ export default defineConfig({
     port: 5173,
     https: haveCert ? { key: fs.readFileSync(path.join(certDir, "dev.key")), cert: fs.readFileSync(path.join(certDir, "dev.crt")) } : undefined,
     proxy: {
-      "/api": "http://127.0.0.1:8080",
+      "/api": `http://127.0.0.1:${apiPort}`,
       "/rtc": { target: "ws://127.0.0.1:7880", ws: true, changeOrigin: true },
     },
   },
