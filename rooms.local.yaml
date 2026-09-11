@@ -1,0 +1,9 @@
+# Local two-room test. Room "dev" works in a repo of your choice, "sandbox" in an empty scratch dir.
+rooms:
+  - name: dev
+    repo: /path/to/a/repo
+    app_links:
+      - { label: room UI (local), url: http://localhost:5173 }
+      - { label: demo app, url: http://localhost:3000 }
+  - name: sandbox
+    repo: /tmp/marvin-smoke

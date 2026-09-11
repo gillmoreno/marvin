@@ -1,0 +1,9 @@
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.6
+    command: --dev --bind 0.0.0.0 --node-ip=${NODE_IP:-127.0.0.1}
+    ports:
+      - "7880:7880"        # signal / websocket
+      - "7881:7881"        # ICE over TCP
+      - "7882:7882/udp"    # ICE over UDP (single mux port in --dev)
+    restart: unless-stopped

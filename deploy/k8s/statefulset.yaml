@@ -1,0 +1,170 @@
+# One Pod is the machine: LiveKit + coturn, the worker, the web/token container, an nginx apps proxy and a
+# privileged docker:dind sidecar. /work is shared between worker and dind at the same path (so compose bind
+# mounts resolve); /var/lib/docker is a persistent layer cache. Adjust storageClassName to your cluster.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: marvin
+  labels: { app: marvin }
+spec:
+  serviceName: marvin
+  replicas: 1
+  selector:
+    matchLabels: { app: marvin }
+  template:
+    metadata:
+      labels: { app: marvin }
+    spec:
+      serviceAccountName: marvin-sa
+      enableServiceLinks: false   # no <SERVICE>_PORT env vars from the namespace's Services
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: livekit
+          image: livekit/livekit-server:v1.13.6
+          args:
+            - --config=/etc/livekit/livekit.yaml
+            - --node-ip=$(POD_IP)
+            - "--keys=$(LIVEKIT_API_KEY): $(LIVEKIT_API_SECRET)"
+          env:
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+            - name: LIVEKIT_API_KEY
+              valueFrom: { secretKeyRef: { name: marvin-secrets, key: LIVEKIT_API_KEY } }
+            - name: LIVEKIT_API_SECRET
+              valueFrom: { secretKeyRef: { name: marvin-secrets, key: LIVEKIT_API_SECRET } }
+          ports:
+            - { name: ws, containerPort: 7880, protocol: TCP }
+            - { name: ice-tcp, containerPort: 7881, protocol: TCP }
+            - { name: ice-udp, containerPort: 7882, protocol: UDP }
+          readinessProbe:
+            httpGet: { path: /, port: 7880 }
+            periodSeconds: 5
+          volumeMounts:
+            - { name: livekit-config, mountPath: /etc/livekit, readOnly: true }
+            - { name: turn-secret, mountPath: /etc/livekit-secret, readOnly: true }
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { memory: 1Gi }
+
+        - name: coturn
+          # TURN relay reachable by hostname for clients that cannot reach Pod IPs (see livekit.yaml). Relays only to this Pod.
+          image: coturn/coturn:4.6.3
+          args:  # note: the image entrypoint echo-expands each arg, so `-n` would become empty; not used
+            - --log-file=stdout
+            - --listening-port=3478
+            - --listening-ip=0.0.0.0
+            - --relay-ip=$(POD_IP)
+            - --min-port=40000
+            - --max-port=40199
+            - --realm=marvin
+            - --use-auth-secret
+            - --static-auth-secret=$(LIVEKIT_API_SECRET)
+            - --fingerprint
+            - --no-tls
+            - --no-dtls
+            - --no-cli
+            - --no-multicast-peers
+            - --denied-peer-ip=0.0.0.0-255.255.255.255
+            - --allowed-peer-ip=$(POD_IP)
+          env:
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+            - name: LIVEKIT_API_SECRET
+              valueFrom: { secretKeyRef: { name: marvin-secrets, key: LIVEKIT_API_SECRET } }
+          ports:
+            - { name: turn-udp, containerPort: 3478, protocol: UDP }
+            - { name: turn-tcp, containerPort: 3478, protocol: TCP }
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits: { memory: 256Mi }
+
+        - name: worker
+          image: marvin-worker
+          command: ["marvin-entrypoint", "python", "-m", "marvin.main"]
+          env:
+            - { name: DOCKER_HOST, value: "tcp://localhost:2375" }
+            - { name: LIVEKIT_URL, value: "ws://127.0.0.1:7880" }
+            - { name: MARVIN_WHISPER, value: "small" }   # fallback when MARVIN_STT_URL is unset
+            - { name: MARVIN_STT_URL, value: "ws://marvin-stt:8765/v1/stream" }   # streaming STT (deploy/k8s/stt.yaml)
+            - { name: MARVIN_CONFIG, value: /etc/marvin/rooms.yaml }
+          envFrom:
+            - secretRef: { name: marvin-secrets }
+            - configMapRef: { name: marvin-apps-env }
+          volumeMounts:
+            - { name: work, mountPath: /work }
+            - { name: rooms, mountPath: /etc/marvin/rooms.yaml, subPath: rooms.yaml, readOnly: true }
+            - { name: git-ssh, mountPath: /etc/marvin/ssh, readOnly: true }
+          resources:
+            requests: { cpu: "3", memory: 6Gi }
+            limits: { memory: 12Gi }
+
+        - name: apps-proxy
+          # https://marvin-<port>.<domain> -> 127.0.0.1:<port> (any port an app publishes inside the Pod)
+          image: nginx:1.27-alpine
+          ports:
+            - { name: apps, containerPort: 8081, protocol: TCP }
+          volumeMounts:
+            - { name: apps-proxy-config, mountPath: /etc/nginx/conf.d/default.conf, subPath: apps-proxy.conf, readOnly: true }
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { memory: 128Mi }
+
+        - name: web
+          image: marvin-worker
+          command: ["marvin-entrypoint", "python", "-m", "marvin.token_server"]
+          env:
+            # "true" only when clients can reach LiveKit solely through the TURN hostname (see services.yaml / livekit.yaml)
+            - { name: MARVIN_ICE_RELAY_ONLY, value: "false" }
+            - { name: MARVIN_CONFIG, value: /etc/marvin/rooms.yaml }
+          envFrom:
+            - secretRef: { name: marvin-secrets }
+          ports:
+            - { name: http, containerPort: 8080, protocol: TCP }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            periodSeconds: 5
+          volumeMounts:
+            - { name: work, mountPath: /work }
+            - { name: rooms, mountPath: /etc/marvin/rooms.yaml, subPath: rooms.yaml, readOnly: true }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }
+
+        - name: dind
+          image: docker:dind
+          securityContext: { privileged: true }
+          env:
+            - { name: DOCKER_TLS_CERTDIR, value: "" }
+          args: ["--host=tcp://0.0.0.0:2375", "--host=unix:///var/run/docker.sock"]
+          volumeMounts:
+            - { name: docker-cache, mountPath: /var/lib/docker }
+            - { name: work, mountPath: /work }   # same path as in the worker, so compose bind mounts resolve
+          resources:
+            requests: { cpu: "2", memory: 4Gi }
+            limits: { memory: 16Gi }
+
+      volumes:
+        - name: livekit-config
+          configMap: { name: livekit-config }
+        - name: rooms
+          configMap: { name: marvin-rooms }
+        - name: apps-proxy-config
+          configMap: { name: apps-proxy-config }
+        - name: turn-secret
+          secret:
+            secretName: marvin-secrets
+            items: [{ key: LIVEKIT_API_SECRET, path: turn-secret }]
+            defaultMode: 0400   # livekit refuses a world-readable secret_file; it runs as root
+        - name: git-ssh
+          secret: { secretName: marvin-git-ssh, optional: true, defaultMode: 0400 }
+  volumeClaimTemplates:
+    - metadata: { name: work }          # repos, Claude Code home (sessions), whisper cache, per-room state
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: gp3
+        resources: { requests: { storage: 100Gi } }
+    - metadata: { name: docker-cache }  # dind's /var/lib/docker
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: gp3
+        resources: { requests: { storage: 100Gi } }

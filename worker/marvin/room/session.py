@@ -1,0 +1,196 @@
+"""One RoomSession per room: LiveKit connection, per-speaker STT, conductor, harness, saved session id."""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+import subprocess
+import time
+from pathlib import Path
+
+import numpy as np
+from livekit import api, rtc
+
+from marvin.adapters.claude_code import ClaudeCodeHarness
+from marvin.bridge import Timeline
+from marvin.config import RoomConfig
+from marvin.stt import SegmenterFactory
+
+from .conductor import Conductor
+from .protocol import AGENT_IDENTITY, TOPIC_CONTROL, TOPIC_EVENTS, decode, encode
+
+log = logging.getLogger("marvin.session")
+
+
+def agent_token(api_key: str, api_secret: str, room: str, name: str) -> str:
+    grants = api.VideoGrants(room_join=True, room=room, can_subscribe=True, can_publish=False, can_publish_data=True)
+    return api.AccessToken(api_key, api_secret).with_identity(AGENT_IDENTITY).with_name(name).with_grants(grants).to_jwt()
+
+
+def git_url_for_clone(url: str) -> str:
+    """git@github.com:org/repo.git -> https://github.com/org/repo.git when we authenticate with GITHUB_TOKEN."""
+    if os.environ.get("GITHUB_TOKEN") and url.startswith("git@github.com:"):
+        return "https://github.com/" + url[len("git@github.com:"):]
+    return url
+
+
+def ensure_repo(cfg: RoomConfig) -> None:
+    """Clone on first start if the directory is missing and a git_url is configured."""
+    path = Path(cfg.repo)
+    if path.exists():
+        return
+    if not cfg.git_url:
+        # No repo to clone: start as an empty sandbox so the room is usable (and Marvin can `git clone` on request).
+        log.warning("room %s: %s does not exist and no git_url set; creating an empty directory", cfg.name, cfg.repo)
+        path.mkdir(parents=True, exist_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = ["git", "clone", *(["--branch", cfg.branch] if cfg.branch else []), git_url_for_clone(cfg.git_url), str(path)]
+    log.info("room %s: %s", cfg.name, " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+
+class RoomSession:
+    def __init__(
+        self,
+        cfg: RoomConfig,
+        *,
+        url: str,
+        api_key: str,
+        api_secret: str,
+        stt: SegmenterFactory,
+        agent_name: str = "Marvin",
+        state_dir: str | None = None,
+    ) -> None:
+        self.cfg = cfg
+        self.url, self.api_key, self.api_secret = url, api_key, api_secret
+        self.stt = stt
+        self.agent_name = agent_name
+        self.state_file = Path(state_dir) / f"{cfg.name}.json" if state_dir else None
+        self.room = rtc.Room()
+        self.consumers: dict[str, asyncio.Task] = {}
+        self.conductor: Conductor | None = None
+
+    # -- persisted state ---------------------------------------------------------
+    def _load_state(self) -> dict:
+        try:
+            return json.loads(self.state_file.read_text()) if self.state_file and self.state_file.exists() else {}
+        except Exception:
+            return {}
+
+    def _save_state(self, **kv) -> None:
+        if not self.state_file:
+            return
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.state_file.write_text(json.dumps({**self._load_state(), **kv}))
+
+    def _make_harness(self, cfg: RoomConfig, resume: str | None) -> ClaudeCodeHarness:
+        return ClaudeCodeHarness(cfg.repo, permissions=None, agent_name=self.agent_name, room=cfg.name, model=cfg.model, resume=resume, add_dirs=list(cfg.linked))  # type: ignore[arg-type]
+
+    @property
+    def harness(self):
+        return self.conductor.harness if self.conductor else None
+
+    async def reconfigure(self, cfg: RoomConfig) -> None:
+        """Swap the harness (new model and/or linked repos) while keeping the room, the conversation and the queue."""
+        assert self.conductor is not None
+        old = self.conductor.harness
+        resume = getattr(old, "session_id", None) or self._load_state().get("session_id")
+        new = self._make_harness(cfg, resume)
+        new.permissions = self.conductor.permissions
+        try:
+            await new.start()
+        except Exception as e:
+            if not resume:
+                raise
+            log.warning("room %s: cannot resume session %s (%s); reconfiguring with a new one", cfg.name, resume[:8], str(e)[:120])
+            self._save_state(session_id=None)
+            new = self._make_harness(cfg, None)
+            new.permissions = self.conductor.permissions
+            await new.start()
+        self.conductor.harness = new
+        self.cfg = cfg
+        try:
+            await old.close()
+        except Exception:
+            log.exception("room %s: closing the old harness", cfg.name)
+        log.info("room %s: harness reconfigured (model=%s, linked=%s)%s", cfg.name, cfg.model or "default", list(cfg.linked), f", resuming {resume[:8]}" if resume else "")
+
+    # -- lifecycle -----------------------------------------------------------------
+    async def start(self) -> None:
+        cfg = self.cfg
+        await asyncio.to_thread(ensure_repo, cfg)
+        resume = self._load_state().get("session_id")
+
+        async def publish(event: dict) -> None:
+            if event.get("kind") == "result" and event.get("session_id"):
+                self._save_state(session_id=event["session_id"])
+            await self.room.local_participant.publish_data(encode(event), reliable=True, topic=TOPIC_EVENTS)
+
+        harness = self._make_harness(cfg, resume)
+        self.conductor = Conductor(harness, publish, agent_name=self.agent_name, timeline=Timeline(t0=time.monotonic()), app_links=[l.to_wire() for l in cfg.app_links])
+        harness.permissions = self.conductor.permissions
+        conductor = self.conductor
+
+        async def consume(track: rtc.Track, participant: rtc.RemoteParticipant) -> None:
+            speaker = participant.name or participant.identity
+            seg = self.stt(speaker, conductor.on_segment, language=cfg.language, clock=time.monotonic)
+            stream = rtc.AudioStream(track, sample_rate=16_000, num_channels=1)
+            log.info("room %s: transcribing %s", cfg.name, speaker)
+            try:
+                async for ev in stream:
+                    await seg.push(np.frombuffer(ev.frame.data, dtype=np.int16))
+            finally:
+                await seg.flush()
+                await stream.aclose()
+                log.info("room %s: stopped transcribing %s", cfg.name, speaker)
+
+        @self.room.on("track_subscribed")
+        def on_track(track: rtc.Track, pub: rtc.RemoteTrackPublication, participant: rtc.RemoteParticipant) -> None:
+            if track.kind == rtc.TrackKind.KIND_AUDIO and participant.identity != AGENT_IDENTITY:
+                self.consumers[track.sid] = asyncio.create_task(consume(track, participant))
+
+        @self.room.on("track_unsubscribed")
+        def on_untrack(track: rtc.Track, pub: rtc.RemoteTrackPublication, participant: rtc.RemoteParticipant) -> None:
+            if t := self.consumers.pop(track.sid, None):
+                t.cancel()
+
+        @self.room.on("participant_connected")
+        def on_join(participant: rtc.RemoteParticipant) -> None:
+            log.info("room %s: %s joined", cfg.name, participant.name or participant.identity)
+            asyncio.create_task(conductor.announce())
+
+        @self.room.on("data_received")
+        def on_data(pkt: rtc.DataPacket) -> None:
+            if pkt.topic != TOPIC_CONTROL or pkt.participant is None:
+                return
+            sender = pkt.participant.name or pkt.participant.identity
+            try:
+                msg = decode(pkt.data)
+            except Exception:
+                log.warning("room %s: bad control packet from %s", cfg.name, sender)
+                return
+            asyncio.create_task(conductor.on_control(sender, msg))
+
+        token = agent_token(self.api_key, self.api_secret, cfg.name, self.agent_name)
+        await self.room.connect(self.url, token, rtc.RoomOptions(auto_subscribe=True))
+        log.info("room %s: joined at %s, repo %s%s", cfg.name, self.url, cfg.repo, f", resuming {resume[:8]}" if resume else "")
+        try:
+            await conductor.start()
+        except Exception as e:
+            if not resume:
+                raise
+            # The saved session no longer exists (new volume, pruned history): start fresh instead of failing the room.
+            log.warning("room %s: cannot resume session %s (%s); starting a new one", cfg.name, resume[:8], str(e)[:120])
+            self._save_state(session_id=None)
+            conductor.harness = self._make_harness(cfg, None)
+            conductor.harness.permissions = conductor.permissions
+            await conductor.start()
+
+    async def close(self) -> None:
+        for t in self.consumers.values():
+            t.cancel()
+        if self.conductor:
+            await self.conductor.close()
+        await self.room.disconnect()

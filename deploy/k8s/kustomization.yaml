@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: marvin
+resources:
+  - service-account.yaml
+  - namespace.yaml
+  - statefulset.yaml
+  - services.yaml
+  - ingress.yaml
+  - apps.yaml          # generated: make k8s-apps
+  - stt.yaml           # streaming STT on a GPU node (NVIDIA Nemotron 3.5 ASR); drop it to use local Whisper only
+  - gate.yaml          # power switch: sleep/wake page, schedule
+configMapGenerator:
+  - name: marvin-rooms
+    files: [rooms.yaml]
+  - name: livekit-config
+    files: [livekit.yaml]
+  - name: apps-proxy-config
+    files: [apps-proxy.conf]
+secretGenerator:
+  - name: marvin-secrets
+    envs: [secrets.env]   # copy secrets.env.example, fill in
+generatorOptions:
+  disableNameSuffixHash: true
+# CI pushes these to GHCR (see .github/workflows). Replace OWNER with your GitHub user/org, or point at your registry.
+images:
+  - name: marvin-worker
+    newName: ghcr.io/OWNER/marvin
+    newTag: latest
+  - name: marvin-stt
+    newName: ghcr.io/OWNER/marvin-stt
+    newTag: latest

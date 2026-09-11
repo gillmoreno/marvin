@@ -1,0 +1,78 @@
+# The power switch: always-on, tiny. Default backend of the marvin ingress (shows "Marvin is asleep" + Wake when the
+# web Service has no endpoints), /power/* always routed here, and the nightly schedule. Runs from the app image.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: marvin-gate
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: marvin-gate
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets", "deployments"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets/scale", "deployments/scale"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: marvin-gate
+subjects:
+  - kind: ServiceAccount
+    name: marvin-gate
+roleRef:
+  kind: Role
+  name: marvin-gate
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marvin-gate
+  labels: { app: marvin-gate }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: marvin-gate }
+  template:
+    metadata:
+      labels: { app: marvin-gate }
+    spec:
+      serviceAccountName: marvin-gate
+      enableServiceLinks: false
+      containers:
+        - name: gate
+          image: marvin-worker
+          command: ["python", "-m", "marvin.gate"]
+          env:
+            - { name: MARVIN_NAMESPACE, value: marvin }
+            - { name: TZ, value: UTC }                    # the schedule below is read in this timezone
+            - { name: MARVIN_SLEEP_AT, value: "20:00" }   # every day, unless someone is in a room
+            - { name: MARVIN_WAKE_AT, value: "08:00" }    # weekdays
+            - { name: LIVEKIT_URL, value: "http://marvin-livekit:7880" }
+          envFrom:
+            - secretRef: { name: marvin-secrets }         # LIVEKIT_API_KEY/SECRET to ask who is connected
+          ports:
+            - { name: http, containerPort: 8091 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 20m, memory: 96Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: marvin-gate
+spec:
+  selector: { app: marvin-gate }
+  ports:
+    - { name: http, port: 8091, targetPort: 8091 }

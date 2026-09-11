@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+.env
+.env.local
+models/
+*.log
+.marvin/
+web/certs/
+deploy/k8s/secrets.env
+.pytest_cache/
+*.tsbuildinfo
+*.aiff
+.DS_Store

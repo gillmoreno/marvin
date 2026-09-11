@@ -1,0 +1,22 @@
+from marvin.ports import AppsRouting, listening_ports
+
+
+def test_parse_proc_net_tcp(tmp_path):
+    (tmp_path / "net").mkdir()
+    (tmp_path / "net" / "tcp").write_text(
+        "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+        "   0: 00000000:0BB8 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 1 0\n"   # 3000 LISTEN
+        "   1: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 1 0\n"   # 8080 (own) LISTEN
+        "   2: 0100007F:1F41 0100007F:C350 01 00000000:00000000 00:00000000 00000000     0        0 1 0\n"   # 8001 ESTABLISHED
+    )
+    (tmp_path / "net" / "tcp6").write_text("header\n   0: 00000000000000000000000000000000:1F40 00000000000000000000000000000000:0000 0A 0 0 0 0 0 0 0 1 0\n")  # 8000
+    assert listening_ports(str(tmp_path)) == {3000, 8000}
+
+
+def test_routing_links():
+    local = AppsRouting()
+    assert local.link(3000)["url"] == "http://localhost:3000"
+    prod = AppsRouting(domain="example.com", routed_ports=frozenset({3000, 8000}))
+    assert prod.link(3000)["url"] == "https://marvin-3000.example.com"
+    assert prod.link(6006)["url"] == "" and "no URL" in prod.link(6006)["label"]
+    assert AppsRouting.from_env({"MARVIN_APPS_DOMAIN": "x.y", "MARVIN_APPS_PORTS": "3000, 8000"}).routed_ports == {3000, 8000}

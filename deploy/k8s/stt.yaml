@@ -1,0 +1,76 @@
+# Streaming STT on a GPU node. Separate Deployment so the (CPU) Marvin StatefulSet never has to move.
+# Scheduling: it requests `nvidia.com/gpu: 1` and tolerates the standard GPU taint. Add the tolerations and
+# nodeAffinity your GPU node pool needs (a T4 or L4 is plenty; with fp16 on a T4). With a cluster autoscaler,
+# scaling this Deployment to 0 (`make stt-off`) releases the GPU node.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marvin-stt
+  labels: { app: marvin-stt }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # one GPU: never two pods at once
+  selector:
+    matchLabels: { app: marvin-stt }
+  template:
+    metadata:
+      labels: { app: marvin-stt }
+    spec:
+      terminationGracePeriodSeconds: 20
+      enableServiceLinks: false   # k8s would inject MARVIN_STT_PORT=tcp://<clusterip>:8765 from the Service, which the server reads as its port
+      tolerations:
+        - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+      # Pin a GPU type if your nodes are labelled for it, e.g.:
+      # affinity:
+      #   nodeAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       nodeSelectorTerms:
+      #         - matchExpressions:
+      #             - { key: nvidia.com/gpu.product, operator: In, values: [Tesla-T4, NVIDIA-L4] }
+      containers:
+        - name: stt
+          image: marvin-stt
+          imagePullPolicy: Always
+          env:
+            - { name: MARVIN_STT_CHUNK_MS, value: "320" }
+            - { name: MARVIN_STT_LANG, value: "auto" }
+            - { name: MARVIN_STT_PRECISION, value: "fp16" }   # T4 has no bf16
+            - { name: HF_HOME, value: /cache/hf }
+          ports:
+            - { name: ws, containerPort: 8765 }
+          startupProbe:                     # first start downloads ~2.4 GB and loads the model
+            httpGet: { path: /healthz, port: ws }
+            periodSeconds: 10
+            failureThreshold: 90
+          readinessProbe:
+            httpGet: { path: /healthz, port: ws }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "2", memory: 8Gi, nvidia.com/gpu: 1 }
+            limits: { memory: 12Gi, nvidia.com/gpu: 1 }
+          volumeMounts:
+            - { name: hf-cache, mountPath: /cache/hf }
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - name: hf-cache
+          persistentVolumeClaim: { claimName: marvin-stt-cache }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 1Gi }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: marvin-stt-cache
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: gp3
+  resources: { requests: { storage: 10Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: marvin-stt
+spec:
+  selector: { app: marvin-stt }
+  ports:
+    - { name: ws, port: 8765, targetPort: ws }

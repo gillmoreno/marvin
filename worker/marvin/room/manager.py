@@ -1,0 +1,231 @@
+"""Owns every RoomSession in this worker. Rooms come from rooms.yaml (static) or are created at runtime
+through the admin API and persisted in <state_dir>/rooms.json so they survive restarts."""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import re
+import subprocess
+from dataclasses import asdict, replace
+from pathlib import Path
+from typing import Any
+
+from marvin.config import AppLink, Config, RoomConfig
+from marvin.ports import AppsRouting, listening_ports
+
+from .session import RoomSession
+
+log = logging.getLogger("marvin.manager")
+ROOM_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
+
+
+class RoomManager:
+    def __init__(self, config: Config, *, repos_dir: str, state_dir: str | None, session_kwargs: dict[str, Any], routing: AppsRouting | None = None) -> None:
+        self.static = {r.name: r for r in config.rooms}
+        self.repos_dir = Path(repos_dir)
+        self.state_file = Path(state_dir) / "rooms.json" if state_dir else None
+        self.session_kwargs = session_kwargs
+        self.routing = routing or AppsRouting()
+        self.overrides: dict[str, dict] = {}  # per-room model/linked changes made from the UI (also for static rooms)
+        self.dynamic: dict[str, RoomConfig] = self._load_dynamic()
+        self.sessions: dict[str, RoomSession] = {}
+        self._ports: set[int] = set()
+        self._watcher: asyncio.Task | None = None
+
+    # -- persistence -------------------------------------------------------------
+    def _load_dynamic(self) -> dict[str, RoomConfig]:
+        if not self.state_file or not self.state_file.exists():
+            return {}
+        try:
+            data = json.loads(self.state_file.read_text())
+        except Exception:
+            log.exception("could not read %s", self.state_file)
+            return {}
+        out = {}
+        for r in data.get("rooms", []):
+            links = tuple(AppLink(**l) for l in r.pop("app_links", []))
+            r["linked"] = tuple(r.get("linked", []))
+            out[r["name"]] = RoomConfig(app_links=links, **r)
+        self.overrides = data.get("overrides", {})
+        return out
+
+    def _save_dynamic(self) -> None:
+        if not self.state_file:
+            return
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        rooms = []
+        for r in self.dynamic.values():
+            d = asdict(r)
+            d["app_links"] = [asdict(l) for l in r.app_links]
+            rooms.append(d)
+        self.state_file.write_text(json.dumps({"rooms": rooms, "overrides": self.overrides}, indent=2))
+
+    # -- queries -----------------------------------------------------------------
+    def configs(self) -> dict[str, RoomConfig]:
+        merged = {**self.dynamic, **self.static}  # static wins on a name clash
+        for name, ov in self.overrides.items():
+            if name in merged:
+                merged[name] = replace(merged[name], **{k: (tuple(v) if k == "linked" else v) for k, v in ov.items()})
+        return merged
+
+    def describe(self) -> list[dict]:
+        out = []
+        for name, cfg in sorted(self.configs().items()):
+            s = self.sessions.get(name)
+            h = getattr(s, "harness", None) if s else None
+            out.append({
+                "name": name, "repo": cfg.repo, "git_url": cfg.git_url, "branch": cfg.branch,
+                "static": name in self.static, "live": s is not None,
+                "model": (getattr(h, "model", None) or cfg.model), "model_pinned": cfg.model, "linked": list(cfg.linked),
+                "app_links": (s.conductor.app_links if s and s.conductor else [l.to_wire() for l in cfg.app_links]),
+            })
+        return out
+
+    def repos(self) -> list[dict]:
+        out = []
+        if self.repos_dir.exists():
+            for d in sorted(p for p in self.repos_dir.iterdir() if p.is_dir()):
+                out.append({"name": d.name, "path": str(d), **_git_info(d), "rooms": [n for n, c in self.configs().items() if Path(c.repo) == d]})
+        return out
+
+    # -- lifecycle -----------------------------------------------------------------
+    async def start_all(self) -> None:
+        results = await asyncio.gather(*(self.start_room(name) for name in self.configs()), return_exceptions=True)
+        for name, r in zip(self.configs(), results):
+            if isinstance(r, Exception):
+                log.error("room %s failed to start: %s", name, r)
+        self._watcher = asyncio.create_task(self._watch_ports())
+
+    async def start_room(self, name: str) -> RoomSession:
+        if name in self.sessions:
+            return self.sessions[name]
+        cfg = self.configs()[name]
+        session = RoomSession(cfg, **self.session_kwargs)
+        await session.start()
+        self.sessions[name] = session
+        await self._push_links(session)
+        return session
+
+    async def stop_room(self, name: str) -> None:
+        if s := self.sessions.pop(name, None):
+            await s.close()
+
+    async def close(self) -> None:
+        if self._watcher:
+            self._watcher.cancel()
+        await asyncio.gather(*(s.close() for s in self.sessions.values()), return_exceptions=True)
+
+    # -- admin operations ----------------------------------------------------------
+    async def create_room(self, name: str, *, repo: str | None = None, git_url: str | None = None, branch: str | None = None, language: str | None = None, linked: list[str] | None = None) -> dict:
+        if not ROOM_NAME_RE.match(name):
+            raise ValueError("room name: lowercase letters, digits and dashes, max 40 chars")
+        if name in self.configs():
+            raise ValueError(f"room {name!r} already exists")
+        if repo and not repo.startswith("/"):
+            repo = str(self.repos_dir / repo)
+        if not repo:
+            repo = str(self.repos_dir / (_repo_name(git_url) if git_url else name))
+        cfg = RoomConfig(name=name, repo=repo, git_url=git_url, branch=branch, language=language, linked=tuple(linked or ()))
+        log.info("create room %s: repo=%s git_url=%s branch=%s", name, repo, git_url, branch)
+        self.dynamic[name] = cfg
+        self._save_dynamic()
+        try:
+            await self.start_room(name)
+        except Exception:
+            self.dynamic.pop(name, None)
+            self._save_dynamic()
+            raise
+        return self.describe_one(name)
+
+    async def update_room(self, name: str, *, model: str | None = None, linked: list[str] | None = None, clear_model: bool = False) -> dict:
+        """Change a room's model and/or linked repos; the harness is swapped, the conversation resumes."""
+        if name not in self.configs():
+            raise KeyError(name)
+        ov = dict(self.overrides.get(name, {}))
+        if clear_model:
+            ov.pop("model", None)
+        elif model is not None:
+            ov["model"] = model
+        if linked is not None:
+            paths = []
+            for p in linked:
+                p = p if p.startswith("/") else str(self.repos_dir / p)
+                if not Path(p).is_dir():
+                    raise ValueError(f"{p} is not a directory on this machine")
+                paths.append(p)
+            ov["linked"] = paths
+        self.overrides[name] = ov
+        self._save_dynamic()
+        cfg = self.configs()[name]
+        if s := self.sessions.get(name):
+            await s.reconfigure(cfg)
+        return self.describe_one(name)
+
+    async def delete_room(self, name: str) -> None:
+        if name in self.static:
+            raise ValueError(f"room {name!r} comes from rooms.yaml; remove it there")
+        if name not in self.dynamic:
+            raise KeyError(name)
+        await self.stop_room(name)
+        self.dynamic.pop(name)
+        self._save_dynamic()
+
+    async def clone_repo(self, url: str, name: str | None = None, branch: str | None = None) -> dict:
+        name = name or _repo_name(url)
+        if not ROOM_NAME_RE.match(name.lower()):
+            raise ValueError("repo folder name: letters, digits and dashes")
+        dest = self.repos_dir / name
+        if dest.exists():
+            raise ValueError(f"{dest} already exists")
+        cmd = ["git", "clone", *(["--branch", branch] if branch else []), url, str(dest)]
+        log.info("clone: %s", " ".join(cmd))
+        proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        out, _ = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(out.decode(errors="replace")[-800:])
+        return {"name": name, "path": str(dest), **_git_info(dest)}
+
+    def describe_one(self, name: str) -> dict:
+        return next(r for r in self.describe() if r["name"] == name)
+
+    # -- app links: static config + whatever is listening on this machine -----------
+    def ports(self) -> list[dict]:
+        return [{"port": p, **self.routing.link(p)} for p in sorted(self._ports)]
+
+    async def _push_links(self, session: RoomSession) -> None:
+        if not session.conductor:
+            return
+        links = [l.to_wire() for l in session.cfg.app_links] + [self.routing.link(p) for p in sorted(self._ports)]
+        await session.conductor.set_app_links(links)
+
+    async def _watch_ports(self, interval: float = 4.0) -> None:
+        while True:
+            try:
+                now = listening_ports()
+                if now != self._ports:
+                    log.info("listening ports: %s", sorted(now))
+                    self._ports = now
+                    for s in list(self.sessions.values()):
+                        await self._push_links(s)
+            except Exception:
+                log.exception("port watcher")
+            await asyncio.sleep(interval)
+
+
+def _repo_name(url: str | None) -> str:
+    if not url:
+        return "repo"
+    tail = url.rstrip("/").rsplit("/", 1)[-1].rsplit(":", 1)[-1]
+    return tail[:-4] if tail.endswith(".git") else tail
+
+
+def _git_info(path: Path) -> dict:
+    def git(*args: str) -> str:
+        try:
+            return subprocess.run(["git", "-C", str(path), *args], capture_output=True, text=True, timeout=5).stdout.strip()
+        except Exception:
+            return ""
+    if not (path / ".git").exists():
+        return {"git": False, "remote": None, "branch": None, "dirty": False}
+    return {"git": True, "remote": git("remote", "get-url", "origin") or None, "branch": git("rev-parse", "--abbrev-ref", "HEAD") or None, "dirty": bool(git("status", "--porcelain"))}

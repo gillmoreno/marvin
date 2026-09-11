@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: marvin-web
+spec:
+  selector: { app: marvin }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+---
+# LiveKit signaling + media + the coturn sidecar. If browsers can only reach the cluster by hostname (VPN/firewall
+# that allows DNS names but not Pod/Service IPs), pin `clusterIP` here and create an A record for the TURN hostname
+# in livekit.yaml (marvin-turn.example.com) pointing at it; then set MARVIN_ICE_RELAY_ONLY=true on the web container.
+apiVersion: v1
+kind: Service
+metadata:
+  name: marvin-livekit
+spec:
+  selector: { app: marvin }
+  # clusterIP: 10.0.0.10   # pin it when a DNS record must point here (see above)
+  ports:
+    - { name: ws, port: 7880, targetPort: 7880, protocol: TCP }
+    - { name: ice-tcp, port: 7881, targetPort: 7881, protocol: TCP }
+    - { name: ice-udp, port: 7882, targetPort: 7882, protocol: UDP }
+    - { name: turn-udp, port: 3478, targetPort: 3478, protocol: UDP }
+    - { name: turn-tcp, port: 3478, targetPort: 3478, protocol: TCP }
+---
+# Apps proxy sidecar: marvin-<port>.<domain> hostnames land here (see apps-proxy.conf)
+apiVersion: v1
+kind: Service
+metadata:
+  name: marvin-apps
+spec:
+  selector: { app: marvin }
+  ports:
+    - { name: http, port: 8081, targetPort: 8081 }

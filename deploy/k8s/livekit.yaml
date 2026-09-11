@@ -1,0 +1,29 @@
+# livekit-server config for the Marvin Pod. Keys come from the --keys flag (Secret), node-ip from the Pod IP.
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882            # single UDP mux port for direct media (kept for clients that can reach the Pod IP)
+  port_range_start: 50000   # ICE host candidate ports; Pod-internal only
+  port_range_end: 50200
+  use_external_ip: false
+  # When browsers can only reach hostnames (VPN/firewall that resolves DNS names but blocks raw Pod/Service IPs),
+  # WebRTC's IP candidates are useless and LiveKit's embedded TURN advertises its URL with the node IP. So media goes
+  # through the coturn sidecar, advertised here by hostname (give marvin-turn.<domain> an A record to the
+  # marvin-livekit Service, see services.yaml). Credentials: time-limited HMAC (coturn --use-auth-secret) with the
+  # shared secret mounted from the marvin Secret.
+  turn_servers:
+    - host: marvin-turn.example.com
+      port: 3478
+      protocol: udp
+      secret_file: /etc/livekit-secret/turn-secret
+      ttl: 3600
+    - host: marvin-turn.example.com
+      port: 3478
+      protocol: tcp
+      secret_file: /etc/livekit-secret/turn-secret
+      ttl: 3600
+turn:
+  enabled: false
+logging:
+  level: info
+  json: true

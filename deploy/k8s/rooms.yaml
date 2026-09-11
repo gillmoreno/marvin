@@ -1,0 +1,25 @@
+# Where the room UI lives and how app ports get hostnames (both used by deploy/gen_apps.py).
+#   https://marvin.<domain>            the room UI (must match the host in ingress.yaml)
+#   https://marvin-<port>.<domain>     that port inside the Pod, for every port listed below
+# Adding a port here = one Ingress rule (+ a DNS record on your side, or via external-dns). Regenerate apps.yaml with `make k8s-apps`.
+domain: example.com
+ingress_class: nginx
+ports: [3000, 3001, 4000, 4200, 5000, 5173, 5174, 8000, 8001, 8080, 8501, 8888, 9000]
+
+# One entry per voice room. `repo` is where the harness works (on the shared /work volume, same path inside dind).
+# A room whose directory is missing is cloned from `git_url`, or created empty when there is none.
+# `app_links` are shown in the room UI; links with a `port` are reachable through the apps proxy.
+rooms:
+  - name: sandbox
+    repo: /work/repos/sandbox
+    app_links:
+      - { label: room UI, url: https://marvin.example.com }
+
+  # Example of a real room. Needs the marvin-git-ssh Secret (deploy key) or GITHUB_TOKEN for the clone.
+  # - name: backend
+  #   repo: /work/repos/backend
+  #   git_url: git@github.com:your-org/backend.git
+  #   language: en
+  #   app_links:
+  #     - { label: frontend, url: https://marvin-3000.example.com, port: 3000 }
+  #     - { label: api, url: https://marvin-8000.example.com, port: 8000 }
