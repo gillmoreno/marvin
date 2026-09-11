@@ -49,7 +49,12 @@ def make_admin_app(mgr: RoomManager) -> web.Application:
         return web.json_response(room)
 
     async def models(req: web.Request) -> web.Response:
-        """Models people can pick per room for one harness (default: the worker's default harness). "" lets the harness decide."""
+        """Models people can pick per room. With `room=`, a live agent that reports its own models (ACP configOptions /
+        availableModels) wins over the profile's static list; otherwise the list of `harness=` (default: the worker's
+        default harness). "" lets the harness decide."""
+        live = mgr.live_models(req.query.get("room", ""))
+        if live is not None:
+            return web.json_response(live)
         try:
             p = registry.get(req.query.get("harness") or None)
         except KeyError as e:

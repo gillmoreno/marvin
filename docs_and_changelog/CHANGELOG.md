@@ -2,6 +2,15 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-11 — Live model list and picker polish
+
+- The model picker lists the models a running ACP agent reports about itself: `GET /models?room=<name>` prefers the
+  live harness's `available_models` over the profile's static list (response carries `live: true`); the web hook
+  re-fetches when the harness or its effective model changes. Pinning one goes through the agent's own model selector
+  and resumes the same session. Verified with Grok Build (grok-4.6 / grok-4.5).
+- The harness picker no longer flashes "default ( )" before `/api/harnesses` and the room info have loaded.
+- Dev: the Vite `/api` proxy follows `MARVIN_TOKEN_PORT`, so the token server can run off 8080.
+
 ## 2026-09-11 — ACP harness adapter and per-room harness choice
 
 See `harnesses.md` for the full design, the profile table and the decisions to review.

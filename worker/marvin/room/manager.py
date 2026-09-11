@@ -84,6 +84,15 @@ class RoomManager:
             })
         return out
 
+    def live_models(self, room: str) -> dict | None:
+        """Models the room's running agent reports about itself (ACP harnesses), or None to fall back to the profile."""
+        s = self.sessions.get(room)
+        h = getattr(s, "harness", None) if s else None
+        models = list(getattr(h, "available_models", None) or [])
+        if h is None or not models:
+            return None
+        return {"harness": h.name, "models": models, "default": getattr(h, "model", None) or "", "live": True}
+
     def repos(self) -> list[dict]:
         out = []
         if self.repos_dir.exists():
