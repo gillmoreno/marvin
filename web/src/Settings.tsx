@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { agent } from "./agent";
+import { AccountSection } from "./RoomSettings";
 
 /** Sleep the whole machine (scale to zero). Only meaningful on the cluster, where /power is served by the gate. */
 export function PowerSection() {
@@ -33,6 +34,7 @@ export function SettingsPanel({ onClose, extra }: { onClose: () => void; extra?:
           <button className="ghost" onClick={onClose}>close</button>
         </header>
         {extra}
+        <AccountSection />
         <PowerSection />
       </div>
     </div>

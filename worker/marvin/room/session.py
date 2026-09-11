@@ -30,6 +30,17 @@ def agent_token(api_key: str, api_secret: str, room: str, name: str) -> str:
     return api.AccessToken(api_key, api_secret).with_identity(AGENT_IDENTITY).with_name(name).with_grants(grants).to_jwt()
 
 
+def roles_of(participant: rtc.RemoteParticipant) -> frozenset[str]:
+    """Roles the token server put in the participant's (server-signed) metadata: {"roles": ["participant", "admin"]}.
+    Empty, missing or malformed metadata means no roles."""
+    try:
+        meta = json.loads(participant.metadata or "")
+        roles = meta.get("roles") if isinstance(meta, dict) else None
+        return frozenset(str(r) for r in roles) if isinstance(roles, list) else frozenset()
+    except Exception:
+        return frozenset()
+
+
 def git_url_for_clone(url: str) -> str:
     """git@github.com:org/repo.git -> https://github.com/org/repo.git when we authenticate with GITHUB_TOKEN."""
     if os.environ.get("GITHUB_TOKEN") and url.startswith("git@github.com:"):
@@ -182,7 +193,7 @@ class RoomSession:
             except Exception:
                 log.warning("room %s: bad control packet from %s", cfg.name, sender)
                 return
-            asyncio.create_task(conductor.on_control(sender, msg))
+            asyncio.create_task(conductor.on_control(sender, msg, roles=roles_of(pkt.participant)))
 
         token = agent_token(self.api_key, self.api_secret, cfg.name, self.agent_name)
         await self.room.connect(self.url, token, rtc.RoomOptions(auto_subscribe=True))

@@ -13,6 +13,13 @@ from marvin import notes as notes_mod
 log = logging.getLogger("marvin.admin")
 
 
+def who(req: web.Request) -> str:
+    """The signed-in user, as the token server saw them (X-Marvin-User/-Roles set by its proxy); "?" when called directly."""
+    user = req.headers.get("X-Marvin-User", "?")
+    roles = req.headers.get("X-Marvin-Roles", "")
+    return f"{user} [{roles}]" if roles else user
+
+
 def make_admin_app(mgr: RoomManager) -> web.Application:
     app = web.Application()
 
@@ -21,6 +28,7 @@ def make_admin_app(mgr: RoomManager) -> web.Application:
 
     async def create_room(req: web.Request) -> web.Response:
         body = await req.json()
+        log.info("%s creates room %r", who(req), body.get("name"))
         try:
             room = await mgr.create_room(str(body.get("name", "")).strip(), repo=body.get("repo") or None, git_url=body.get("git_url") or None, branch=body.get("branch") or None, language=body.get("language") or None)
         except (ValueError, KeyError) as e:
@@ -32,6 +40,7 @@ def make_admin_app(mgr: RoomManager) -> web.Application:
 
     async def patch_room(req: web.Request) -> web.Response:
         body = await req.json()
+        log.info("%s updates room %s: %s", who(req), req.match_info["name"], body)
         try:
             room = await mgr.update_room(
                 req.match_info["name"],
@@ -69,10 +78,12 @@ def make_admin_app(mgr: RoomManager) -> web.Application:
 
     async def put_notes(req: web.Request) -> web.Response:
         body = await req.json()
+        log.info("%s writes the machine notes (%d chars)", who(req), len(str(body.get("text", ""))))
         notes_mod.write_notes(str(body.get("text", "")))
         return web.json_response({"path": str(notes_mod.notes_path()), "text": notes_mod.read_notes()})
 
     async def delete_room(req: web.Request) -> web.Response:
+        log.info("%s deletes room %s", who(req), req.match_info["name"])
         try:
             await mgr.delete_room(req.match_info["name"])
         except KeyError:
@@ -86,6 +97,7 @@ def make_admin_app(mgr: RoomManager) -> web.Application:
 
     async def clone(req: web.Request) -> web.Response:
         body = await req.json()
+        log.info("%s clones %s", who(req), body.get("url"))
         try:
             return web.json_response(await mgr.clone_repo(str(body["url"]).strip(), body.get("name") or None, body.get("branch") or None), status=201)
         except (ValueError, KeyError) as e:

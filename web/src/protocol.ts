@@ -17,6 +17,7 @@ export type MarvinEvent =
   | { kind: "auto_approve"; on: boolean; by: string } // "always allow" was toggled by someone in the room
   | { kind: "result"; subtype: string; is_error: boolean; cost_usd: number | null; duration_ms: number | null; session_id: string | null }
   | { kind: "attachment"; name: string; path: string; by: string } // an image landed on disk, waiting for the next turn
+  | { kind: "denied"; action: string; by: string; reason: string } // a control message was refused (e.g. auto_approve without the admin role)
   | { kind: "error"; message: string };
 
 export type ControlMessage =

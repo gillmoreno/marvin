@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useIsAdmin } from "./auth";
 
 export type RoomInfo = { name: string; repo: string; git_url: string | null; branch: string | null; static: boolean; live: boolean };
 type RepoInfo = { name: string; path: string; git: boolean; remote: string | null; branch: string | null; dirty: boolean; rooms: string[] };
 
 /** Rooms on this machine, plus a form to create one from an existing folder or a GitHub URL. */
 export function RoomPicker({ value, onPick }: { value: string; onPick: (room: string) => void }) {
+  const admin = useIsAdmin(); // creating rooms (and cloning repos) is admin-only; the token server enforces it
   const [rooms, setRooms] = useState<RoomInfo[] | null>(null);
   const [repos, setRepos] = useState<RepoInfo[]>([]);
   const [creating, setCreating] = useState(false);
@@ -44,10 +46,10 @@ export function RoomPicker({ value, onPick }: { value: string; onPick: (room: st
     <div className="rooms">
       <div className="rooms-head">
         <span>Room</span>
-        <button type="button" className="ghost" onClick={() => setCreating((c) => !c)}>{creating ? "cancel" : "new room"}</button>
+        {admin && <button type="button" className="ghost" onClick={() => setCreating((c) => !c)}>{creating ? "cancel" : "new room"}</button>}
       </div>
       {rooms === null && <p className="hint">loading rooms…</p>}
-      {rooms && rooms.length === 0 && !creating && <p className="hint">No rooms yet. Create one from a folder or a GitHub URL.</p>}
+      {rooms && rooms.length === 0 && !creating && <p className="hint">{admin ? "No rooms yet. Create one from a folder or a GitHub URL." : "No rooms yet. Ask an admin to create one."}</p>}
       {rooms && rooms.length > 0 && (
         <ul className="room-list">
           {rooms.map((r) => (
@@ -59,7 +61,7 @@ export function RoomPicker({ value, onPick }: { value: string; onPick: (room: st
           ))}
         </ul>
       )}
-      {creating && (
+      {creating && admin && (
         <div className="newroom" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void create(); } }}>
           <label>Room name <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })} pattern="[a-z0-9][a-z0-9-]{0,39}" required autoFocus /></label>
           <div className="src">

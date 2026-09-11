@@ -90,6 +90,32 @@ def test_typed_ask_becomes_turn():
     assert [e for e in events if e["kind"] == "tool_result"][0]["is_error"] is True
 
 
+def test_auto_approve_is_admin_only():
+    async def run():
+        events = []
+
+        async def publish(ev):
+            events.append(ev)
+
+        h = FakeHarness()
+        c = Conductor(h, publish, timeline=Timeline(t0=0.0))
+        h.permissions = c.permissions
+        await c.start()
+        events.clear()
+        await c.on_control("Pat", {"action": "auto_approve", "on": True})  # no roles at all
+        await c.on_control("Pat", {"action": "auto_approve", "on": True}, roles=frozenset({"participant"}))
+        after_participants = (c.permissions.auto_approve, list(events))
+        await c.on_control("Root", {"action": "auto_approve", "on": True}, roles=frozenset({"participant", "admin"}))
+        await c.close()
+        return after_participants, c.permissions.auto_approve, events
+
+    (off, denied), on, events = asyncio.run(run())
+    assert off is False
+    assert denied == [{"kind": "denied", "action": "auto_approve", "by": "Pat", "reason": "admin role required"}] * 2
+    assert on is True
+    assert {"kind": "auto_approve", "on": True, "by": "Root"} in events
+
+
 def test_announce_includes_app_links():
     async def run():
         events = []

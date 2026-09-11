@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDataChannel, useLocalParticipant } from "@livekit/components-react";
 import { AGENT_IDENTITY, IMAGE_CHUNK, MAX_IMAGE_BYTES, TOPIC_CONTROL, TOPIC_EVENTS, type MarvinEvent, type ControlMessage } from "./protocol";
 
@@ -27,6 +27,7 @@ export function useMarvin() {
   const [attachments, setAttachments] = useState<Attachment[]>([]); // waiting for the next turn
   const [appLinks, setAppLinks] = useState<{ label: string; url: string }[]>([]);
   const [autoApprove, setAutoApprove] = useState(false); // mirrors the worker; the worker is the source of truth
+  const [notice, setNotice] = useState<string | null>(null); // last refusal from the worker, shown briefly in the pane
   const { localParticipant } = useLocalParticipant();
 
   const onMessage = useCallback((msg: { payload: Uint8Array }) => {
@@ -79,6 +80,9 @@ export function useMarvin() {
       case "auto_approve":
         setAutoApprove(ev.on);
         break;
+      case "denied":
+        setNotice(`${ev.by}: ${ev.action.replace("_", " ")} refused (${ev.reason})`);
+        break;
       case "result":
         setTurns((ts) => patchLast(ts, (t) => ({ ...t, result: ev })));
         break;
@@ -88,6 +92,11 @@ export function useMarvin() {
     }
   }, []);
   useDataChannel(TOPIC_EVENTS, onMessage);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   const send = useCallback(
     (m: ControlMessage) => localParticipant.publishData(enc.encode(JSON.stringify(m)), { reliable: true, topic: TOPIC_CONTROL, destinationIdentities: [AGENT_IDENTITY] }),
@@ -108,7 +117,7 @@ export function useMarvin() {
     [send],
   );
 
-  return { state, transcript, turns, permissions, attachments, autoApprove, appLinks, send, sendImage };
+  return { state, transcript, turns, permissions, attachments, autoApprove, appLinks, notice, send, sendImage };
 }
 
 function toBase64(buf: ArrayBuffer): string {

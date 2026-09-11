@@ -3,10 +3,12 @@ import type { useMarvin } from "./useMarvin";
 import { agent } from "./agent";
 import { HarnessPicker, ModelPicker, useRoomInfo } from "./RoomSettings";
 import { BoltIcon, StopIcon } from "./icons";
+import { useIsAdmin } from "./auth";
 
 export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarvin>; room: string }) {
   const roomInfo = useRoomInfo(room, marvin.turns.length);
-  const { state, turns, permissions, attachments, autoApprove, send, sendImage } = marvin;
+  const admin = useIsAdmin(); // "always allow" is admin-only (the worker enforces it; hiding it just avoids a refusal)
+  const { state, turns, permissions, attachments, autoApprove, notice, send, sendImage } = marvin;
   const [typed, setTyped] = useState("");
   const [dropping, setDropping] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -62,16 +64,21 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
             <StopIcon />
           </button>
         )}
-        <button
-          type="button"
-          className={`iconbtn${autoApprove ? " on" : ""}`}
-          aria-pressed={autoApprove}
-          onClick={() => send({ action: "auto_approve", on: !autoApprove })}
-          title={autoApprove ? "Always allow is on: every tool runs without asking the room. Click to turn off." : "Always allow: run every tool without asking the room"}
-        >
-          <BoltIcon />
-        </button>
+        {admin ? (
+          <button
+            type="button"
+            className={`iconbtn${autoApprove ? " on" : ""}`}
+            aria-pressed={autoApprove}
+            onClick={() => send({ action: "auto_approve", on: !autoApprove })}
+            title={autoApprove ? "Always allow is on: every tool runs without asking the room. Click to turn off." : "Always allow: run every tool without asking the room"}
+          >
+            <BoltIcon />
+          </button>
+        ) : (
+          autoApprove && <span className="iconbtn on" title="Always allow is on: every tool runs without asking the room. An admin can turn it off."><BoltIcon /></span>
+        )}
       </header>
+      {notice && <p className="notice">{notice}</p>}
       <div className="turns">
         {turns.length === 0 && <p className="hint">Nobody has said "{agent.name}" yet. Try: "{agent.name}, what does this repo do?"</p>}
         {turns.map((t) => (
@@ -107,7 +114,7 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
               </div>
               <div className="btns">
                 <button onClick={() => send({ action: "approve", id: p.id })}>Allow</button>
-                <button className="ghost" onClick={() => send({ action: "auto_approve", on: true })}>Always</button>
+                {admin && <button className="ghost" onClick={() => send({ action: "auto_approve", on: true })}>Always</button>}
                 <button className="danger" onClick={() => send({ action: "deny", id: p.id })}>Deny</button>
               </div>
             </div>

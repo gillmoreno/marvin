@@ -84,8 +84,9 @@ class Conductor:
             log.info("turn from %s: %s", turn.asked_by, turn.question)
             await self._enqueue(turn)
 
-    async def on_control(self, sender: str, msg: dict[str, Any]) -> None:
-        """A JSON control message from a client (approve/deny/ask/interrupt)."""
+    async def on_control(self, sender: str, msg: dict[str, Any], roles: frozenset[str] = frozenset()) -> None:
+        """A JSON control message from a client (approve/deny/ask/image/interrupt for everyone; auto_approve for admins).
+        `roles` come from the participant's server-signed LiveKit metadata (see session.roles_of)."""
         action = msg.get("action")
         if action in ("approve", "deny"):
             ok = self.permissions.resolve(str(msg.get("id")), action == "approve")
@@ -105,7 +106,12 @@ class Conductor:
                 self._attachments.append(att)
                 await self.publish(self._attachment_event(att))
         elif action == "auto_approve":
-            # "Always allow": everything runs without asking, until someone flips it back off.
+            # "Always allow": everything runs without asking, until someone flips it back off. Arbitrary code execution
+            # for the whole room, so admins only.
+            if "admin" not in roles:
+                log.warning("%s tried to toggle auto_approve without the admin role", sender)
+                await self.publish({"kind": "denied", "action": "auto_approve", "by": sender, "reason": "admin role required"})
+                return
             on = bool(msg.get("on", True))
             self.permissions.auto_approve = on
             await self.publish({"kind": "auto_approve", "on": on, "by": sender})

@@ -37,7 +37,7 @@ async def run(args: argparse.Namespace) -> None:
     )
     await mgr.start_all()
     log.info("serving %d room(s): %s", len(mgr.sessions), ", ".join(sorted(mgr.sessions)) or "(none yet; create one from the UI)")
-    runner = await serve_admin(mgr, port=args.admin_port) if args.admin_port else None
+    runner = await serve_admin(mgr, host=args.admin_host, port=args.admin_port) if args.admin_port else None
     try:
         await asyncio.Event().wait()
     finally:
@@ -63,6 +63,7 @@ def main() -> None:
     p.add_argument("--language", default=os.environ.get("MARVIN_LANGUAGE"))
     p.add_argument("--state-dir", default=os.environ.get("MARVIN_STATE_DIR"), help="per-room state + dynamic rooms; unset = nothing persists")
     p.add_argument("--admin-port", type=int, default=int(os.environ.get("MARVIN_ADMIN_PORT", "8090")), help="0 disables the admin API")
+    p.add_argument("--admin-host", default=os.environ.get("MARVIN_ADMIN_HOST", "127.0.0.1"), help="bind address of the admin API; it has no auth of its own (the token server enforces roles), so only 127.0.0.1 or a private container network")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
