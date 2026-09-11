@@ -5,20 +5,12 @@ import logging
 
 from aiohttp import web
 
+from marvin.adapters import registry
 from marvin.changes import changes as repo_changes, file_diff
 from marvin.room.manager import RoomManager
 from marvin import notes as notes_mod
 
 log = logging.getLogger("marvin.admin")
-
-# Models people can pick per room. "" (default) lets the harness decide.
-DEFAULT_MODEL = "claude-fable-5-1"
-MODELS = [
-    {"id": "claude-fable-5-1", "label": "Fable 5.1", "note": "most capable"},
-    {"id": "claude-opus-5", "label": "Opus 5", "note": "strong, cheaper"},
-    {"id": "claude-sonnet-5", "label": "Sonnet 5", "note": "fast"},
-    {"id": "claude-haiku-4-5-20251001", "label": "Haiku 4.5", "note": "fastest, cheapest"},
-]
 
 
 def make_admin_app(mgr: RoomManager) -> web.Application:
@@ -41,7 +33,12 @@ def make_admin_app(mgr: RoomManager) -> web.Application:
     async def patch_room(req: web.Request) -> web.Response:
         body = await req.json()
         try:
-            room = await mgr.update_room(req.match_info["name"], model=body.get("model") or None, clear_model=body.get("model") == "", linked=body.get("linked"))
+            room = await mgr.update_room(
+                req.match_info["name"],
+                model=body.get("model") or None, clear_model=body.get("model") == "",
+                harness=body.get("harness") or None, clear_harness=body.get("harness") == "",
+                linked=body.get("linked"),
+            )
         except KeyError:
             return web.json_response({"error": "no such room"}, status=404)
         except ValueError as e:
@@ -52,7 +49,15 @@ def make_admin_app(mgr: RoomManager) -> web.Application:
         return web.json_response(room)
 
     async def models(req: web.Request) -> web.Response:
-        return web.json_response({"models": MODELS, "default": DEFAULT_MODEL})
+        """Models people can pick per room for one harness (default: the worker's default harness). "" lets the harness decide."""
+        try:
+            p = registry.get(req.query.get("harness") or None)
+        except KeyError as e:
+            return web.json_response({"error": str(e)}, status=404)
+        return web.json_response({"harness": p.id, "models": p.models, "default": p.default_model or ""})
+
+    async def harnesses(req: web.Request) -> web.Response:
+        return web.json_response({"harnesses": [p.to_wire() for p in registry.profiles()], "default": registry.default_id()})
 
     async def get_notes(req: web.Request) -> web.Response:
         return web.json_response({"path": str(notes_mod.notes_path()), "text": notes_mod.read_notes()})
@@ -115,6 +120,7 @@ def make_admin_app(mgr: RoomManager) -> web.Application:
     app.router.add_patch("/rooms/{name}", patch_room)
     app.router.add_delete("/rooms/{name}", delete_room)
     app.router.add_get("/models", models)
+    app.router.add_get("/harnesses", harnesses)
     app.router.add_get("/notes", get_notes)
     app.router.add_put("/notes", put_notes)
     app.router.add_get("/repos", repos)

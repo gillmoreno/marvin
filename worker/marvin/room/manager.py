@@ -11,6 +11,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
+from marvin.adapters import registry
 from marvin.config import AppLink, Config, RoomConfig
 from marvin.ports import AppsRouting, listening_ports
 
@@ -78,6 +79,7 @@ class RoomManager:
                 "name": name, "repo": cfg.repo, "git_url": cfg.git_url, "branch": cfg.branch,
                 "static": name in self.static, "live": s is not None,
                 "model": (getattr(h, "model", None) or cfg.model), "model_pinned": cfg.model, "linked": list(cfg.linked),
+                "harness": (getattr(h, "name", None) if h is not None else None) or cfg.harness or registry.default_id(), "harness_pinned": cfg.harness,
                 "app_links": (s.conductor.app_links if s and s.conductor else [l.to_wire() for l in cfg.app_links]),
             })
         return out
@@ -138,8 +140,11 @@ class RoomManager:
             raise
         return self.describe_one(name)
 
-    async def update_room(self, name: str, *, model: str | None = None, linked: list[str] | None = None, clear_model: bool = False) -> dict:
-        """Change a room's model and/or linked repos; the harness is swapped, the conversation resumes."""
+    async def update_room(
+        self, name: str, *, model: str | None = None, linked: list[str] | None = None, clear_model: bool = False, harness: str | None = None, clear_harness: bool = False
+    ) -> dict:
+        """Change a room's model, harness and/or linked repos; the harness is swapped, the conversation resumes
+        (except across harnesses: a different agent cannot pick up another agent's session)."""
         if name not in self.configs():
             raise KeyError(name)
         ov = dict(self.overrides.get(name, {}))
@@ -147,6 +152,12 @@ class RoomManager:
             ov.pop("model", None)
         elif model is not None:
             ov["model"] = model
+        if clear_harness:
+            ov.pop("harness", None)
+        elif harness is not None:
+            if harness not in registry.ids():
+                raise ValueError(f"unknown harness {harness!r}; known: {', '.join(registry.ids())}")
+            ov["harness"] = harness
         if linked is not None:
             paths = []
             for p in linked:

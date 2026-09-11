@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 
+from marvin.adapters import registry
 from marvin.admin import serve_admin
 from marvin.config import Config, RoomConfig, load_config
 from marvin.ports import AppsRouting
@@ -16,6 +17,10 @@ log = logging.getLogger("marvin")
 
 
 async def run(args: argparse.Namespace) -> None:
+    if args.harness:
+        os.environ["MARVIN_HARNESS"] = args.harness  # the registry reads the default from the environment
+        if args.harness not in registry.ids():
+            raise SystemExit(f"--harness {args.harness!r}: unknown; known harnesses: {', '.join(registry.ids())}")
     if args.config:
         config = load_config(args.config)
     elif args.room:
@@ -52,6 +57,7 @@ def main() -> None:
     p.add_argument("--api-secret", default=os.environ.get("LIVEKIT_API_SECRET", "secret"))
     p.add_argument("--name", default=os.environ.get("MARVIN_NAME", "Marvin"))
     p.add_argument("--model", default=os.environ.get("MARVIN_MODEL"))
+    p.add_argument("--harness", default=os.environ.get("MARVIN_HARNESS"), help=f"default harness for rooms without one: {', '.join(registry.ids())}")
     p.add_argument("--whisper-model", default=os.environ.get("MARVIN_WHISPER", "small"))
     p.add_argument("--stt-url", default=os.environ.get("MARVIN_STT_URL"), help="ws://host:8765/v1/stream of the marvin-stt service; unset = local whisper")
     p.add_argument("--language", default=os.environ.get("MARVIN_LANGUAGE"))

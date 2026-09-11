@@ -12,7 +12,9 @@ from pathlib import Path
 import numpy as np
 from livekit import api, rtc
 
-from marvin.adapters.claude_code import ClaudeCodeHarness
+from marvin.adapters import registry
+from marvin.adapters.base import Harness
+from marvin.adapters.registry import create_harness
 from marvin.bridge import Timeline
 from marvin.config import RoomConfig
 from marvin.stt import SegmenterFactory
@@ -85,18 +87,27 @@ class RoomSession:
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
         self.state_file.write_text(json.dumps({**self._load_state(), **kv}))
 
-    def _make_harness(self, cfg: RoomConfig, resume: str | None) -> ClaudeCodeHarness:
-        return ClaudeCodeHarness(cfg.repo, permissions=None, agent_name=self.agent_name, room=cfg.name, model=cfg.model, resume=resume, add_dirs=list(cfg.linked))  # type: ignore[arg-type]
+    @staticmethod
+    def harness_id(cfg: RoomConfig) -> str:
+        return cfg.harness or registry.default_id()
+
+    def _make_harness(self, cfg: RoomConfig, resume: str | None) -> Harness:
+        return create_harness(self.harness_id(cfg), cfg.repo, agent_name=self.agent_name, room=cfg.name, model=cfg.model, resume=resume, add_dirs=list(cfg.linked), permissions=None)
 
     @property
     def harness(self):
         return self.conductor.harness if self.conductor else None
 
     async def reconfigure(self, cfg: RoomConfig) -> None:
-        """Swap the harness (new model and/or linked repos) while keeping the room, the conversation and the queue."""
+        """Swap the harness (new model, harness and/or linked repos) while keeping the room, the conversation and the queue."""
         assert self.conductor is not None
         old = self.conductor.harness
         resume = getattr(old, "session_id", None) or self._load_state().get("session_id")
+        if self.harness_id(cfg) != self.harness_id(self.cfg):
+            # Session ids are not portable across harnesses: a new agent starts a new conversation.
+            log.info("room %s: harness %s -> %s, dropping session %s", cfg.name, self.harness_id(self.cfg), self.harness_id(cfg), (resume or "")[:8])
+            resume = None
+            self._save_state(session_id=None)
         new = self._make_harness(cfg, resume)
         new.permissions = self.conductor.permissions
         try:
@@ -115,7 +126,7 @@ class RoomSession:
             await old.close()
         except Exception:
             log.exception("room %s: closing the old harness", cfg.name)
-        log.info("room %s: harness reconfigured (model=%s, linked=%s)%s", cfg.name, cfg.model or "default", list(cfg.linked), f", resuming {resume[:8]}" if resume else "")
+        log.info("room %s: harness reconfigured (harness=%s, model=%s, linked=%s)%s", cfg.name, self.harness_id(cfg), cfg.model or "default", list(cfg.linked), f", resuming {resume[:8]}" if resume else "")
 
     # -- lifecycle -----------------------------------------------------------------
     async def start(self) -> None:
