@@ -2,6 +2,35 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-11 — ACP harness adapter and per-room harness choice
+
+See `harnesses.md` for the full design, the profile table and the decisions to review.
+
+### Added
+- `worker/marvin/adapters/acp.py`: `AcpHarness`, a generic adapter speaking the Agent Client Protocol over stdio
+  (JSON-RPC 2.0, newline-delimited). Streams `text_delta`/`text`, `tool_use`/`tool_result`, routes
+  `session/request_permission` through the room's `PermissionBroker`, `interrupt()` → `session/cancel`, resumes via
+  `session/resume` or `session/load`, applies a pinned model through `session/set_config_option` (or the legacy
+  `session/set_model`), restarts the agent after a crash, and surfaces JSON-RPC errors as `error` + `result(is_error)`.
+- `worker/marvin/adapters/registry.py`: `HarnessProfile` and eight profiles: `claude-code` (SDK, default),
+  `claude-acp`, `codex`, `cursor`, `gemini`, `opencode`, `grok`, `copilot`. `MARVIN_HARNESS` picks the default,
+  `MARVIN_HARNESS_CMD_<ID>` overrides a launch command, `create_harness()` builds the right adapter.
+- `RoomConfig.harness` (`rooms.yaml` key `harness`), `RoomManager.update_room(harness=, clear_harness=)`,
+  `harness`/`harness_pinned` in `GET /rooms`, `PATCH /rooms/{name}` accepts `harness` (`""` clears),
+  `GET /harnesses`, `GET /models?harness=<id>`, `/api/harnesses` in the web proxy, `--harness` CLI flag.
+- Web: a harness picker next to the model picker; the model list reloads when the harness changes and shows
+  "harness default" for agents that report their own models.
+- Tests: `tests/fake_acp_agent.py` (a scriptable stdio ACP agent), `test_acp.py`, `test_registry.py`, and harness
+  cases in `test_config.py`, `test_room_update.py`, `test_admin.py`, `test_session_resume.py`.
+- Dockerfile: Node 22 + npm, and a commented block showing how to install the ACP CLIs a deployment needs.
+
+### Changed
+- `ROOM_SYSTEM_PROMPT` and `_truncate` moved to `worker/marvin/adapters/prompt.py` (text unchanged; the Claude adapter
+  re-exports `ROOM_SYSTEM_PROMPT`). `MODELS`/`DEFAULT_MODEL` moved from `admin.py` into the `claude-code` profile.
+- Changing a room's harness starts a new conversation (the saved session id is dropped); model and linked-repo changes
+  still resume.
+- `.env.example` and `rooms.local.yaml` document `MARVIN_HARNESS`, `harness:` and the credential each agent needs.
+
 ## 2026-09-11 — Spin-out as Marvin
 
 Marvin starts here as an independent open-source project. It was previously an internal tool called **Albi**; the

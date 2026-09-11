@@ -63,18 +63,22 @@ Marvin talks to coding agents through a small adapter contract, `worker/marvin/a
 long-lived session bound to one repo; `send(prompt)` streams `HarnessEvent`s (`text_delta`, `tool_use`,
 `permission_request`, `result`, ...). The room, the transcript and the approval flow know nothing else.
 
-- **Claude Code** (via the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python)) is the first
-  adapter: `worker/marvin/adapters/claude_code.py`. Sessions resume across restarts, tools go through the room's
-  permission broker, the model can be switched per room.
-- More harnesses via the [Agent Client Protocol](https://agentclientprotocol.com) are planned, so any ACP-speaking
-  agent can sit in a room without a bespoke adapter.
+- **Claude Code** (via the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python)) is the default:
+  `worker/marvin/adapters/claude_code.py`. Sessions resume across restarts, tools go through the room's permission
+  broker, the model can be switched per room.
+- **Any [Agent Client Protocol](https://agentclientprotocol.com) agent** through `worker/marvin/adapters/acp.py`:
+  profiles for Claude Code (`claude-acp`), Codex CLI (`codex`), Cursor CLI (`cursor`), Gemini CLI (`gemini`),
+  OpenCode (`opencode`), Grok Build (`grok`) and GitHub Copilot CLI (`copilot`). Install the CLI you want in the
+  image, give it its credentials, then pick it per room (`harness:` in `rooms.yaml` or the picker in the room header)
+  or as the worker default (`MARVIN_HARNESS`). Details, verification status and limitations:
+  [`docs_and_changelog/harnesses.md`](docs_and_changelog/harnesses.md).
 
 ## Layout
 
 ```
 worker/marvin/bridge/      transcript timeline, wake word, turn assembly     (pure python, tested)
 worker/marvin/stt/         Silero VAD + local whisper segmenter, one per speaker; optional remote streaming STT client
-worker/marvin/adapters/    harness contract, permission broker, claude_code
+worker/marvin/adapters/    harness contract, permission broker, claude_code (SDK), acp (any ACP agent), registry (profiles)
 worker/marvin/room/        wire protocol + conductor (queue, approvals, fan-out) + session + room manager
 worker/marvin/main.py      LiveKit plumbing: tracks -> segmenters -> conductor; admin API for rooms/repos/ports
 worker/marvin/token_server.py   token endpoint, /api proxy, serves the built UI in the image
