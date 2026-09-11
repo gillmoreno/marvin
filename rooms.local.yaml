@@ -1,4 +1,8 @@
 # Local two-room test. Room "dev" works in a repo of your choice, "sandbox" in an empty scratch dir.
+# Optional per room:
+#   harness: <id>   which coding agent runs the room; omit for the worker default (MARVIN_HARNESS, else claude-code).
+#                   Ids: claude-code, claude-acp, codex, cursor, gemini, opencode, grok, copilot (see docs_and_changelog/harnesses.md)
+#   model: <id>     pin a model; for ACP harnesses it is applied through the agent's own model selector when it has one
 rooms:
   - name: dev
     repo: /path/to/a/repo
@@ -7,3 +11,4 @@ rooms:
       - { label: demo app, url: http://localhost:3000 }
   - name: sandbox
     repo: /tmp/marvin-smoke
+    # harness: opencode

@@ -23,6 +23,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-cer
  && echo "deb [signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
  && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli docker-compose-plugin docker-buildx-plugin gh \
  && rm -rf /var/lib/apt/lists/*
+# Node 22 + npm: the Claude Agent SDK ships its own `claude` binary and needs neither, but every ACP harness except
+# Cursor and the OpenCode binary release is distributed through npm (see docs_and_changelog/harnesses.md).
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/* \
+ && npm config set update-notifier false
+# Install only the ACP agents this deployment will actually use; each also needs its credentials at runtime.
+# Pin versions. harness id -> package (credential):
+#   claude-acp -> @agentclientprotocol/claude-agent-acp (ANTHROPIC_API_KEY)     codex   -> @agentclientprotocol/codex-acp (OPENAI_API_KEY)
+#   gemini     -> @google/gemini-cli (GEMINI_API_KEY)                            opencode -> opencode-ai (`opencode auth login` / provider keys)
+#   grok       -> @xai-official/grok (XAI_API_KEY)                               copilot -> @github/copilot (COPILOT_GITHUB_TOKEN)
+#   cursor     -> `curl -fsS https://cursor.com/install | bash` puts `agent` in ~/.local/bin (CURSOR_API_KEY)
+# RUN npm i -g @agentclientprotocol/codex-acp@1.11.0 opencode-ai@1.18.30 @google/gemini-cli@0.59.0
+# RUN npm i -g @agentclientprotocol/claude-agent-acp@0.76.0 @xai-official/grok@1.0.25 @github/copilot@1.0.83
 COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /uvx /usr/local/bin/
 WORKDIR /app
 COPY worker/pyproject.toml worker/uv.lock ./

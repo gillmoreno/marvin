@@ -23,3 +23,36 @@ async def test_admin_roundtrip(tmp_path, monkeypatch):
         assert (await c.get("/ports")).status == 200
         assert (await c.delete("/rooms/demo")).status == 204
         assert (await c.delete("/rooms/demo")).status == 404
+
+
+@pytest.mark.asyncio
+async def test_harnesses_and_models(tmp_path, monkeypatch):
+    from tests.test_room_update import ReconfSession
+
+    monkeypatch.setattr(mgr_mod, "RoomSession", ReconfSession)
+    monkeypatch.delenv("MARVIN_HARNESS", raising=False)
+    monkeypatch.setenv("MARVIN_HARNESS_CMD_GROK", "/opt/grok agent stdio")
+    (tmp_path / "repos").mkdir()
+    mgr = RoomManager(Config(rooms=()), repos_dir=str(tmp_path / "repos"), state_dir=str(tmp_path / "state"), session_kwargs={})
+    async with TestClient(TestServer(make_admin_app(mgr))) as c:
+        j = await (await c.get("/harnesses")).json()
+        assert j["default"] == "claude-code"
+        by_id = {h["id"]: h for h in j["harnesses"]}
+        assert set(by_id) >= {"claude-code", "claude-acp", "codex", "cursor", "gemini", "opencode", "grok", "copilot"}
+        assert by_id["grok"]["command"] == ["/opt/grok", "agent", "stdio"] and "env" not in by_id["grok"]
+        assert by_id["opencode"]["kind"] == "acp" and by_id["opencode"]["auth"]
+        # models: default harness, an explicit one, an unknown one
+        j = await (await c.get("/models")).json()
+        assert j["harness"] == "claude-code" and j["default"] == "claude-fable-5-1" and [m["id"] for m in j["models"]][0] == "claude-fable-5-1"
+        j = await (await c.get("/models?harness=opencode")).json()
+        assert j == {"harness": "opencode", "models": [], "default": ""}
+        assert (await c.get("/models?harness=nope")).status == 404
+        # PATCH with a harness
+        r = await c.post("/rooms", json={"name": "demo"})
+        assert r.status == 201 and (await r.json())["harness"] == "claude-code"
+        r = await c.patch("/rooms/demo", json={"harness": "codex"})
+        assert r.status == 200 and (await r.json())["harness"] == "codex" and (await r.json())["harness_pinned"] == "codex"
+        assert (await c.patch("/rooms/demo", json={"harness": "nope"})).status == 400
+        r = await c.patch("/rooms/demo", json={"harness": ""})
+        assert r.status == 200 and (await r.json())["harness_pinned"] is None
+        assert (await c.patch("/rooms/ghost", json={"harness": "codex"})).status == 404

@@ -79,7 +79,7 @@ async def health(req: web.Request) -> web.Response:
 def make_app() -> web.Application:
     app = web.Application()
     app.router.add_get("/api/token", token)
-    for route in ("/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/models", "/api/notes"):
+    for route in ("/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/models", "/api/harnesses", "/api/notes"):
         app.router.add_route("*", route, proxy_admin)
     app.router.add_get("/api/agent", agent)
     app.router.add_get("/healthz", health)

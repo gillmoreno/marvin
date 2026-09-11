@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { useMarvin } from "./useMarvin";
 import { agent } from "./agent";
-import { ModelPicker, useRoomInfo } from "./RoomSettings";
+import { HarnessPicker, ModelPicker, useRoomInfo } from "./RoomSettings";
 import { BoltIcon, StopIcon } from "./icons";
 
 export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarvin>; room: string }) {
@@ -54,6 +54,7 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
           <span className={`dot ${state}`} />
           <span className="status-text">{label(state)}</span>
         </span>
+        <HarnessPicker room={room} info={roomInfo.info} reload={roomInfo.reload} />
         <ModelPicker room={room} info={roomInfo.info} reload={roomInfo.reload} />
         <span className="spacer" />
         {state === "thinking" && (

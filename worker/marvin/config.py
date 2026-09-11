@@ -29,6 +29,7 @@ class RoomConfig:
     git_url: str | None = None  # cloned into `repo` on first start when the directory is missing
     branch: str | None = None
     model: str | None = None
+    harness: str | None = None  # profile id from marvin.adapters.registry (claude-code, codex, opencode, ...); None = worker default
     language: str | None = None  # force STT language, e.g. "en"
     app_links: tuple[AppLink, ...] = field(default_factory=tuple)
     linked: tuple[str, ...] = field(default_factory=tuple)  # other repos this room may read/edit (harness add_dirs)
@@ -47,7 +48,7 @@ def load_config(path: str | Path) -> Config:
     rooms = []
     for r in data.get("rooms", []):
         links = tuple(AppLink(label=l["label"], url=l["url"], port=l.get("port")) for l in r.get("app_links", []))
-        rooms.append(RoomConfig(name=r["name"], repo=r["repo"], git_url=r.get("git_url"), branch=r.get("branch"), model=r.get("model"), language=r.get("language"), app_links=links, linked=tuple(r.get("linked", []))))
+        rooms.append(RoomConfig(name=r["name"], repo=r["repo"], git_url=r.get("git_url"), branch=r.get("branch"), model=r.get("model"), harness=r.get("harness"), language=r.get("language"), app_links=links, linked=tuple(r.get("linked", []))))
     names = [r.name for r in rooms]
     if len(names) != len(set(names)):
         raise ValueError(f"duplicate room names in {path}")

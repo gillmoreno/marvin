@@ -1,18 +1,66 @@
 import { useEffect, useState } from "react";
 import { agent } from "./agent";
-import { ChevronIcon, CpuIcon } from "./icons";
+import { BotIcon, ChevronIcon, CpuIcon } from "./icons";
 
 type Model = { id: string; label: string; note: string };
-type RoomInfo = { name: string; repo: string; model: string | null; model_pinned: string | null; linked: string[] };
+type Harness = { id: string; label: string; kind: string; auth: string; note: string };
+type RoomInfo = { name: string; repo: string; model: string | null; model_pinned: string | null; harness: string; harness_pinned: string | null; linked: string[] };
 type RepoInfo = { name: string; path: string };
 
-export function useModels() {
+/** Models one harness offers (empty for agents that pick their own). Re-fetched when the harness changes. */
+export function useModels(harness: string | null | undefined) {
   const [models, setModels] = useState<Model[]>([]);
   const [def, setDef] = useState<string>("");
   useEffect(() => {
-    fetch("/api/models").then((r) => r.json()).then((j) => { setModels(j.models ?? []); setDef(j.default ?? ""); }).catch(() => {});
-  }, []);
+    const q = harness ? `?harness=${encodeURIComponent(harness)}` : "";
+    fetch(`/api/models${q}`).then((r) => r.json()).then((j) => { setModels(j.models ?? []); setDef(j.default ?? ""); }).catch(() => {});
+  }, [harness]);
   return { models, default: def };
+}
+
+export function useHarnesses() {
+  const [harnesses, setHarnesses] = useState<Harness[]>([]);
+  const [def, setDef] = useState<string>("");
+  useEffect(() => {
+    fetch("/api/harnesses").then((r) => r.json()).then((j) => { setHarnesses(j.harnesses ?? []); setDef(j.default ?? ""); }).catch(() => {});
+  }, []);
+  return { harnesses, default: def };
+}
+
+async function patchRoom(room: string, body: Record<string, unknown>) {
+  const r = await fetch(`/api/rooms/${encodeURIComponent(room)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+}
+
+/** Which coding agent runs this room (Claude Code, Codex, OpenCode, ...). Switching starts a fresh conversation. */
+export function HarnessPicker({ room, info, reload }: { room: string; info: RoomInfo | null; reload: () => void }) {
+  const { harnesses, default: def } = useHarnesses();
+  const [busy, setBusy] = useState(false);
+  const current = info?.harness ?? def;
+  const label = harnesses.find((h) => h.id === current)?.label ?? current ?? "…";
+  async function change(id: string) {
+    setBusy(true);
+    try {
+      await patchRoom(room, { harness: id });
+      reload();
+    } catch (e) {
+      alert(String(e instanceof Error ? e.message : e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const pinned = Boolean(info?.harness_pinned);
+  return (
+    <span className={`modelpick harnesspick${pinned ? " pinned" : ""}`} title={`${pinned ? "Harness pinned for this room" : "Worker default harness"}: ${label}. Click to change; a new harness starts a new conversation.`}>
+      <BotIcon />
+      <span className="modelname">{label}</span>
+      <ChevronIcon />
+      <select aria-label="coding agent for this room" value={info?.harness_pinned ?? ""} disabled={busy} onChange={(e) => void change(e.target.value)}>
+        <option value="">default ({harnesses.find((h) => h.id === def)?.label ?? def})</option>
+        {harnesses.map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
+      </select>
+    </span>
+  );
 }
 
 export function useRoomInfo(room: string, refreshKey: number) {
@@ -24,15 +72,14 @@ export function useRoomInfo(room: string, refreshKey: number) {
 
 /** Compact model picker for the conversation header: what the room runs on, changeable on the spot. */
 export function ModelPicker({ room, info, reload }: { room: string; info: RoomInfo | null; reload: () => void }) {
-  const { models, default: def } = useModels();
+  const { models, default: def } = useModels(info?.harness);
   const [busy, setBusy] = useState(false);
   const current = info?.model ?? def;
-  const label = models.find((m) => m.id === current)?.label ?? current ?? "…";
+  const label = models.find((m) => m.id === current)?.label ?? (current || "harness default");
   async function change(id: string) {
     setBusy(true);
     try {
-      const r = await fetch(`/api/rooms/${encodeURIComponent(room)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ model: id }) });
-      if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+      await patchRoom(room, { model: id });
       reload();
     } catch (e) {
       alert(String(e instanceof Error ? e.message : e));
@@ -41,13 +88,14 @@ export function ModelPicker({ room, info, reload }: { room: string; info: RoomIn
     }
   }
   const pinned = Boolean(info?.model_pinned);
+  const defaultLabel = models.find((m) => m.id === def)?.label ?? (def || "harness default");
   return (
     <span className={`modelpick${pinned ? " pinned" : ""}`} title={pinned ? `Model pinned for this room: ${label}. Click to change.` : `Harness default: ${label}. Click to pin a model for this room.`}>
       <CpuIcon />
       <span className="modelname">{label}</span>
       <ChevronIcon />
       <select aria-label="model for this room" value={info?.model_pinned ?? ""} disabled={busy} onChange={(e) => void change(e.target.value)}>
-        <option value="">default ({models.find((m) => m.id === def)?.label ?? def})</option>
+        <option value="">{models.length ? `default (${defaultLabel})` : "harness default"}</option>
         {models.map((m) => <option key={m.id} value={m.id}>{m.label} · {m.note}</option>)}
       </select>
     </span>
