@@ -43,3 +43,18 @@ this file is the "why we did it this way" layer on top.
   worker, handed to git/gh per turn through a credential helper that asks the worker who is requesting; machine
   identity via a GitHub App created with the manifest flow (create + install in the browser) instead of a PAT.
   Commits and PRs are then authored by the human who asked, which is also the audit answer. See roadmap item 7.
+- **Audit trail and authorship, refined the same morning** (roadmap item 8). `Requested-by:` written by the model is
+  not evidence: the model can get it wrong or be talked into it, and git metadata is freely editable. Decisions:
+  - The identity of record is what Marvin verifies at login (SSO, or email + password), not a GitHub account.
+    Non-developers take part without one; the per-user GitHub token is optional.
+  - Password mode asks for email; `Identity.id` is the email in every mode. Self-asserted there, constrained by
+    allowed domains / an allow-list; verified in header mode.
+  - Every commit is authored by the human who asked (author), committed by `marvin[bot]` (committer), signed with
+    Marvin's key; trailers `Requested-by`, `Approved-by`, `Marvin-Session`, `Marvin-Turn` stamped by a git wrapper
+    and a commit-msg hook the model does not control. Enforcement at push: author and turn must match the log.
+  - Git carries pointers, Marvin holds the content: a session is a meeting (room goes occupied → empty), with an
+    id; a hash-chained, signed JSONL per session records participants and presence, transcript, turns and prompts,
+    tool calls, approvals, commits/pushes/PRs. Never a transcript in a commit or PR (privacy, and GDPR deletion is
+    impossible in git history). Recording notice, configurable retention, per-person redaction.
+  - Order: email identity → sessions + audit log → git wrapper/hooks/signing → push verification → GitHub App as
+    machine identity → repo picker. This goes before the multi-repo project work.

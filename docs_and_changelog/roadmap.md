@@ -79,5 +79,32 @@ screen share, transcript clock, Docker room sandbox (`sandbox.md`).
      org with repo selection) replaces the PAT; installation tokens are minted per hour, scoped to selected repos.
    - Clone-by-URL on the join screen becomes a repo picker listing what the connected account/installation can see.
    Prerequisite for the multi-repo work (item 2 needs many repos per project) and the audit log (who did what).
+   Note (decided later the same day, item 8): the per-user GitHub token is optional. The identity of record is the
+   one Marvin verifies at login, and non-developers take part without any GitHub account.
+8. **Identity of record, audit trail and authorship** (decided 2026-09-12, `decisions-log.md`). Git carries
+   pointers; the content lives in Marvin. Goes before item 2, since projects need it and the EE list depends on it.
+   1. **Email identity in password mode.** Login asks email + display name + password; `Identity.id` is the
+      normalized email in every mode (`none` keeps the bare name for localhost dev). Self-asserted in password mode,
+      so `MARVIN_ALLOWED_EMAIL_DOMAINS` and an admin-managed allow-list constrain it; verified identity is `header`.
+      Removes the "two people typing the same name" limitation and gives every commit a real author email.
+   2. **Sessions and the audit log.** A session is a meeting: it starts when a room goes from empty to occupied,
+      ends after the room has been empty a few minutes, and has an id. Per session an append-only JSONL under the
+      state dir, each record carrying the hash of the previous, the head signed by the worker's key at close:
+      room, repos, branch, harness/model; participants with join/leave times; every final transcript segment
+      (speaker, wall clock, session time); turns (trigger, prompt as sent, attachments by hash, requester); tool
+      calls and results (large blobs by hash); permission asks with who approved/denied and when; commits, pushes,
+      PRs; harness/model changes and errors. Export to the customer's SIEM or object-lock storage. A session page
+      in the UI for admins and the people who were in it. Recording notice in the room; retention configurable;
+      per-person redaction that keeps the chain intact (record stays, text goes).
+   3. **Authorship stamped by infrastructure, not the model.** A `git` wrapper first on PATH (sandbox image and
+      worker HOME) reads the current turn from a file the worker writes: author = requester (name + email),
+      committer = `marvin[bot]`, any `--author` dropped. A `commit-msg` hook adds `Requested-by`, `Approved-by`,
+      `Marvin-Session: <room>/<session-id>`, `Marvin-Turn: <n>` and strips model-written copies. Commits signed
+      with Marvin's SSH key (GitHub "Verified" against the committer). PR body: the same pointers, who was present,
+      a generated summary marked as generated, a link to the session page; never the transcript itself.
+   4. **Verified at push.** `pre-push` hook plus the worker's post-turn check: every outgoing commit's author and
+      `Marvin-Turn` must match the audit log; a mismatch refuses the push and raises an audit event.
+   5. **GitHub App as the machine identity** (item 7's second bullet), then the repo picker.
+   6. Per-user GitHub connect (shipped) stays optional: for developers who push to repos only they can access.
 
 Open decisions: core license (Apache 2.0 vs AGPL); trademark check on "Marvin".
