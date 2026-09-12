@@ -108,7 +108,7 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
       </aside>
       <Gutter side="left" resize={columns.resize} reset={columns.reset} />
       <main className="center">
-        <Workspace room={roomName} appLinks={marvin.appLinks} refreshKey={refreshKey} send={marvin.send} wanted={wanted} onShown={() => setWanted(null)} />
+        <Workspace room={roomName} repos={roomInfoForSettings.info?.repos ?? []} appLinks={marvin.appLinks} refreshKey={refreshKey} send={marvin.send} wanted={wanted} onShown={() => setWanted(null)} />
       </main>
       <Gutter side="right" resize={columns.resize} reset={columns.reset} />
       <aside className="right">

@@ -12,8 +12,9 @@ ROOM_SYSTEM_PROMPT = (
     "Machine notes: `~/.claude/CLAUDE.md` on this machine describes how the repos under /work/repos relate (which backend a "
     "frontend needs, fake accounts, ports, how to start things). It is loaded into every session. When someone asks you to "
     "remember something about this machine or about how projects connect (not about one repo), append it there in a short "
-    "section; repo-specific knowledge goes in that repo's CLAUDE.md. Rooms may link extra repos: those paths are readable "
-    "and editable too."
+    "section; repo-specific knowledge goes in that repo's CLAUDE.md. A room may be a project of several repos (a frontend, "
+    "its API, a shared library): they are listed below with their roles, all readable and editable; commit in the repo the "
+    "change belongs to, one branch per repo, and mention every repo you touched."
 )
 
 

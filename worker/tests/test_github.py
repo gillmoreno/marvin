@@ -40,6 +40,17 @@ class FakeGitHub:
             return httpx.Response(200, json={"login": "gil", "id": 42, "name": "Gil Moreno", "email": None})
         if url.endswith("/user/emails"):
             return httpx.Response(200, json=[{"email": "gil@example.com", "primary": True, "verified": True}])
+        if "/user/repos" in url:
+            self.polls += 100  # count listing calls separately from token polls
+            if req.headers["Authorization"] == "Bearer revoked":
+                return httpx.Response(401, json={"message": "Bad credentials"})
+            page = int(req.url.params.get("page", "1"))
+            if page > 1:
+                return httpx.Response(200, json=[])
+            return httpx.Response(200, json=[
+                {"full_name": "acme/web", "html_url": "https://github.com/acme/web", "clone_url": "https://github.com/acme/web.git", "default_branch": "main", "private": True, "pushed_at": "2026-09-12T00:00:00Z", "description": "the storefront", "language": "TypeScript"},
+                {"full_name": "acme/api", "html_url": "https://github.com/acme/api", "clone_url": "https://github.com/acme/api.git", "default_branch": "develop", "private": False, "pushed_at": None, "description": None, "language": None},
+            ])
         raise AssertionError(url)
 
 
@@ -94,6 +105,28 @@ async def test_device_flow_denied_and_restart_cancels_previous(tmp_path):
     assert first.id not in gh.flows and second.id in gh.flows
     await wait_for(second, "error")
     assert "declined" in second.error
+    await gh.aclose()
+
+
+async def test_list_repos_uses_the_persons_token_and_caches(tmp_path):
+    fake = FakeGitHub()
+    gh = connect_for(tmp_path, fake)
+    gh.machine_token = None
+    with pytest.raises(LookupError, match="connect GitHub first"):
+        await gh.list_repos("gil")
+    gh.store.put("gil", Connection(login="gil", name="Gil", email="g@x", token="gho_secret"))
+    repos = await gh.list_repos("gil")
+    assert [r["full_name"] for r in repos] == ["acme/web", "acme/api"]
+    assert repos[1] == {"full_name": "acme/api", "html_url": "https://github.com/acme/api", "clone_url": "https://github.com/acme/api.git", "default_branch": "develop", "private": False, "pushed_at": None, "description": "", "language": ""}
+    calls = fake.polls
+    assert [r["full_name"] for r in await gh.list_repos("gil", query="store")] == ["acme/web"]  # matches the description
+    assert fake.polls == calls  # served from the one-minute cache
+    assert gh.token_for("gil") == "gho_secret" and gh.token_for("nobody") is None
+    # a revoked token is forgotten and reported
+    gh.store.put("bob", Connection(login="bob", name="Bob", email="b@x", token="revoked"))
+    with pytest.raises(LookupError, match="connect again"):
+        await gh.list_repos("bob")
+    assert gh.store.get("bob") is None
     await gh.aclose()
 
 

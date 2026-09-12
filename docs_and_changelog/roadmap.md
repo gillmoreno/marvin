@@ -61,9 +61,10 @@ screen share, transcript clock, Docker room sandbox (`sandbox.md`).
 1. ~~**Docker room sandbox.**~~ Shipped 2026-09-12: one container per room, same-path mounts, credentials per exec,
    `host`/`container:`/`bridge` networks, limits; image in `deploy/sandbox`. Left for EE: egress allow-list,
    gVisor/Kata, rootless nested Docker for the agent, per-room image from the manifest.
-2. **Project model.** `linked` repos become project repos with role, branch and their own Changes tab; the manifest
-   exists and is editable, hand-written at first. Mostly a refactor of `linked` in `room/manager.py`, `RoomConfig`
-   and the UI. Can be done without deciding anything about 3 and 4.
+2. ~~**Project model.**~~ Shipped 2026-09-12 (`projects.md`): a room is a list of repos with role, branch and source
+   (`RoomConfig.repos`), created on the join screen from the person's GitHub account, a folder or a URL, edited in
+   Settings, one Changes tab per repo, roles told to the agent. This is the `repos:` section of the manifest; the
+   `services`/`wiring`/`data`/`externals` sections come with 3.
 3. **Make it run.** Discovery + compose-overlay generation, the agent asks the room for the gaps. Start with
    frontend + one API + Postgres (covers most of shape 4). Shapes 1–3 fall out of the same manifest.
 4. **Cross-repo change sets.** One story in the room, N pull requests out, cross-linked; Changes pane per repo.

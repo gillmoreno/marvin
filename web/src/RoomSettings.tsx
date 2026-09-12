@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 import { agent } from "./agent";
 import { BotIcon, ChevronIcon, CpuIcon } from "./icons";
 import { useIsAdmin, useMe, logout } from "./auth";
+import { RepoAdder, RepoList, fromInfo, toApi, type ProjectRepoInfo, type RepoEntry } from "./ProjectRepos";
 
 type Model = { id: string; label: string; note: string };
 type Harness = { id: string; label: string; kind: string; auth: string; note: string };
 type RoomInfo = {
   name: string; repo: string; model: string | null; model_pinned: string | null; harness: string; harness_pinned: string | null; linked: string[];
+  repos: ProjectRepoInfo[];
   sandbox: { image: string; container: string; network: string } | null;
 };
-type RepoInfo = { name: string; path: string };
 
 /** Models this room can pick: what its running agent reports about itself (ACP harnesses), else the profile's static
  * list. Re-fetched when the harness or its effective model changes, i.e. right after a swap has finished starting. */
@@ -120,25 +121,34 @@ export function ModelPicker({ room, info, reload }: { room: string; info: RoomIn
   );
 }
 
-/** The room's linked repos (extra folders the agent may read and edit) and the machine notes. Both change what the
+/** The project's repos (what the agent may read and edit, with roles) and the machine notes. Both change what the
  * agent can see and do, so only admins may edit them; the machine notes (a prompt-injection surface) are admin-only
  * even to read. */
 export function RoomAndMachine({ room, info, reload }: { room: string; info: RoomInfo | null; reload: () => void }) {
   const admin = useIsAdmin();
-  const [repos, setRepos] = useState<RepoInfo[]>([]);
   const [notes, setNotes] = useState<{ path: string; text: string } | null>(null);
   const [draft, setDraft] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [entries, setEntries] = useState<RepoEntry[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
-    fetch("/api/repos").then((r) => r.json()).then((j) => setRepos(j.repos ?? [])).catch(() => {});
     if (admin) fetch("/api/notes").then((r) => r.json()).then((j) => { if (j.text !== undefined) { setNotes(j); setDraft(j.text); } }).catch(() => {});
   }, [admin]);
-  const linked = new Set(info?.linked ?? []);
-  async function toggle(path: string) {
-    const next = linked.has(path) ? [...linked].filter((p) => p !== path) : [...linked, path];
-    const r = await fetch(`/api/rooms/${encodeURIComponent(room)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ linked: next }) });
-    if (!r.ok) setMsg((await r.json()).error ?? r.statusText);
-    reload();
+  // Start editing from what the room has; keep local edits until saved.
+  useEffect(() => { if (info && entries === null) setEntries(info.repos.map(fromInfo)); }, [info, entries]);
+  const saved = JSON.stringify(info?.repos.map((r) => [r.path, r.git_url, r.role, r.branch ?? ""]) ?? []);
+  const current = JSON.stringify((entries ?? []).map((e) => [e.path ?? null, e.git_url ?? null, e.role, e.branch]));
+  const dirty = entries !== null && saved !== current;
+  async function saveRepos() {
+    if (!entries) return;
+    setBusy(true); setMsg(null);
+    try {
+      const r = await fetch(`/api/rooms/${encodeURIComponent(room)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ repos: toApi(entries) }) });
+      if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+      setEntries(null); setAdding(false); reload();
+      setMsg("Project updated. The agent restarts with the new repos; the conversation continues.");
+    } catch (e) { setMsg(String(e instanceof Error ? e.message : e)); } finally { setBusy(false); }
   }
   async function saveNotes() {
     const r = await fetch("/api/notes", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: draft }) });
@@ -147,20 +157,29 @@ export function RoomAndMachine({ room, info, reload }: { room: string; info: Roo
   return (
     <>
       <section>
-        <h3>This room · {room}</h3>
-        <p className="dim small">Works in <code>{info?.repo ?? "…"}</code>. Linked repos are readable and editable too, e.g. a backend next to a frontend.</p>
+        <h3>This project · {room}</h3>
+        <p className="dim small">
+          {info && info.repos.length > 1
+            ? <>{info.repos.length} repos worked on together; the agent starts in <code>{info.repo}</code> and may read and edit all of them. Commits and PRs go to the repo each change belongs to.</>
+            : <>Works in <code>{info?.repo ?? "…"}</code>. Add the other repos of this project (its API, a shared library) so the agent sees the whole thing.</>}
+        </p>
         <p className="dim small">
           {info?.sandbox
-            ? <>The agent runs in its own container <code>{info.sandbox.container}</code> (image <code>{info.sandbox.image}</code>); only this repo and the linked repos are mounted into it.</>
+            ? <>The agent runs in its own container <code>{info.sandbox.container}</code> (image <code>{info.sandbox.image}</code>); only these repos are mounted into it.</>
             : <>The agent runs directly on this machine (no sandbox; set <code>MARVIN_SANDBOX=docker</code> to contain it).</>}
         </p>
-        <div className="linklist">
-          {repos.filter((r) => r.path !== info?.repo).map((r) => (
-            <label key={r.path}><input type="checkbox" checked={linked.has(r.path)} disabled={!admin} onChange={() => void toggle(r.path)} /> {r.name}</label>
-          ))}
-          {repos.length <= 1 && <span className="dim small">no other repos on this machine yet</span>}
-        </div>
-        {!admin && <p className="dim small">Only admins can link repos.</p>}
+        {entries && <RepoList entries={entries} onChange={setEntries} readOnly={!admin} />}
+        {admin && (
+          <>
+            {adding ? <RepoAdder exclude={entries ?? []} onAdd={(e) => { setEntries((cur) => [...(cur ?? []), e]); setAdding(false); }} /> : null}
+            <div className="btns">
+              <button className="ghost" onClick={() => setAdding((a) => !a)}>{adding ? "close" : "add repo"}</button>
+              <button disabled={!dirty || busy || (entries?.length ?? 0) === 0} onClick={() => void saveRepos()}>{busy ? "saving…" : "save project"}</button>
+              {dirty && <button className="ghost" disabled={busy} onClick={() => { setEntries(null); setAdding(false); }}>discard</button>}
+            </div>
+          </>
+        )}
+        {!admin && <p className="dim small">Only admins can change the project's repos.</p>}
       </section>
       {admin && (
         <section>

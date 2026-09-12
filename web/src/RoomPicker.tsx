@@ -1,38 +1,39 @@
 import { useEffect, useState } from "react";
 import { useIsAdmin } from "./auth";
+import { RepoAdder, RepoList, toApi, type ProjectRepoInfo, type RepoEntry } from "./ProjectRepos";
+import { SettingsPanel } from "./Settings";
 
-export type RoomInfo = { name: string; repo: string; git_url: string | null; branch: string | null; static: boolean; live: boolean };
-type RepoInfo = { name: string; path: string; git: boolean; remote: string | null; branch: string | null; dirty: boolean; rooms: string[] };
+export type RoomInfo = { name: string; repo: string; git_url: string | null; branch: string | null; static: boolean; live: boolean; repos: ProjectRepoInfo[] };
 
-/** Rooms on this machine, plus a form to create one from an existing folder or a GitHub URL. */
+/** Projects on this machine, plus a form to create one from one or more repos (your GitHub, a folder here, or a URL). */
 export function RoomPicker({ value, onPick }: { value: string; onPick: (room: string) => void }) {
-  const admin = useIsAdmin(); // creating rooms (and cloning repos) is admin-only; the token server enforces it
+  const admin = useIsAdmin(); // creating projects (and cloning repos) is admin-only; the token server enforces it
   const [rooms, setRooms] = useState<RoomInfo[] | null>(null);
-  const [repos, setRepos] = useState<RepoInfo[]>([]);
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", source: "folder" as "folder" | "github", folder: "", git_url: "", branch: "" });
+  const [name, setName] = useState("");
+  const [entries, setEntries] = useState<RepoEntry[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
 
   const refresh = () => {
     fetch("/api/rooms").then((r) => r.json()).then((j) => setRooms(j.rooms ?? [])).catch(() => setRooms([]));
-    fetch("/api/repos").then((r) => r.json()).then((j) => setRepos(j.repos ?? [])).catch(() => {});
   };
   useEffect(refresh, []);
 
   async function create() {
-    if (!form.name || (form.source === "github" && !form.git_url)) {
-      setError(form.name ? "repository URL is required" : "room name is required");
-      return;
-    }
+    if (!name) { setError("project name is required"); return; }
     setBusy(true);
     setError(null);
-    const body = form.source === "folder" ? { name: form.name, repo: form.folder || undefined } : { name: form.name, git_url: form.git_url, branch: form.branch || undefined };
+    // No repo at all: an empty folder named after the project (the agent can `git clone` or `git init` on request).
+    const body = { name, repos: entries.length ? toApi(entries) : undefined };
     try {
       const r = await fetch("/api/rooms", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? r.statusText);
       setCreating(false);
+      setEntries([]);
+      setName("");
       refresh();
       onPick(j.name);
     } catch (err) {
@@ -42,52 +43,42 @@ export function RoomPicker({ value, onPick }: { value: string; onPick: (room: st
     }
   }
 
+  const roles = (r: RoomInfo) => {
+    const reps = r.repos ?? [];
+    if (reps.length <= 1) return `${reps[0]?.name ?? r.repo.replace(/^.*\//, "")}${r.branch ? ` · ${r.branch}` : ""}`;
+    return `${reps.length} repos · ${reps.map((x) => x.role || x.name).join(" + ")}`;
+  };
+
   return (
     <div className="rooms">
       <div className="rooms-head">
-        <span>Room</span>
-        {admin && <button type="button" className="ghost" onClick={() => setCreating((c) => !c)}>{creating ? "cancel" : "new room"}</button>}
+        <span>Project</span>
+        {admin && <button type="button" className="ghost" onClick={() => setCreating((c) => !c)}>{creating ? "cancel" : "new project"}</button>}
       </div>
-      {rooms === null && <p className="hint">loading rooms…</p>}
-      {rooms && rooms.length === 0 && !creating && <p className="hint">{admin ? "No rooms yet. Create one from a folder or a GitHub URL." : "No rooms yet. Ask an admin to create one."}</p>}
+      {rooms === null && <p className="hint">loading projects…</p>}
+      {rooms && rooms.length === 0 && !creating && <p className="hint">{admin ? "No projects yet. Create one from your GitHub repos, a folder here, or a URL." : "No projects yet. Ask an admin to create one."}</p>}
       {rooms && rooms.length > 0 && (
         <ul className="room-list">
           {rooms.map((r) => (
             <li key={r.name} className={r.name === value ? "sel" : ""} onClick={() => onPick(r.name)}>
               <span className={`dot ${r.live ? "idle" : "offline"}`} />
               <b>{r.name}</b>
-              <span className="repo">{r.repo.replace(/^.*\//, "")}{r.branch ? ` · ${r.branch}` : ""}</span>
+              <span className="repo" title={(r.repos ?? []).map((x) => x.path).join("\n")}>{roles(r)}</span>
             </li>
           ))}
         </ul>
       )}
       {creating && admin && (
-        <div className="newroom" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void create(); } }}>
-          <label>Room name <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })} pattern="[a-z0-9][a-z0-9-]{0,39}" required autoFocus /></label>
-          <div className="src">
-            <label><input type="radio" checked={form.source === "folder"} onChange={() => setForm({ ...form, source: "folder" })} /> folder on this machine</label>
-            <label><input type="radio" checked={form.source === "github"} onChange={() => setForm({ ...form, source: "github" })} /> clone from GitHub</label>
-          </div>
-          {form.source === "folder" ? (
-            <label>
-              Folder
-              <select value={form.folder} onChange={(e) => setForm({ ...form, folder: e.target.value })}>
-                <option value="">new empty folder named after the room</option>
-                {repos.map((r) => (
-                  <option key={r.path} value={r.path}>{r.name}{r.branch ? ` (${r.branch}${r.dirty ? ", uncommitted changes" : ""})` : ""}</option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <>
-              <label>Repository URL <input value={form.git_url} onChange={(e) => setForm({ ...form, git_url: e.target.value })} placeholder="https://github.com/your-org/your-repo" required /></label>
-              <label>Branch <input value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })} placeholder="default" /></label>
-            </>
-          )}
-          <button type="button" onClick={() => void create()} disabled={busy}>{busy ? "creating…" : "create and join"}</button>
+        <div className="newroom">
+          <label>Project name <input value={name} onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void create(); } }} pattern="[a-z0-9][a-z0-9-]{0,39}" required autoFocus /></label>
+          <div className="dim small">Repos in this project. The first is where the agent starts; all are readable and editable. A frontend and its API, a service and its shared library, one repo, or none yet.</div>
+          <RepoList entries={entries} onChange={setEntries} />
+          <RepoAdder exclude={entries} onAdd={(e) => setEntries((cur) => [...cur, e])} onConnectGitHub={() => setShowSettings(true)} />
+          <button type="button" onClick={() => void create()} disabled={busy}>{busy ? (entries.some((e) => e.git_url) ? "cloning…" : "creating…") : "create and join"}</button>
           {error && <p className="error">{error}</p>}
         </div>
       )}
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

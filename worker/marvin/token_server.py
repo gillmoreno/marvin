@@ -30,7 +30,7 @@ WEB_DIST = os.environ.get("MARVIN_WEB_DIST")  # directory with the built web UI;
 # (they are a prompt-injection surface into every room).
 PROXIED = (
     "/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/models", "/api/harnesses", "/api/notes",
-    "/api/github/me", "/api/github/connect", "/api/github/connect/{flow}", "/api/github/config",
+    "/api/github/me", "/api/github/connect", "/api/github/connect/{flow}", "/api/github/config", "/api/github/repos",
 )
 ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config")
 # Self-service: every signed-in user may write here, because it only touches their own record (keyed by X-Marvin-User).

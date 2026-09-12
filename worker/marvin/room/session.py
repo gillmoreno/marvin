@@ -51,19 +51,23 @@ def git_url_for_clone(url: str) -> str:
 
 
 def ensure_repo(cfg: RoomConfig) -> None:
-    """Clone on first start if the directory is missing and a git_url is configured."""
-    path = Path(cfg.repo)
-    if path.exists():
-        return
-    if not cfg.git_url:
-        # No repo to clone: start as an empty sandbox so the room is usable (and Marvin can `git clone` on request).
-        log.warning("room %s: %s does not exist and no git_url set; creating an empty directory", cfg.name, cfg.repo)
-        path.mkdir(parents=True, exist_ok=True)
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ["git", "clone", *(["--branch", cfg.branch] if cfg.branch else []), git_url_for_clone(cfg.git_url), str(path)]
-    log.info("room %s: %s", cfg.name, " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    """Every project repo exists before the harness starts: clone the ones with a git_url (static rooms; dynamic
+    ones were cloned at creation with the requester's token), create the primary when it is a fresh empty project."""
+    for i, r in enumerate(cfg.repos):
+        path = Path(r.path)
+        if path.exists():
+            continue
+        if r.git_url:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            cmd = ["git", "clone", *(["--branch", r.branch] if r.branch else []), git_url_for_clone(r.git_url), str(path)]
+            log.info("room %s: %s", cfg.name, " ".join(cmd))
+            subprocess.run(cmd, check=True)
+        elif i == 0:
+            # No repo to clone: start as an empty project so the room is usable (and Marvin can `git clone` on request).
+            log.warning("room %s: %s does not exist and no git_url set; creating an empty directory", cfg.name, r.path)
+            path.mkdir(parents=True, exist_ok=True)
+        else:
+            log.warning("room %s: project repo %s does not exist on this machine", cfg.name, r.path)
 
 
 class RoomSession:
@@ -113,6 +117,7 @@ class RoomSession:
             self.harness_id(cfg), cfg.repo, agent_name=self.agent_name, room=cfg.name, model=cfg.model, resume=resume, add_dirs=list(cfg.linked), permissions=None,
             sandbox=self.sandbox.for_room(cfg) if self.sandbox else None,
             env=self.git_identity.env(cfg.name) if self.git_identity else None,
+            project=cfg.project_text(),
         )
 
     def identity_of(self, name: str) -> str | None:

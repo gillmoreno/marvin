@@ -139,6 +139,7 @@ class GitHubConnect:
         self.http = http or httpx.AsyncClient(timeout=20, headers={"Accept": "application/json", "User-Agent": "marvin"})
         self.flows: dict[str, Flow] = {}
         self.machine_token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
+        self._repo_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
 
     @property
     def client_id(self) -> str | None:
@@ -261,6 +262,47 @@ class GitHubConnect:
 
     def disconnect(self, user_id: str) -> None:
         self.store.forget(user_id)
+
+    def token_for(self, user_id: str | None) -> str | None:
+        """The token to act with for this person: their connected account, else the machine's."""
+        conn = self.store.get(user_id) if user_id else None
+        return conn.token if conn else self.machine_token
+
+    async def list_repos(self, user_id: str | None, *, query: str = "", limit: int = 300) -> list[dict[str, Any]]:
+        """Repositories the person's account can see (owner, collaborator, org member), most recently pushed first.
+        Cached for a minute per token. `query` filters on full name / description, case-insensitively."""
+        token = self.token_for(user_id)
+        if not token:
+            raise LookupError("connect GitHub first (Settings -> GitHub), or set GITHUB_TOKEN on the machine")
+        key = hashlib.sha256(token.encode()).hexdigest()[:16]
+        cached = self._repo_cache.get(key)
+        if cached and time.time() - cached[0] < 60:
+            repos = cached[1]
+        else:
+            repos = []
+            h = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+            page = 1
+            while len(repos) < limit:
+                r = await self.http.get(f"{API}/user/repos", headers=h, params={"per_page": 100, "page": page, "sort": "pushed", "affiliation": "owner,collaborator,organization_member"})
+                if r.status_code == 401:
+                    if user_id and self.store.get(user_id):
+                        self.store.forget(user_id)
+                    raise LookupError("GitHub rejected the token; connect again")
+                r.raise_for_status()
+                batch = r.json()
+                repos += [
+                    {"full_name": x["full_name"], "html_url": x["html_url"], "clone_url": x["clone_url"], "default_branch": x.get("default_branch") or "main",
+                     "private": bool(x.get("private")), "pushed_at": x.get("pushed_at"), "description": x.get("description") or "", "language": x.get("language") or ""}
+                    for x in batch
+                ]
+                if len(batch) < 100:
+                    break
+                page += 1
+            self._repo_cache[key] = (time.time(), repos)
+        if query:
+            q = query.lower()
+            repos = [x for x in repos if q in x["full_name"].lower() or q in x["description"].lower()]
+        return repos
 
     async def aclose(self) -> None:
         for f in self.flows.values():

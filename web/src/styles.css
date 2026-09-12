@@ -168,3 +168,25 @@ button.danger { background: var(--bad); color: #fff; } button.ghost { background
 .github-setup ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
 .github-setup .row { display: flex; gap: 8px; align-items: center; }
 .github-setup input { flex: 1; min-width: 0; }
+
+/* Project repos: the list editor (join screen + Settings) and the picker */
+.repo-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.repo-rows li { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; }
+.repo-rows .who { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo-rows select, .repo-rows input { flex: 1 1 90px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font-size: 12px; min-width: 0; }
+.repo-rows .btns { display: flex; gap: 4px; margin-left: auto; }
+.modal .repo-rows li { flex-wrap: nowrap; } .modal .repo-rows .who { flex: 1 1 auto; } .modal .repo-rows select, .modal .repo-rows input { flex: 0 0 130px; }
+.tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 10px; font-size: 10px; letter-spacing: .02em; color: var(--dim); border: 1px solid var(--line); vertical-align: middle; }
+.repo-adder { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px dashed var(--line); border-radius: 6px; }
+.repo-adder .src { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--dim); }
+.repo-adder .src label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; }
+.repo-adder input { background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; box-sizing: border-box; }
+.repo-adder .row { display: flex; gap: 8px; } .repo-adder .row input { flex: 1; }
+.repo-pick { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; }
+.repo-pick li { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--line); display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.repo-pick li:last-child { border-bottom: 0; } .repo-pick li:hover { background: #1c2a3a; }
+.repo-pick li.taken { opacity: .45; cursor: default; } .repo-pick li.hint { cursor: default; }
+.repo-pick .desc { flex-basis: 100%; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo-tabs { display: flex; gap: 4px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); }
+.repo-tabs button { background: transparent; color: var(--dim); border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; padding: 5px 10px; font-weight: 500; font-size: 12px; }
+.repo-tabs button.on { color: var(--fg); background: var(--bg); border-color: var(--line); }

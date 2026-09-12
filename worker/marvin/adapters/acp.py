@@ -68,6 +68,7 @@ class AcpHarness:
         add_dirs: list[str] | None = None,
         name: str = "acp",
         system_prompt: str = ROOM_SYSTEM_PROMPT,
+        project: str = "",
     ) -> None:
         if not command:
             raise ValueError("AcpHarness needs a command to run")
@@ -82,7 +83,7 @@ class AcpHarness:
         self.requested_model: str | None = model
         self.session_id: str | None = resume
         self.add_dirs = list(add_dirs or [])
-        self.system_prompt = system_prompt.format(agent_name=agent_name, room=room)
+        self.system_prompt = system_prompt.format(agent_name=agent_name, room=room) + (f"\n{project}" if project else "")
         self.available_models: list[dict[str, str]] = []
         self.agent_info: dict[str, Any] = {}
         self.agent_capabilities: dict[str, Any] = {}
@@ -152,8 +153,7 @@ class AcpHarness:
         yield HarnessEvent("turn_start", {"harness": self.name})
         text = prompt
         if self._needs_system_prompt:  # first prompt of a fresh session: ACP has no system-prompt parameter
-            linked = f"\nLinked repos (readable and editable too): {', '.join(self.add_dirs)}\n" if self.add_dirs else ""
-            text = f"# Room instructions\n{self.system_prompt}{linked}\n\n# Message\n{prompt}"
+            text = f"# Room instructions\n{self.system_prompt}\n\n# Message\n{prompt}"
         self._needs_system_prompt = False
         turn = self._turn = _Turn()
         t0 = time.monotonic()

@@ -2,6 +2,39 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-12 — Projects: a room is a list of repos
+
+Design and limits: `projects.md`. Roadmap item 2.
+
+### Added
+- `RoomConfig.repos: tuple[ProjectRepo]` (`path`, `role`, `git_url`, `branch`) is the source of truth for what a room
+  works on; `repo`, `git_url`, `branch` and `linked` are derived from it, so existing code, `rooms.yaml` files and
+  `rooms.json` records keep working unchanged. `rooms.yaml` accepts a `repos:` list per room.
+- Join screen: **New project** = a name plus a list of repos, each picked **from your GitHub** (the connected account's
+  repositories, searchable, role guessed from the name), from a **folder on this machine**, or by **git URL**; role
+  and branch per repo, "↑ first" makes a repo the working directory. Missing repos are cloned with the requester's
+  connected GitHub token (SSH URLs rewritten to HTTPS; the token travels through a one-off credential helper, never
+  argv). `POST /api/rooms {name, repos: [...]}`.
+- Settings → **This project**: the same list, editable (roles, branches, add, remove, reorder) with save/discard;
+  `PATCH /api/rooms/{name} {repos: [...]}` swaps the harness and the conversation continues. The old `linked` PATCH
+  still works and keeps the roles it knows.
+- Changes pane: one tab per repo when the project has several; `GET /api/changes?room=&repo=<path>` and
+  `/api/changes/file` accept any project repo (anything else is a 404). Commit / open PR prompts name the repo.
+- `GET /api/github/repos[?q=]` (self-service): the repositories the caller's connected account can see, most recently
+  pushed first, cached a minute; 409 with a hint when not connected. `GitHubConnect.list_repos`, `token_for`.
+- The agent's instructions list the project's repos with roles and mark the working directory (`project_text()`);
+  the "Linked repos" line in the ACP first prompt is replaced by it. Tests: `tests/test_project.py`.
+
+### Changed
+- Room list shows `N repos · frontend + api` for projects; `worker/marvin/room/manager.py` `create_room`/`update_room`
+  take `repos=` and `clone_token=`; `ensure_repo` clones every project repo with a `git_url`.
+
+## 2026-09-12 — Design explorations
+
+Three clickable HTML prototypes of alternative looks (Control Room, Editorial, Signal), each with sign-in, room,
+settings and a trimmed mobile layout: `design-explorations/index.html`, notes in `design-explorations/README.md`.
+Nothing in `web/src` changed.
+
 ## 2026-09-12 — Connect GitHub from the browser
 
 Design, operator setup and limits: `github.md`. Roadmap item 7, per-user half.

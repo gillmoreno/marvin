@@ -48,6 +48,7 @@ class ClaudeCodeHarness:
         add_dirs: list[str] | None = None,
         cli_path: str | None = None,
         env: dict[str, str] | None = None,
+        project: str = "",
     ) -> None:
         self.cwd = cwd
         self.permissions = permissions
@@ -71,7 +72,7 @@ class ClaudeCodeHarness:
             can_use_tool=self._can_use_tool,
             setting_sources=["user", "project"],  # user = the machine notes in $HOME/.claude/CLAUDE.md
             add_dirs=self.add_dirs,
-            system_prompt={"type": "preset", "preset": "claude_code", "append": ROOM_SYSTEM_PROMPT.format(agent_name=agent_name, room=room)},
+            system_prompt={"type": "preset", "preset": "claude_code", "append": ROOM_SYSTEM_PROMPT.format(agent_name=agent_name, room=room) + (f"\n{project}" if project else "")},
             include_partial_messages=True,
             # Tool results carry dropped screenshots as base64 (uploads allow 8 MB); the SDK default of 1 MB per message
             # raises CLIJSONDecodeError on anything bigger than a small image.

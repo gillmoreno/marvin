@@ -89,6 +89,18 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None) -> web
         log.info("%s disconnects GitHub", who(req))
         return web.json_response(github.status(user))
 
+    async def github_repos(req: web.Request) -> web.Response:
+        if github is None:
+            return web.json_response({"error": "GitHub connection is not available"}, status=501)
+        try:
+            repos = await github.list_repos(_user(req), query=req.query.get("q", "").strip())
+        except LookupError as e:
+            return web.json_response({"error": str(e), "repos": []}, status=409)
+        except Exception as e:
+            return web.json_response({"error": f"GitHub: {type(e).__name__}: {e}"}, status=502)
+        return web.json_response({"repos": repos})
+
+    app.router.add_get("/github/repos", github_repos)
     app.router.add_get("/github/me", github_me)
     app.router.add_put("/github/config", github_config)
     app.router.add_delete("/github/me", github_disconnect)
@@ -98,11 +110,21 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None) -> web
     async def rooms(req: web.Request) -> web.Response:
         return web.json_response({"rooms": mgr.describe()})
 
+    def _clone_token(req: web.Request) -> str | None:
+        """Clones run with the requester's connected GitHub account, else the machine's token."""
+        return github.token_for(_user(req)) if github else None
+
     async def create_room(req: web.Request) -> web.Response:
         body = await req.json()
         log.info("%s creates room %r", who(req), body.get("name"))
+        repos = body.get("repos")
+        if repos is not None and not isinstance(repos, list):
+            return web.json_response({"error": "repos must be a list"}, status=400)
         try:
-            room = await mgr.create_room(str(body.get("name", "")).strip(), repo=body.get("repo") or None, git_url=body.get("git_url") or None, branch=body.get("branch") or None, language=body.get("language") or None)
+            room = await mgr.create_room(
+                str(body.get("name", "")).strip(), repo=body.get("repo") or None, git_url=body.get("git_url") or None, branch=body.get("branch") or None,
+                language=body.get("language") or None, repos=repos or None, clone_token=_clone_token(req),
+            )
         except (ValueError, KeyError) as e:
             return web.json_response({"error": str(e)}, status=400)
         except Exception as e:
@@ -118,7 +140,7 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None) -> web
                 req.match_info["name"],
                 model=body.get("model") or None, clear_model=body.get("model") == "",
                 harness=body.get("harness") or None, clear_harness=body.get("harness") == "",
-                linked=body.get("linked"),
+                linked=body.get("linked"), repos=body.get("repos"), clone_token=_clone_token(req),
             )
         except KeyError:
             return web.json_response({"error": "no such room"}, status=404)
@@ -171,15 +193,19 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None) -> web
         body = await req.json()
         log.info("%s clones %s", who(req), body.get("url"))
         try:
-            return web.json_response(await mgr.clone_repo(str(body["url"]).strip(), body.get("name") or None, body.get("branch") or None), status=201)
+            return web.json_response(await mgr.clone_repo(str(body["url"]).strip(), body.get("name") or None, body.get("branch") or None, clone_token=_clone_token(req)), status=201)
         except (ValueError, KeyError) as e:
             return web.json_response({"error": str(e)}, status=400)
         except RuntimeError as e:
             return web.json_response({"error": str(e)}, status=502)
 
     def _repo_for(req: web.Request) -> str | None:
+        """The repo a Changes request is about: ?repo=<path> must be one of the room's project repos; default primary."""
         cfg = mgr.configs().get(req.query.get("room", ""))
-        return cfg.repo if cfg else None
+        if not cfg:
+            return None
+        r = cfg.repo_for(req.query.get("repo") or None)
+        return r.path if r else None
 
     async def changes(req: web.Request) -> web.Response:
         repo = _repo_for(req)
