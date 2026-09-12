@@ -17,23 +17,28 @@ per-machine GitHub App (manifest flow) and the repo picker are still to do.
 Nothing is typed into Marvin except the code on GitHub's page; Marvin never sees a password and there is no client
 secret anywhere (this is OAuth's *device flow*, the same thing `gh auth login` does).
 
-## What the operator does once
+## What an admin does once (from the same Settings panel)
 
-GitHub needs to know which application is asking. Register one OAuth App per Marvin installation (five minutes,
-no server, no callback of ours involved):
+GitHub needs to know which application is asking. An admin registers one OAuth App per Marvin installation (five
+minutes, no server, no callback of ours involved) and pastes its client id into Settings → GitHub; the panel
+walks through it:
 
 1. GitHub → **Settings → Developer settings → OAuth Apps → New OAuth App** (for a company, do it under the org:
    *Organization settings → Developer settings → OAuth Apps*).
-2. Application name: `Marvin (<your machine or company>)`. Homepage URL: your Marvin URL (or the repo). Authorization
-   callback URL: anything syntactically valid, e.g. your Marvin URL; the device flow does not use it.
+2. Application name: `Marvin`. Homepage URL and Authorization callback URL: the Marvin address (the device flow does
+   not use the callback, the form just requires one).
 3. Tick **Enable Device Flow**. Register. Copy the **Client ID** (starts with `Ov23li…` or `Iv1.…`). Do not generate a
    client secret; Marvin does not want one.
-4. Give it to the worker as `MARVIN_GITHUB_CLIENT_ID` (`.env`, the edge compose file, or the `marvin-secrets` Secret
-   on Kubernetes) and restart the worker. `MARVIN_SESSION_SECRET` should be set too: it is the key the tokens are
-   encrypted with (it falls back to `LIVEKIT_API_SECRET`).
+4. Paste it into Settings → GitHub → **save**. No restart. It is stored in `<state_dir>/github.json` next to the
+   tokens (`PUT /api/github/config`, admin-only, validated as a plausible client id). `MARVIN_GITHUB_CLIENT_ID` in the
+   environment still works and, when set, wins over the stored value (the panel then shows "from the environment").
 
-Until that is done the GitHub section in Settings says so, and rooms keep working with whatever they had: the
-machine's `GITHUB_TOKEN` if set, otherwise the git credentials of the machine (on a developer's Mac, the keychain).
+The client id is a **public identifier**, not a secret: GitHub puts it in every OAuth URL, and the device flow has no
+client secret at all. The UI masks it out of habit; there is nothing to protect. What *is* sensitive is
+`MARVIN_SESSION_SECRET`, the key the user tokens are encrypted with (falls back to `LIVEKIT_API_SECRET`).
+
+Until an admin has done this the GitHub section tells non-admins so, and rooms keep working with whatever they had:
+the machine's `GITHUB_TOKEN` if set, otherwise the git credentials of the machine (on a developer's Mac, the keychain).
 
 Scopes requested: `repo read:org workflow` (what `gh auth login` asks for, minus gists). If your organization
 restricts third-party OAuth apps, an org owner approves the app once under *Third-party access*.
@@ -51,8 +56,9 @@ Settings ──POST /api/github/connect──▶ token server ──▶ worker a
   dev name) and stamps `X-Marvin-User` on every proxied call. `/api/github/*` is *self-service*: any signed-in
   person may call it, and it only ever touches the record of the identity in that header. Other users cannot read
   or poll someone else's flow (`404`).
-- **Storage.** `<state_dir>/github.json`, one record per Marvin identity: login, name, e-mail, scopes, and the token
-  encrypted with Fernet under `sha256("marvin-github:" + MARVIN_SESSION_SECRET)`. File mode `0600`. A copied state
+- **Storage.** `<state_dir>/github.json`: `settings.client_id` (plain, public) and one `users` record per Marvin
+  identity: login, name, e-mail, scopes, and the token encrypted with Fernet under
+  `sha256("marvin-github:" + MARVIN_SESSION_SECRET)`. File mode `0600`. A copied state
   directory without the secret is not a copied credential; if the secret changes, the records become undecryptable
   and are dropped on first read (people simply connect again).
 - **Per-turn identity** (`marvin/github.py`, `GitIdentity`). Each room's harness is started with two environment

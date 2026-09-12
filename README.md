@@ -177,8 +177,9 @@ Details, networking choices and limits: [`docs_and_changelog/sandbox.md`](docs_a
 
 Settings → **GitHub** → **Connect GitHub**: type an 8-character code on github.com and you are linked. From then on,
 when *you* ask Marvin to commit, push or open a PR, it happens with your name and your token; someone else in the
-same room gets theirs. People who have not connected fall back to the machine's `GITHUB_TOKEN`. The operator
-registers one OAuth App with device flow enabled and sets `MARVIN_GITHUB_CLIENT_ID`; that is the whole setup.
+same room gets theirs. People who have not connected fall back to the machine's `GITHUB_TOKEN`. Setup is one admin
+registering an OAuth App with device flow enabled and pasting its client id into that same panel; no `.env`, no
+restart.
 Details: [`docs_and_changelog/github.md`](docs_and_changelog/github.md).
 
 ## Model, linked repos, machine notes

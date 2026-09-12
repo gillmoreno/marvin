@@ -165,3 +165,6 @@ button.danger { background: var(--bad); color: #fff; } button.ghost { background
 /* Settings -> GitHub: device-flow code */
 .github-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.6rem; letter-spacing: 0.2em; padding: 0.4rem 0.8rem; margin: 0.3rem 0; border: 1px dashed var(--line, #444); border-radius: 8px; display: inline-block; cursor: copy; user-select: all; }
 .github-code .small { letter-spacing: 0; margin-left: 0.6rem; }
+.github-setup ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+.github-setup .row { display: flex; gap: 8px; align-items: center; }
+.github-setup input { flex: 1; min-width: 0; }

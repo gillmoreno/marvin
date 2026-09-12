@@ -58,3 +58,12 @@ this file is the "why we did it this way" layer on top.
     impossible in git history). Recording notice, configurable retention, per-person redaction.
   - Order: email identity → sessions + audit log → git wrapper/hooks/signing → push verification → GitHub App as
     machine identity → repo picker. This goes before the multi-repo project work.
+- **Design principle: configuration happens in the browser, not in `.env`.** Anything that can safely be entered
+  from the UI is entered from the UI (admin-only where it matters, masked when it looks like a credential, stored by
+  the worker in its state dir, encrypted when it is a secret). Environment variables remain as an override for
+  automation and for the handful of things that must exist before the UI does (LiveKit keys, the auth mode, the
+  session secret). Guided steps beat instructions: when Marvin needs something from an external service, Settings
+  links to the exact page, says what to click, and takes the paste. First applied to the GitHub OAuth client id
+  (set from Settings → GitHub); next candidates: harness API keys, `GITHUB_TOKEN`/machine identity, sandbox options,
+  admin users. Rationale: Gil's own experience as the first user — copy-pasting into a form is less friction than
+  editing a file and restarting, and a hosted or appliance install has no `.env` to hand.

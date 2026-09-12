@@ -10,7 +10,9 @@ Design, operator setup and limits: `github.md`. Roadmap item 7, per-user half.
 - Settings → **GitHub** → **Connect GitHub**: GitHub's device flow from the UI (`web/src/GitHubConnect.tsx`). The
   worker requests a device code, the panel shows it and opens github.com/login/device, the worker polls until
   approved and stores the token encrypted (Fernet, key from `MARVIN_SESSION_SECRET`) in `<state_dir>/github.json`.
-  Status, verify-on-open and Disconnect. Needs `MARVIN_GITHUB_CLIENT_ID` (an OAuth App with device flow enabled).
+  Status, verify-on-open and Disconnect. Needs the client id of an OAuth App with device flow enabled: an admin
+  pastes it into the same panel (`PUT /api/github/config`, stored in `github.json`, no restart);
+  `MARVIN_GITHUB_CLIENT_ID` in the environment overrides it.
 - `worker/marvin/github.py`: `TokenStore`, `GitHubConnect` (flows, polling, `/user` lookup, revocation check) and
   `GitIdentity`: per-room `gitconfig`, `token` and `gh/hosts.yml` under the room HOME, rewritten at every turn start
   with the identity of the person who asked (their connected account → machine `GITHUB_TOKEN` → none). Harnesses get

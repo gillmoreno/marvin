@@ -30,6 +30,9 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None) -> web
         u = req.headers.get("X-Marvin-User", "").strip()
         return u if u and u != "?" else None
 
+    def _is_admin(req: web.Request) -> bool:
+        return "admin" in req.headers.get("X-Marvin-Roles", "").split(",")
+
     async def github_me(req: web.Request) -> web.Response:
         if github is None:
             return web.json_response({"configured": False, "connected": None, "machine_identity": False})
@@ -38,7 +41,21 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None) -> web
             return web.json_response({"error": "no signed-in user"}, status=400)
         if req.query.get("verify") and github.store.get(user):
             await github.verify(user)
-        return web.json_response(github.status(user))
+        return web.json_response(github.status(user, admin=_is_admin(req)))
+
+    async def github_config(req: web.Request) -> web.Response:
+        """Admin sets the OAuth App client id from Settings (the token server only lets admins through; checked again here)."""
+        if github is None:
+            return web.json_response({"error": "GitHub connection is not available"}, status=501)
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        body = await req.json()
+        try:
+            github.set_client_id(body.get("client_id"))
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        log.info("%s sets the GitHub client id (%s)", who(req), "cleared" if not github.client_id else "set")
+        return web.json_response(github.status(_user(req) or "?", admin=True))
 
     async def github_connect(req: web.Request) -> web.Response:
         if github is None:
@@ -73,6 +90,7 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None) -> web
         return web.json_response(github.status(user))
 
     app.router.add_get("/github/me", github_me)
+    app.router.add_put("/github/config", github_config)
     app.router.add_delete("/github/me", github_disconnect)
     app.router.add_post("/github/connect", github_connect)
     app.router.add_get("/github/connect/{flow}", github_flow)

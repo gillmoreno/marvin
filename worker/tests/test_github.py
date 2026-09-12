@@ -14,14 +14,17 @@ from marvin.github import Connection, GitHubConnect, GitIdentity, TokenStore
 class FakeGitHub:
     """httpx mock transport for github.com: device code, token polling (pending -> token), /user."""
 
-    def __init__(self, *, deny: bool = False) -> None:
+    def __init__(self, *, deny: bool = False, device_flow_disabled: bool = False) -> None:
         self.polls = 0
         self.deny = deny
+        self.device_flow_disabled = device_flow_disabled
 
     def handler(self, req: httpx.Request) -> httpx.Response:
         url = str(req.url)
         if url.endswith("/login/device/code"):
             assert b"client_id=Iv1.test" in req.content and b"scope=repo" in req.content
+            if self.device_flow_disabled:
+                return httpx.Response(400, json={"error": "device_flow_disabled", "error_description": "Device Flow must be explicitly enabled for this App"})
             return httpx.Response(200, json={"device_code": "dc", "user_code": "ABCD-1234", "verification_uri": "https://github.com/login/device", "expires_in": 900, "interval": 0.01})
         if url.endswith("/login/oauth/access_token"):
             self.polls += 1
@@ -94,12 +97,32 @@ async def test_device_flow_denied_and_restart_cancels_previous(tmp_path):
     await gh.aclose()
 
 
-async def test_start_without_client_id_explains(tmp_path):
+async def test_device_flow_disabled_on_the_app_is_explained(tmp_path):
+    gh = connect_for(tmp_path, FakeGitHub(device_flow_disabled=True))
+    with pytest.raises(RuntimeError, match="Enable Device Flow"):
+        await gh.start("gil")
+    await gh.aclose()
+
+
+async def test_start_without_client_id_explains(tmp_path, monkeypatch):
+    monkeypatch.delenv("MARVIN_GITHUB_CLIENT_ID", raising=False)
     gh = connect_for(tmp_path, FakeGitHub(), client_id=None)
-    gh.client_id = None
-    assert not gh.configured
+    assert not gh.configured and gh.client_id_source is None
     with pytest.raises(RuntimeError, match="MARVIN_GITHUB_CLIENT_ID"):
         await gh.start("gil")
+    # an admin sets it from Settings: persisted next to the tokens, survives a restart, env still wins when present
+    with pytest.raises(ValueError):
+        gh.set_client_id("nope")
+    gh.set_client_id(" Iv1.test ")
+    assert gh.configured and gh.client_id == "Iv1.test" and gh.client_id_source == "settings"
+    assert TokenStore(str(tmp_path), secret="s3").get_setting("client_id") == "Iv1.test"
+    assert gh.status("gil")["configured"] and "client_id" not in gh.status("gil")
+    assert gh.status("gil", admin=True)["client_id"] == "Iv1.test"
+    gh.set_client_id("")
+    assert not gh.configured
+    gh.env_client_id = "Iv1.env"
+    gh.set_client_id("Iv1.settings")
+    assert gh.client_id == "Iv1.env" and gh.client_id_source == "env"
     await gh.aclose()
 
 
@@ -148,7 +171,9 @@ async def test_admin_routes_are_per_user(tmp_path):
     from marvin.config import Config
 
     fake = FakeGitHub()
-    gh = connect_for(tmp_path, fake)
+    gh = connect_for(tmp_path, fake, client_id=None)
+    gh.env_client_id = None
+    gh.set_client_id("Iv1.test")  # configured from Settings, not the environment
     mgr = RoomManager(Config(rooms=()), repos_dir=str(tmp_path / "repos"), state_dir=str(tmp_path), session_kwargs={})
     async with TestClient(TestServer(make_admin_app(mgr, gh))) as c:
         assert (await c.get("/github/me")).status == 400  # no X-Marvin-User: the token server always sets one
@@ -167,4 +192,11 @@ async def test_admin_routes_are_per_user(tmp_path):
         assert (await (await c.get("/github/me", headers=h)).json())["connected"]["login"] == "gil"
         assert (await (await c.get("/github/me", headers={"X-Marvin-User": "bob"})).json())["connected"] is None
         assert (await (await c.delete("/github/me", headers=h)).json())["connected"] is None
+        # the client id: participants cannot set it or see it, admins can
+        assert (await c.put("/github/config", json={"client_id": "Iv1.other"}, headers=h)).status == 403
+        assert "client_id" not in await (await c.get("/github/me", headers=h)).json()
+        adm = {"X-Marvin-User": "root", "X-Marvin-Roles": "participant,admin"}
+        assert (await c.put("/github/config", json={"client_id": "x"}, headers=adm)).status == 400
+        r = await c.put("/github/config", json={"client_id": "Iv1.other"}, headers=adm)
+        assert r.status == 200 and (await r.json())["client_id"] == "Iv1.other"
     await gh.aclose()

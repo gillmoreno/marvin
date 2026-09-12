@@ -1,0 +1,28 @@
+---
+description: Configuration is entered in the browser (Settings), not in .env files, whenever it can be done safely
+alwaysApply: true
+---
+
+# Configuration lives in the UI
+
+Whatever can safely be configured from the front end is configured from the front end. Do not add a new
+environment variable as the *only* way to set something unless it must exist before the UI can (LiveKit keys,
+`MARVIN_AUTH`, `MARVIN_SESSION_SECRET`, bind addresses). Rationale and history: `docs_and_changelog/decisions-log.md`
+(2026-09-12, "Design principle: configuration happens in the browser").
+
+When adding a setting:
+
+- Put it in **Settings** (`web/src/Settings.tsx` and friends), admin-only if it affects other people, behind a
+  `useIsAdmin()` check in the UI *and* an `X-Marvin-Roles` check in the worker route (`worker/marvin/admin.py`),
+  plus `ADMIN_ONLY_PREFIXES` in `worker/marvin/token_server.py`.
+- Persist it in the worker's state dir (a small JSON next to its feature, e.g. `github.json` → `settings`), never in
+  the repo or in `.env`. Secrets are encrypted at rest (Fernet keyed from the session secret, see
+  `worker/marvin/github.py` `TokenStore`); public identifiers are stored plain but may be masked in the UI.
+- Keep the environment variable as an **override/seed** for automation (`env or stored setting`), document it in
+  `.env.example` as optional, and show in the UI where the current value comes from ("from the environment" /
+  "set here").
+- Guide instead of instruct: link to the exact external page, list the clicks, accept the paste, validate the shape,
+  and give a precise error. No restart should be needed after saving.
+
+Example (the GitHub OAuth client id): `ClientIdSetup` in `web/src/GitHubConnect.tsx`, `PUT /github/config` in
+`admin.py`, `GitHubConnect.client_id` reading env first then `store.get_setting("client_id")`.

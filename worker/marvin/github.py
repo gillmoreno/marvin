@@ -20,6 +20,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 import time
 from dataclasses import dataclass
@@ -63,10 +64,24 @@ class TokenStore:
         if not self.path or not self.path.exists():
             return {"users": {}}
         try:
-            return json.loads(self.path.read_text())
+            data = json.loads(self.path.read_text())
+            data.setdefault("users", {})
+            return data
         except Exception:
             log.exception("could not read %s", self.path)
             return {"users": {}}
+
+    # Machine-wide settings that live next to the tokens (plain: the client id is a public identifier).
+    def get_setting(self, key: str) -> str | None:
+        return self._data.get("settings", {}).get(key) or None
+
+    def set_setting(self, key: str, value: str | None) -> None:
+        settings = self._data.setdefault("settings", {})
+        if value:
+            settings[key] = value
+        else:
+            settings.pop(key, None)
+        self._save()
 
     def _save(self) -> None:
         if not self.path:
@@ -118,28 +133,55 @@ class GitHubConnect:
 
     def __init__(self, store: TokenStore, *, client_id: str | None = None, http: httpx.AsyncClient | None = None) -> None:
         self.store = store
-        self.client_id = client_id or os.environ.get("MARVIN_GITHUB_CLIENT_ID", "").strip() or None
+        # The OAuth App's client id: set by an admin in Settings (stored with the tokens) or, as an override, in the
+        # environment. It is a public identifier, not a secret.
+        self.env_client_id = client_id or os.environ.get("MARVIN_GITHUB_CLIENT_ID", "").strip() or None
         self.http = http or httpx.AsyncClient(timeout=20, headers={"Accept": "application/json", "User-Agent": "marvin"})
         self.flows: dict[str, Flow] = {}
         self.machine_token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
 
     @property
+    def client_id(self) -> str | None:
+        return self.env_client_id or self.store.get_setting("client_id")
+
+    @property
+    def client_id_source(self) -> str | None:
+        return "env" if self.env_client_id else ("settings" if self.store.get_setting("client_id") else None)
+
+    def set_client_id(self, value: str | None) -> None:
+        value = (value or "").strip()
+        if value and not re.fullmatch(r"[A-Za-z0-9._-]{8,80}", value):
+            raise ValueError("that does not look like a GitHub client id (e.g. Ov23li… or Iv1.…)")
+        self.store.set_setting("client_id", value or None)
+
+    @property
     def configured(self) -> bool:
         return bool(self.client_id)
 
-    def status(self, user_id: str) -> dict[str, Any]:
+    def status(self, user_id: str, *, admin: bool = False) -> dict[str, Any]:
         conn = self.store.get(user_id)
-        return {"configured": self.configured, "connected": conn.public() if conn else None, "machine_identity": bool(self.machine_token)}
+        out: dict[str, Any] = {"configured": self.configured, "connected": conn.public() if conn else None, "machine_identity": bool(self.machine_token)}
+        if admin:
+            cid = self.client_id
+            out["client_id"] = cid  # admins may see it; it is public anyway (the UI masks it by default)
+            out["client_id_source"] = self.client_id_source
+        return out
 
     async def start(self, user_id: str) -> Flow:
         if not self.client_id:
             raise RuntimeError("GitHub connection is not configured on this machine: set MARVIN_GITHUB_CLIENT_ID (see docs_and_changelog/github.md)")
         r = await self.http.post(DEVICE_CODE_URL, data={"client_id": self.client_id, "scope": SCOPES})
-        if r.status_code != 200:
-            raise RuntimeError(f"GitHub device code request failed: {r.status_code} {r.text[:200]}")
-        d = r.json()
+        try:
+            d = r.json() if r.content else {}
+        except ValueError:
+            d = {}
         if "device_code" not in d:
-            raise RuntimeError(f"GitHub device code request failed: {d.get('error_description') or d}")
+            err = d.get("error", "")
+            if err == "device_flow_disabled":
+                raise RuntimeError("Device Flow is not enabled on that OAuth App. On GitHub: Settings → Developer settings → OAuth Apps → your app → tick “Enable Device Flow” → Update application. Then try again; the client id stays as it is.")
+            if r.status_code == 404 or err in ("Not Found", "unauthorized_client"):
+                raise RuntimeError("GitHub does not know this client id. Check it against the OAuth App page (Settings → Developer settings → OAuth Apps) and save it again.")
+            raise RuntimeError(f"GitHub device code request failed: {d.get('error_description') or err or f'HTTP {r.status_code}'}")
         flow = Flow(
             id=secrets.token_urlsafe(12), user_id=user_id, device_code=d["device_code"], user_code=d["user_code"],
             verification_uri=d.get("verification_uri", "https://github.com/login/device"),

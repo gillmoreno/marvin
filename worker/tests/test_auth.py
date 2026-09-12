@@ -212,6 +212,13 @@ async def test_proxy_roles(upstream):
         assert (await c.delete("/api/rooms/dev", headers=a)).status == 200
         assert (await c.get("/api/notes", headers=a)).status == 200
         assert (await c.put("/api/notes", headers=a, json={"text": "x"})).status == 200
-    writes = [s for s in upstream if s[0] != "GET"]
+        # GitHub: connecting one's own account is self-service, the machine's client id is admin-only
+        assert (await c.post("/api/github/connect", headers=p)).status == 200
+        assert (await c.delete("/api/github/me", headers=p)).status == 200
+        assert (await c.put("/api/github/config", headers=p, json={"client_id": "Iv1.x"})).status == 403
+        assert (await c.put("/api/github/config", headers=a, json={"client_id": "Iv1.x"})).status == 200
+    writes = [s for s in upstream if s[0] != "GET" and not s[1].startswith("/github/")]
     assert writes and all(s[2] == "root" and s[3] == "admin,participant" for s in writes)
+    assert ("POST", "/github/connect", "pat", "participant") in upstream
+    assert ("PUT", "/github/config", "root", "admin,participant") in upstream
     assert ("GET", "/rooms", "pat", "participant") in upstream
