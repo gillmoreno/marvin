@@ -2,6 +2,51 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-12 — Control Room matches the prototype
+
+### Changed
+- Control Room is now a close port of `design-explorations/a-control-room.html`: Settings is a full-page screen with
+  a two-column card grid; the left column pins a footer of square controls (settings / mic / share / leave); the
+  status rail shows branch, harness, model, live and the session clock around a full-width oscilloscope; the
+  transcript is a time · speaker · line grid; Marvin's header is two rows with harness/model tags. Shared hooks
+  (`.left-head`, `.left-foot`, `.rail-cell`, `.sgrid`, `.role`, `.who-st`) so the other themes keep their own layout.
+
+## 2026-09-12 — Themes: three built in, the rest vibe-coded
+
+Design: `theming.md`. Contract: `worker/marvin/theme_docs/README.md`. Prototypes: `design-explorations/`.
+
+### Added
+- A theme system for the web UI. A theme is `theme.json` (name, dark/light, Google Fonts, presence variant, tokens)
+  plus an optional `theme.css`, scoped to `html[data-theme="<id>"]` by the loader through the CSSOM. Data and CSS
+  only, never code. `web/src/theme/{themes.ts,ThemeContext.tsx,Presence.tsx,ThemeSection.tsx}`.
+- Built-in themes **Control Room** (default: dark instrument panel, status rail with an oscilloscope, JetBrains Mono
+  + IBM Plex Sans Condensed, amber), **Editorial** (light paper, Fraunces, voice as ink) and **Signal** (graphite glass,
+  one mint radial signal element). `web/src/theme/builtin/`.
+- Voice presence drawings driven by the agent state and the real audio level: `dot`, `scope`, `bars`, `ink`,
+  `orb`, `ring`; themes pick one for Marvin and one for speakers. `--level` is kept live on the element.
+- Settings → **Appearance**: pick a theme for this browser, follow the machine default, admins set the default and
+  remove custom themes; invalid themes are listed with the reason and cannot be turned on.
+- Custom themes under `<state_dir>/themes/<id>/`, validated by the worker (`marvin/themes.py`): reserved ids, schema,
+  token values, CSS size, `@import`, `url()` (data: and Google Fonts only), `expression(`, `javascript:`.
+  `GET /api/themes`, `GET /api/themes/{id}/theme.css`, `PUT /api/themes/default` (admin), `DELETE /api/themes/{id}`
+  (admin). `MARVIN_THEME` overrides the default. Tests: `tests/test_themes.py`.
+- **"Marvin, make me a theme."** The themes directory is mounted into every room sandbox and named by
+  `MARVIN_THEMES_DIR`; the worker writes the contract into it as `README.md` and installs a Claude Code skill
+  (`~/.claude/skills/marvin-theme/SKILL.md`) into each room HOME; the room prompt points other harnesses at the
+  README. The UI re-reads the theme list when a turn ends and offers "New theme X · try it".
+- A phone layout for the room (`web/src/Mobile.tsx`): one pane at a time (Marvin, Transcript, Changes, apps, shared
+  screens), a bottom bar with a large talk/mute button and leave.
+- A status rail across the top of the room (`.rail`: room, state lamp, presence, who is speaking, session clock),
+  shown by themes that want it.
+
+### Changed
+- `web/src/styles.css` is now a token-based base stylesheet (`--bg --panel --panel-2 --line --fg --fg-2 --dim
+  --accent --accent-fg --sel --ok --warn --warn-bg --bad --exec --read --write --ins-bg --del-bg --glow --font-ui
+  --font-display --font-mono --text --radius --radius-lg --shadow --left-w --right-w`). Class names are the stable
+  theme contract from now on.
+- `People` rows carry `data-speaking` / `data-away` and a presence drawing per person; the room `.layout` carries
+  `data-state`.
+
 ## 2026-09-12 — Projects: a room is a list of repos
 
 Design and limits: `projects.md`. Roadmap item 2.

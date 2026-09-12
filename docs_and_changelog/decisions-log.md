@@ -67,3 +67,15 @@ this file is the "why we did it this way" layer on top.
   (set from Settings → GitHub); next candidates: harness API keys, `GITHUB_TOKEN`/machine identity, sandbox options,
   admin users. Rationale: Gil's own experience as the first user — copy-pasting into a form is less friction than
   editing a file and restarting, and a hosted or appliance install has no `.env` to hand.
+- **Themes are data + CSS, never code; Marvin writes them.** Of the three design prototypes (`design-explorations/`)
+  Control Room is the default and the other two ship as choices. To make new themes "vibe codable" without letting
+  a theme break the app, a theme is `theme.json` (tokens, fonts, presence variant) plus plain CSS that the loader
+  scopes to `html[data-theme=id]` via the CSSOM; the app keeps a fixed, documented set of class names as the
+  contract and draws the voice-presence variants itself (`scope`, `bars`, `ink`, `orb`, `ring`, `dot`) from the
+  agent state and audio level. Custom themes live in `<state_dir>/themes/`, which is mounted into every room
+  sandbox (`MARVIN_THEMES_DIR`) with the contract as its README; the worker validates (reserved ids, schema, no
+  `@import`/foreign `url()`), lists invalid ones with the reason and never serves their CSS. Claude Code gets a
+  user-level skill in each room HOME; other harnesses get one line in the room prompt. Choice is per browser,
+  default per machine from Settings (admin), `MARVIN_THEME` as the env override. Rejected: tokens-only themes (could
+  not carry the three prototypes' character), JS/React themes (unbounded blast radius), themes inside the project
+  repo (pollutes the customer's code). Write-up: `theming.md`.

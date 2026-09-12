@@ -52,31 +52,38 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
   return (
     <div className={`marvin${dropping ? " dropping" : ""}`}>
       <header className="marvin-head">
-        <span className={`status ${state}`} title={`${agent.name} is ${label(state)}`}>
-          <span className={`dot ${state}`} />
-          <span className="status-text">{label(state)}</span>
-        </span>
-        <HarnessPicker room={room} info={roomInfo.info} reload={roomInfo.reload} />
-        <ModelPicker room={room} info={roomInfo.info} reload={roomInfo.reload} />
-        <span className="spacer" />
-        {state === "thinking" && (
-          <button type="button" className="iconbtn stop" onClick={() => send({ action: "interrupt" })} title="Stop this turn" aria-label="stop">
-            <StopIcon />
-          </button>
-        )}
-        {admin ? (
-          <button
-            type="button"
-            className={`iconbtn${autoApprove ? " on" : ""}`}
-            aria-pressed={autoApprove}
-            onClick={() => send({ action: "auto_approve", on: !autoApprove })}
-            title={autoApprove ? "Always allow is on: every tool runs without asking the room. Click to turn off." : "Always allow: run every tool without asking the room"}
-          >
-            <BoltIcon />
-          </button>
-        ) : (
-          autoApprove && <span className="iconbtn on" title="Always allow is on: every tool runs without asking the room. An admin can turn it off."><BoltIcon /></span>
-        )}
+        <div className="marvin-r1">
+          <span className={`status ${state}`} title={`${agent.name} is ${label(state)}`}>
+            <span className={`dot ${state}`} />
+            <span className="status-name">{agent.name}</span>
+            <span className="status-text">{label(state)}</span>
+          </span>
+          <span className="spacer" />
+          {state === "thinking" && (
+            <button type="button" className="iconbtn stop" onClick={() => send({ action: "interrupt" })} title="Stop this turn" aria-label="stop">
+              <StopIcon />
+              <span className="btn-label">stop</span>
+            </button>
+          )}
+        </div>
+        <div className="marvin-r2">
+          <HarnessPicker room={room} info={roomInfo.info} reload={roomInfo.reload} />
+          <ModelPicker room={room} info={roomInfo.info} reload={roomInfo.reload} />
+          {admin ? (
+            <button
+              type="button"
+              className={`iconbtn always-btn${autoApprove ? " on" : ""}`}
+              aria-pressed={autoApprove}
+              onClick={() => send({ action: "auto_approve", on: !autoApprove })}
+              title={autoApprove ? "Always allow is on: every tool runs without asking the room. Click to turn off." : "Always allow: run every tool without asking the room"}
+            >
+              <BoltIcon />
+              <span className="btn-label">always allow</span>
+            </button>
+          ) : (
+            autoApprove && <span className="iconbtn always-btn on" title="Always allow is on: every tool runs without asking the room. An admin can turn it off."><BoltIcon /><span className="btn-label">always allow</span></span>
+          )}
+        </div>
       </header>
       {notice && <p className="notice">{notice}</p>}
       <div className="turns">

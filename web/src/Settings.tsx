@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { agent } from "./agent";
 import { AccountSection } from "./RoomSettings";
 import { GitHubSection } from "./GitHubConnect";
+import { ThemeSection } from "./theme/ThemeSection";
 
 /** Sleep the whole machine (scale to zero). Only meaningful on the cluster, where /power is served by the gate. */
 export function PowerSection() {
@@ -26,18 +27,23 @@ export function PowerSection() {
   );
 }
 
-export function SettingsPanel({ onClose, extra }: { onClose: () => void; extra?: React.ReactNode }) {
+export function SettingsPanel({ onClose, extra, room }: { onClose: () => void; extra?: React.ReactNode; room?: string }) {
   return (
-    <div className="modal-back" onClick={onClose}>
+    <div className="modal-back settings-screen" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <header>
-          <h2>Settings · this machine</h2>
+          <span className="lbl">settings</span>
+          <h2>{agent.name}{room ? <> <span className="room">#{room}</span></> : <> · this machine</>}</h2>
+          <span className="sp" />
           <button className="ghost" onClick={onClose}>close</button>
         </header>
-        {extra}
-        <AccountSection />
-        <GitHubSection />
-        <PowerSection />
+        <div className="sgrid">
+          {extra}
+          <AccountSection />
+          <GitHubSection />
+          <ThemeSection />
+          <PowerSection />
+        </div>
       </div>
     </div>
   );

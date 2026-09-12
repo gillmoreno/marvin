@@ -1,0 +1,42 @@
+{
+  "id": "control-room",
+  "name": "Control Room",
+  "description": "Dark, precise, engineered. Monospace readouts, hairline rules, an oscilloscope as the room's heartbeat, one amber accent for what is live.",
+  "author": "Marvin",
+  "scheme": "dark",
+  "fonts": {
+    "ui": "JetBrains Mono",
+    "display": "IBM Plex Sans Condensed",
+    "mono": "JetBrains Mono",
+    "google": "family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600"
+  },
+  "presence": { "agent": "scope", "speaker": "bars" },
+  "tokens": {
+    "--bg": "#0B0C0E",
+    "--panel": "#101215",
+    "--panel-2": "#15181C",
+    "--line": "#22272D",
+    "--sel": "#1B1F24",
+    "--fg": "#E8EBEF",
+    "--fg-2": "#B0B8C1",
+    "--dim": "#828B96",
+    "--accent": "#FFB224",
+    "--accent-fg": "#0B0C0E",
+    "--glow": "rgba(255,178,36,.45)",
+    "--ok": "#5CD387",
+    "--warn": "#FFB224",
+    "--warn-bg": "#1A1508",
+    "--bad": "#F2716B",
+    "--exec": "#FFB224",
+    "--read": "#9AA4AE",
+    "--write": "#5CD387",
+    "--ins-bg": "rgba(92,211,135,.10)",
+    "--del-bg": "rgba(242,113,107,.12)",
+    "--text": "13px",
+    "--radius": "3px",
+    "--radius-lg": "4px",
+    "--shadow": "none",
+    "--left-w": "232px",
+    "--right-w": "404px"
+  }
+}

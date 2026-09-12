@@ -20,6 +20,7 @@ from marvin.config import RoomConfig
 from marvin.github import GitIdentity
 from marvin.sandbox import Sandbox
 from marvin.stt import SegmenterFactory
+from marvin.themes import ThemeStore
 
 from .conductor import Conductor
 from .protocol import AGENT_IDENTITY, TOPIC_CONTROL, TOPIC_EVENTS, decode, encode
@@ -83,6 +84,7 @@ class RoomSession:
         state_dir: str | None = None,
         sandbox: Sandbox | None = None,
         git_identity: GitIdentity | None = None,
+        themes: ThemeStore | None = None,
     ) -> None:
         self.cfg = cfg
         self.url, self.api_key, self.api_secret = url, api_key, api_secret
@@ -90,6 +92,7 @@ class RoomSession:
         self.agent_name = agent_name
         self.sandbox = sandbox if sandbox and sandbox.cfg.enabled else None
         self.git_identity = git_identity
+        self.themes = themes
         self.state_file = Path(state_dir) / f"{cfg.name}.json" if state_dir else None
         self.room = rtc.Room()
         self.consumers: dict[str, asyncio.Task] = {}
@@ -113,12 +116,21 @@ class RoomSession:
         return cfg.harness or registry.default_id()
 
     def _make_harness(self, cfg: RoomConfig, resume: str | None) -> Harness:
+        env = {**(self.git_identity.env(cfg.name) if self.git_identity else {}), **(self.themes.agent_env() if self.themes else {})}
         return create_harness(
             self.harness_id(cfg), cfg.repo, agent_name=self.agent_name, room=cfg.name, model=cfg.model, resume=resume, add_dirs=list(cfg.linked), permissions=None,
             sandbox=self.sandbox.for_room(cfg) if self.sandbox else None,
-            env=self.git_identity.env(cfg.name) if self.git_identity else None,
+            env=env or None,
             project=cfg.project_text(),
         )
+
+    def _install_skills(self) -> None:
+        """The theme skill goes where this room's Claude Code looks for user skills: the room HOME in a sandbox, the
+        worker's own HOME otherwise."""
+        if not self.themes or not self.themes.enabled:
+            return
+        home = self.sandbox.home_dir(self.cfg.name) if self.sandbox else Path.home()
+        ThemeStore.install_skill(home)
 
     def identity_of(self, name: str) -> str | None:
         """Marvin identity id of the participant the room knows as `name` (participant.name, or identity when unnamed)."""
@@ -179,6 +191,7 @@ class RoomSession:
         cfg = self.cfg
         await asyncio.to_thread(ensure_repo, cfg)
         await self._ensure_sandbox(cfg)
+        await asyncio.to_thread(self._install_skills)
         resume = self._load_state().get("session_id")
 
         async def publish(event: dict) -> None:

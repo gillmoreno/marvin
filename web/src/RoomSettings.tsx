@@ -65,6 +65,7 @@ export function HarnessPicker({ room, info, reload }: { room: string; info: Room
   return (
     <span className={`modelpick harnesspick${pinned ? " pinned" : ""}${admin ? "" : " readonly"}`} title={admin ? `${what} Click to change; a new harness starts a new conversation.` : `${what} Only admins can change it.`}>
       <BotIcon />
+      <span className="pick-k">harness</span>
       <span className="modelname">{label}</span>
       {admin && <ChevronIcon />}
       {admin && (
@@ -109,6 +110,7 @@ export function ModelPicker({ room, info, reload }: { room: string; info: RoomIn
   return (
     <span className={`modelpick${pinned ? " pinned" : ""}${admin ? "" : " readonly"}`} title={admin ? `${what} ${pinned ? "Click to change." : `Click to pin a model for this room (list ${source}).`}` : `${what} Only admins can change it.`}>
       <CpuIcon />
+      <span className="pick-k">model</span>
       <span className="modelname">{label}</span>
       {admin && <ChevronIcon />}
       {admin && (

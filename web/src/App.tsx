@@ -8,9 +8,16 @@ import { RoomPicker } from "./RoomPicker";
 import { Workspace } from "./Workspace";
 import { SettingsPanel } from "./Settings";
 import { agent, loadAgentName } from "./agent";
-import { RoomAndMachine, useRoomInfo } from "./RoomSettings";
+import { RoomAndMachine, useRoomInfo, useHarnesses, useModels } from "./RoomSettings";
 import { Gutter, useColumns } from "./Columns";
+import { SlidersIcon } from "./icons";
 import { MeContext, fetchMe, isAdmin, login, logout, type Me } from "./auth";
+import { ThemeProvider, useTheme } from "./theme/ThemeContext";
+import { AgentPresence } from "./theme/Presence";
+import { stateLabel } from "./People";
+import { MobileRoom, useIsMobile } from "./Mobile";
+import { useParticipants, useSpeakingParticipants } from "@livekit/components-react";
+import { AGENT_IDENTITY } from "./protocol";
 
 type Join = { serverUrl: string; token: string; room: string; relayOnly: boolean };
 
@@ -31,11 +38,23 @@ async function fetchToken(room: string, name: string | null): Promise<Join> {
 }
 
 export default function App() {
+  return (
+    <ThemeProvider>
+      <Shell />
+    </ThemeProvider>
+  );
+}
+
+function Shell() {
   const [me, setMe] = useState<Me | null>(null); // null until /api/me answered
   const [join, setJoin] = useState<Join | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deviceError, setDeviceError] = useState<string | null>(null);
+  const themes = useTheme();
   useEffect(() => { void fetchMe().then(setMe); }, []);
+  // Custom themes are only listed once signed in: re-read the list when the identity changes.
+  const signedIn = Boolean(me?.identity);
+  useEffect(() => { if (signedIn) void themes.refresh(); }, [signedIn, themes.refresh]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!me) return <div className="join"><p className="hint">loading…</p></div>;
   const ctx = { me, setMe };
   if (!join) {
@@ -73,6 +92,69 @@ export default function App() {
   );
 }
 
+/** The status rail across the top of the room (shown by themes that want it, e.g. Control Room). */
+function Rail({ roomName, state, info }: { roomName: string; state: "offline" | "idle" | "thinking" | "waiting_approval"; info: ReturnType<typeof useRoomInfo>["info"] }) {
+  const speaking = useSpeakingParticipants().filter((p) => p.identity !== AGENT_IDENTITY);
+  const people = useParticipants().filter((p) => p.identity !== AGENT_IDENTITY).length;
+  const [t0] = useState(() => Date.now());
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const s = Math.floor((now - t0) / 1000);
+  const clock = `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  const { harnesses } = useHarnesses();
+  const { models } = useModels(roomName, info?.harness, info?.model);
+  const [git, setGit] = useState<{ branch: string | null; base: string | null } | null>(null);
+  useEffect(() => {
+    fetch(`/api/changes?room=${encodeURIComponent(roomName)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j?.branch) setGit({ branch: j.branch, base: j.base ?? null }); })
+      .catch(() => {});
+  }, [roomName]);
+  const branch = git?.branch ?? info?.repos?.[0]?.branch;
+  const base = git?.base?.replace(/@[0-9a-f]+$/i, "");
+  const harness = harnesses.find((h) => h.id === info?.harness)?.label ?? info?.harness;
+  const model = models.find((m) => m.id === (info?.model ?? ""))?.label ?? info?.model;
+  return (
+    <header className="rail">
+      <div className="rail-cell rail-room">{agent.name} <span className="room">#{roomName}</span></div>
+      <div className="rail-cell"><span className="rail-state">{stateLabel(state)}</span></div>
+      <div className="rail-cell rail-scope"><AgentPresence state={state} className="rail-presence" label={`${agent.name} is ${stateLabel(state)}`} /></div>
+      {branch && (
+        <div className="rail-cell rail-hide-m">
+          <span className="rail-k">branch</span> {branch}
+          {base && base !== branch && <><span className="dim"> → </span>{base}</>}
+        </div>
+      )}
+      {(harness || model) && (
+        <div className="rail-cell rail-hide-m">
+          {harness && <><span className="rail-k">harness</span> {harness}</>}
+          {harness && model && <span className="dim"> · </span>}
+          {model}
+        </div>
+      )}
+      <div className="rail-cell rail-hide-m rail-live">
+        <span className="rail-k">live</span>
+        <span className={`dot ${speaking.length ? "idle" : "offline"}`} />
+        {speaking.length ? speaking.map((p) => p.name || p.identity).join(", ") : `${people} in the room`}
+      </div>
+      <div className="rail-cell rail-clock" title="time in this session">{clock}</div>
+    </header>
+  );
+}
+
+/** One line under the people list when a custom theme just appeared (the agent wrote it during the last turn). */
+function FreshTheme() {
+  const th = useTheme();
+  if (!th.fresh) return null;
+  return (
+    <p className="fresh-theme">
+      New theme <b>{th.fresh.name}</b>
+      <button type="button" onClick={() => th.choose(th.fresh!.id)}>try it</button>
+      <button type="button" className="ghost" onClick={th.dismissFresh}>later</button>
+    </p>
+  );
+}
+
 function deviceHint(source: string, reason: string): string {
   if (/NotAllowed|PermissionDenied/i.test(reason)) {
     return `Chrome blocked the ${source}. Click the icon left of the address bar, set ${source === "microphone" ? "Microphone" : "Screen"} to Allow, then reload.`;
@@ -90,25 +172,47 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
   const roomInfoForSettings = useRoomInfo(roomName, 0);
   const last = marvin.turns[marvin.turns.length - 1];
   const refreshKey = marvin.turns.length * 2 + (last?.result ? 1 : 0); // re-read git when a turn starts and when it ends
-  return (
-    <div className="layout" style={columns.style}>
-      <aside className="left">
-        <h1>{agent.name} <span className="room">#{roomName}</span></h1>
-        <People agentState={marvin.state} />
-        <AppLinks links={marvin.appLinks} onOpen={setWanted} />
-        <div className="grow" />
-        <button type="button" className="ghost settings-btn" onClick={() => setShowSettings(true)}>⚙ settings</button>
-        <StartAudio label="Click to hear the room" />
+  const mobile = useIsMobile();
+  const themes = useTheme();
+  useEffect(() => { void themes.refresh(); }, [refreshKey, themes.refresh]); // a turn just ended: the agent may have written a theme
+  const repos = roomInfoForSettings.info?.repos ?? [];
+  const settings = showSettings && <SettingsPanel room={roomName} onClose={() => setShowSettings(false)} extra={<RoomAndMachine room={roomName} info={roomInfoForSettings.info} reload={roomInfoForSettings.reload} />} />;
+  if (mobile) {
+    return (
+      <div className="layout" data-state={marvin.state} data-mobile="">
+        <MobileRoom roomName={roomName} marvin={marvin} repos={repos} refreshKey={refreshKey} onSettings={() => setShowSettings(true)} />
         {deviceError && <p className="error devhint">{deviceError}</p>}
-        <ControlBar
-          variation="minimal"
-          controls={{ microphone: true, camera: false, screenShare: true, leave: true, chat: false }}
-          onDeviceError={({ source, error }) => setDeviceError(deviceHint(source, `${error.name} ${error.message}`))}
-        />
+        {settings}
+      </div>
+    );
+  }
+  return (
+    <div className="layout" data-state={marvin.state} style={columns.style}>
+      <Rail roomName={roomName} state={marvin.state} info={roomInfoForSettings.info} />
+      <aside className="left">
+        <div className="left-head">
+          <h1>{agent.name} <span className="room">#{roomName}</span></h1>
+        </div>
+        <div className="left-body">
+          <People agentState={marvin.state} />
+          <FreshTheme />
+          <AppLinks links={marvin.appLinks} onOpen={setWanted} />
+        </div>
+        {deviceError && <p className="error devhint">{deviceError}</p>}
+        <StartAudio label="Click to hear the room" />
+        <div className="left-foot">
+          <button type="button" className="iconbtn settings-btn" onClick={() => setShowSettings(true)} aria-label="settings" title="settings"><SlidersIcon /></button>
+          <span className="sp" />
+          <ControlBar
+            variation="minimal"
+            controls={{ microphone: true, camera: false, screenShare: true, leave: true, chat: false }}
+            onDeviceError={({ source, error }) => setDeviceError(deviceHint(source, `${error.name} ${error.message}`))}
+          />
+        </div>
       </aside>
       <Gutter side="left" resize={columns.resize} reset={columns.reset} />
       <main className="center">
-        <Workspace room={roomName} repos={roomInfoForSettings.info?.repos ?? []} appLinks={marvin.appLinks} refreshKey={refreshKey} send={marvin.send} wanted={wanted} onShown={() => setWanted(null)} />
+        <Workspace room={roomName} repos={repos} appLinks={marvin.appLinks} refreshKey={refreshKey} send={marvin.send} wanted={wanted} onShown={() => setWanted(null)} />
       </main>
       <Gutter side="right" resize={columns.resize} reset={columns.reset} />
       <aside className="right">
@@ -124,7 +228,7 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
         </div>
         {side === "marvin" ? <MarvinPane marvin={marvin} room={roomName} /> : <Transcript lines={marvin.transcript} />}
       </aside>
-      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} extra={<RoomAndMachine room={roomName} info={roomInfoForSettings.info} reload={roomInfoForSettings.reload} />} />}
+      {settings}
     </div>
   );
 }
@@ -133,7 +237,7 @@ function AppLinks({ links, onOpen }: { links: { label: string; url: string }[]; 
   if (links.length === 0) return null;
   return (
     <div className="applinks">
-      <h2>App</h2>
+      <h2 className="left-sect">app</h2>
       {links.map((l) =>
         l.url ? (
           <a key={l.label + l.url} href={l.url} onClick={(e) => { e.preventDefault(); onOpen(l.url); }} title="open as a preview in the middle">

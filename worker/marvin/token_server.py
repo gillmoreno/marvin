@@ -31,6 +31,7 @@ WEB_DIST = os.environ.get("MARVIN_WEB_DIST")  # directory with the built web UI;
 PROXIED = (
     "/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/models", "/api/harnesses", "/api/notes",
     "/api/github/me", "/api/github/connect", "/api/github/connect/{flow}", "/api/github/config", "/api/github/repos",
+    "/api/themes", "/api/themes/default", "/api/themes/{id}", "/api/themes/{id}/theme.css",  # reading is for everyone signed in; default/delete are writes (admin)
 )
 ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config")
 # Self-service: every signed-in user may write here, because it only touches their own record (keyed by X-Marvin-User).
