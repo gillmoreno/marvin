@@ -1,0 +1,1417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marvin · Control Room — design exploration A</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens ---------- */
+:root{
+  --bg0:#0B0C0E; --bg1:#101215; --bg2:#15181C; --bg3:#1B1F24; --bg4:#232830;
+  --line:#22272D; --line2:#303740;
+  --t0:#E8EBEF; --t1:#B0B8C1; --t2:#828B96;
+  --amber:#FFB224; --amber-dim:rgba(255,178,36,.10); --amber-line:rgba(255,178,36,.42);
+  --add:#5CD387; --del:#F2716B; --add-bg:rgba(92,211,135,.09); --del-bg:rgba(242,113,107,.09);
+  --read:#9AA4AE;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --sans:"IBM Plex Sans Condensed","Archivo Narrow","Helvetica Neue Condensed",sans-serif;
+  --r:3px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#000;color:var(--t0);font:13px/1.45 var(--mono);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,textarea,select{font:inherit;color:inherit;background:none;border:0}
+button{cursor:pointer}
+canvas{display:block}
+a{color:inherit}
+::selection{background:var(--amber-line);color:#000}
+.lbl{font-family:var(--sans);font-weight:500;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--t2)}
+.sans{font-family:var(--sans)}
+.dim{color:var(--t2)}
+.ic{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ic.fill{fill:currentColor;stroke:none}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 11px;border:1px solid var(--line2);border-radius:var(--r);color:var(--t1);font-family:var(--sans);font-size:12.5px;font-weight:500;letter-spacing:.01em;white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+.btn:hover{background:var(--bg3);color:var(--t0);border-color:#3B434D}
+.btn.primary{background:var(--t0);color:var(--bg0);border-color:var(--t0)}
+.btn.primary:hover{background:#fff;border-color:#fff}
+.btn.ghost{border-color:transparent}
+.btn.ghost:hover{border-color:var(--line2)}
+.btn.danger:hover{color:var(--del);border-color:rgba(242,113,107,.4)}
+.btn.sm{height:24px;padding:0 8px;font-size:12px}
+.btn.icon{width:28px;padding:0;justify-content:center}
+
+/* indicator lamp */
+.lamp{width:7px;height:7px;border-radius:50%;background:var(--t2);display:inline-block;flex:none;transition:background .35s,box-shadow .35s;opacity:.7}
+.lamp.on{background:var(--amber);box-shadow:0 0 6px var(--amber-line);opacity:1}
+.lamp.off{background:transparent;box-shadow:inset 0 0 0 1px var(--t2);opacity:.6}
+body[data-state=listening] .lamp.state{background:var(--amber);opacity:1;animation:breathe 2.8s ease-in-out infinite}
+body[data-state=working] .lamp.state{background:var(--amber);opacity:1;animation:blink 1s steps(2,end) infinite}
+body[data-state=waiting] .lamp.state{background:var(--amber);opacity:1;box-shadow:0 0 0 3px var(--amber-dim),0 0 10px var(--amber-line)}
+@keyframes breathe{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes blink{0%{opacity:1}100%{opacity:.15}}
+.readout{display:inline-flex;align-items:center;gap:7px;height:20px;padding:0 7px;border:1px solid var(--line2);border-radius:2px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t1);transition:background .25s,color .25s,border-color .25s;white-space:nowrap}
+body[data-state=waiting] .readout.state{background:var(--amber);color:#000;border-color:var(--amber);font-weight:600}
+body[data-state=waiting] .readout.state .lamp{background:#000;box-shadow:none;animation:none}
+
+/* VU meter (5 hairline bars) */
+.vu{display:inline-flex;align-items:center;gap:2px;height:14px;width:22px}
+.vu i{display:block;width:2px;height:100%;background:var(--amber);border-radius:1px;transform:scaleY(.12);transform-origin:center;transition:transform .08s linear;opacity:.9}
+.vu.quiet i{background:var(--t2);opacity:.5}
+
+/* ---------- stage / app / phone frame ---------- */
+.stage{height:100%;display:grid;place-items:stretch}
+.app{container:app / inline-size;position:relative;height:100%;width:100%;background:var(--bg0);overflow:hidden;display:flex;flex-direction:column}
+.screen{display:none;flex:1;min-height:0}
+body[data-screen=signin] #s-signin,body[data-screen=room] #s-room,body[data-screen=settings] #s-settings{display:flex}
+body[data-device=phone] .stage{place-items:center;background:#050506}
+body[data-device=phone] .app{width:390px;height:844px;max-height:calc(100vh - 40px);border-radius:46px;padding-top:50px;box-shadow:0 0 0 1px var(--line2),0 0 0 10px #0E0F12,0 0 0 11px var(--line2),0 40px 80px rgba(0,0,0,.7)}
+body[data-device=phone] .app::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:30px;border-radius:15px;background:#000;z-index:6}
+body[data-device=phone] .app::after{content:"11:04";position:absolute;top:18px;left:34px;font:600 13px var(--sans);color:var(--t0);z-index:6}
+body[data-device=phone] .app .pstat{display:flex}
+.pstat{display:none;position:absolute;top:18px;right:30px;gap:5px;align-items:center;z-index:6;font:600 11px var(--sans)}
+.pstat i{display:block;width:16px;height:8px;border:1px solid var(--t0);border-radius:2px;position:relative}
+.pstat i::after{content:"";position:absolute;inset:1px;right:4px;background:var(--t0)}
+
+/* ---------- sign in ---------- */
+.signin{align-items:center;justify-content:center;padding:32px 20px;overflow:auto}
+.signin-card{width:min(600px,100%)}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid var(--line2)}
+.brand h1{font:600 22px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;display:flex;align-items:center;gap:12px}
+.brand p{font-family:var(--sans);font-size:14px;color:var(--t1);margin-top:10px;max-width:60ch}
+.brand p q{color:var(--t0);quotes:"“" "”"}
+.who{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--t1)}
+.badge{font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.1em;padding:2px 5px;border:1px solid var(--amber-line);color:var(--amber);border-radius:2px}
+.badge.grey{border-color:var(--line2);color:var(--t2)}
+.who button{color:var(--t2);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line2)}
+.who button:hover{color:var(--t0)}
+.rooms{margin-top:26px}
+.rooms .lbl{display:flex;justify-content:space-between;padding:0 14px 8px}
+.roomrow{display:grid;grid-template-columns:14px 1fr auto auto;gap:14px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);cursor:pointer;transition:background .15s}
+.roomrow:last-of-type{border-bottom:1px solid var(--line)}
+.roomrow:hover{background:var(--bg2)}
+.roomrow .name{font-weight:600}
+.roomrow .repo{color:var(--t2);font-size:12px}
+.roomrow .repo b{color:var(--t1);font-weight:400}
+.roomrow.offline .name{color:var(--t1)}
+.newroom{margin-top:14px}
+.newroom>button{width:100%;justify-content:space-between;height:40px;padding:0 14px;border-style:dashed}
+.newroom form{display:none;border:1px solid var(--line2);border-top:0;padding:16px 14px 14px;background:var(--bg1)}
+.newroom.open form{display:grid;gap:14px}
+.newroom.open>button{border-style:solid;border-color:var(--line2);border-bottom-color:transparent;color:var(--t0)}
+.newroom.open .chev{transform:rotate(180deg)}
+.chev{transition:transform .2s}
+.field{display:grid;gap:6px}
+.field input,.field textarea{height:32px;padding:0 10px;background:var(--bg0);border:1px solid var(--line2);border-radius:var(--r);color:var(--t0);outline:none;transition:border-color .15s}
+.field input:focus,.field textarea:focus{border-color:var(--t2)}
+.field input::placeholder,.field textarea::placeholder{color:#5A636E}
+.radios{display:flex;gap:18px;font-family:var(--sans);font-size:13px;color:var(--t1)}
+.radios label{display:flex;align-items:center;gap:7px;cursor:pointer}
+.radios input{appearance:none;width:12px;height:12px;border-radius:50%;border:1px solid var(--t2);display:grid;place-items:center}
+.radios input:checked{border-color:var(--amber)}
+.radios input:checked::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--amber)}
+.two{display:grid;grid-template-columns:1fr 160px;gap:12px}
+.cta{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:22px}
+.cta .btn.primary{height:34px;padding:0 16px;font-size:13px}
+
+/* ---------- room ---------- */
+.room{flex-direction:column}
+.rail{height:34px;display:flex;align-items:stretch;border-bottom:1px solid var(--line);background:var(--bg1);flex:none}
+.rail>div{display:flex;align-items:center;gap:8px;padding:0 13px;border-right:1px solid var(--line);white-space:nowrap;font-size:12px;color:var(--t1)}
+.rail>div:last-child{border-right:0}
+.rail .roomname{font-weight:600;color:var(--t0);letter-spacing:.06em}
+.rail .roomname span{color:var(--t2);font-weight:400;letter-spacing:0}
+.rail .scope{flex:1;min-width:60px;padding:0}
+.rail .scope canvas{width:100%;height:100%}
+.rail .k{color:var(--t2);font-family:var(--sans);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.rail .clock{color:var(--t0)}
+.cols{flex:1;min-height:0;display:grid;grid-template-columns:232px 5px minmax(0,1fr) 5px 404px}
+.gutter{background:var(--bg1);border-left:1px solid var(--line);border-right:1px solid var(--line);cursor:col-resize}
+.gutter:hover{background:var(--bg3)}
+.col{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--bg0)}
+
+/* people column */
+.people .head{padding:14px 14px 10px;border-bottom:1px solid var(--line)}
+.people .head h2{font:600 13px var(--mono);letter-spacing:.04em}
+.people .head h2 span{color:var(--t2);font-weight:400}
+.sect{padding:12px 14px 6px}
+.person{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:10px;padding:7px 14px;font-size:12.5px;transition:background .15s}
+.person:hover{background:var(--bg1)}
+.person .nm{display:flex;align-items:center;gap:8px;min-width:0}
+.person .nm b{font-weight:500}
+.person .role{font-family:var(--sans);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--t2)}
+.person .st{font-size:11px;color:var(--t2);display:flex;align-items:center;gap:6px}
+.person.away{color:var(--t2)}
+.person.away .nm b{font-weight:400}
+.person[data-id=gil] .nm::after{content:"";width:1px;height:12px;background:var(--line2);margin-left:2px}
+.person .vu{display:none}
+.app[data-speaking=gil] .person[data-id=gil] .vu{display:inline-flex}
+.app[data-speaking=gil] .person[data-id=gil] .st .txt{display:none}
+.applinks a{display:flex;justify-content:space-between;padding:6px 14px;font-size:12px;color:var(--t1);text-decoration:none}
+.applinks a:hover{background:var(--bg1);color:var(--t0)}
+.applinks a span{color:var(--t2)}
+.people .foot{margin-top:auto;border-top:1px solid var(--line);padding:10px 12px;display:flex;align-items:center;gap:6px}
+.people .foot .sp{flex:1}
+.ctl{width:34px;height:30px;border:1px solid var(--line2);border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;color:var(--t1);transition:background .15s,color .15s,border-color .15s}
+.ctl:hover{background:var(--bg3);color:var(--t0)}
+.ctl.leave:hover{color:var(--del);border-color:rgba(242,113,107,.4)}
+body[data-muted=true] .ctl.mic{color:var(--del);border-color:rgba(242,113,107,.5)}
+body[data-muted=true] .i-mic{display:none}
+body:not([data-muted=true]) .i-micoff{display:none}
+
+/* tabs & panes */
+.tabs{display:flex;height:34px;border-bottom:1px solid var(--line);background:var(--bg1);flex:none}
+.tabs button{padding:0 14px;font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--t2);border-right:1px solid var(--line);position:relative;display:flex;align-items:center;gap:7px;transition:color .15s}
+.tabs button:hover{color:var(--t1)}
+.tabs button[aria-selected=true]{color:var(--t0);background:var(--bg0)}
+.tabs button[aria-selected=true]::after{content:"";position:absolute;left:0;right:0;top:-1px;height:1px;background:var(--t0)}
+.tabs .sp{flex:1;border:0}
+.tabs .meta{display:flex;align-items:center;padding:0 12px;font-size:11px;color:var(--t2)}
+.pane{display:none;flex:1;min-height:0;flex-direction:column;overflow:hidden}
+.work[data-tab=changes] .pane-changes,.work[data-tab=web] .pane-web,.work[data-tab=screen] .pane-screen,.side[data-tab=marvin] .pane-marvin,.side[data-tab=transcript] .pane-transcript{display:flex}
+
+/* changes */
+.chg-head{display:flex;align-items:center;gap:14px;padding:0 14px;height:40px;border-bottom:1px solid var(--line);font-size:12px;flex:none}
+.chg-head .br{display:flex;align-items:center;gap:8px}
+.chg-head .br b{font-weight:500;color:var(--t0)}
+.chg-head .arrow{color:var(--t2)}
+.chg-head .stats{color:var(--t2)}
+.chg-head .stats .p{color:var(--add)} .chg-head .stats .m{color:var(--del)}
+.chg-head .sp{flex:1}
+.changes-body{flex:1;min-height:0;display:flex}
+.files{width:320px;flex:none;border-right:1px solid var(--line);overflow:auto;padding:4px 0}
+.file{display:grid;grid-template-columns:16px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;padding:5px 12px;font-size:12px;color:var(--t1);border-left:2px solid transparent}
+.file:hover{background:var(--bg1)}
+.file[aria-selected=true]{background:var(--bg2);color:var(--t0);border-left-color:var(--t0)}
+.file .path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file .path b{font-weight:500;color:var(--t0)}
+.file[aria-selected=true] .path b{font-weight:600}
+.file .n{font-size:11px;white-space:nowrap}
+.file .n .p{color:var(--add)} .file .n .m{color:var(--del);margin-left:6px}
+.chip{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:2px;font-size:10px;font-weight:600;line-height:1}
+.chip.M{background:rgba(255,178,36,.14);color:var(--amber)}
+.chip.A{background:var(--add-bg);color:var(--add)}
+.chip.D{background:var(--del-bg);color:var(--del)}
+.more{padding:8px 12px 6px;font-size:11px;color:var(--t2)}
+.diff{flex:1;min-width:0;overflow:auto;background:var(--bg0)}
+.diff-head{position:sticky;top:0;display:flex;align-items:center;gap:12px;height:32px;padding:0 14px;background:var(--bg1);border-bottom:1px solid var(--line);font-size:12px;z-index:1}
+.diff-head .n{margin-left:auto;font-size:11px}
+.diff table{border-collapse:collapse;width:100%;font-size:12px;line-height:20px}
+.diff td{padding:0 12px 0 0;white-space:pre;vertical-align:top}
+.diff td.ln{width:44px;text-align:right;color:#4E5763;user-select:none;padding-right:8px;font-size:11px}
+.diff td.sg{width:18px;text-align:center;color:var(--t2);user-select:none}
+.diff tr.a{background:var(--add-bg)} .diff tr.a td.sg{color:var(--add)} .diff tr.a td.ln{color:rgba(92,211,135,.55)}
+.diff tr.d{background:var(--del-bg)} .diff tr.d td.sg{color:var(--del)} .diff tr.d td.ln{color:rgba(242,113,107,.55)}
+.diff tr.h td{background:var(--bg2);color:var(--t2);padding:4px 12px;font-size:11px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.diff td.code{color:var(--t1);padding-left:6px}
+.diff tr.a td.code,.diff tr.d td.code{color:var(--t0)}
+
+/* preview & screen */
+.browser{margin:14px;flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line2);border-radius:5px;overflow:hidden;background:var(--bg1)}
+.browser .bar{height:34px;display:flex;align-items:center;gap:10px;padding:0 10px;border-bottom:1px solid var(--line);font-size:12px;color:var(--t2)}
+.browser .bar .dots{display:flex;gap:5px}
+.browser .bar .dots i{width:9px;height:9px;border-radius:50%;border:1px solid var(--line2)}
+.browser .url{flex:1;height:22px;display:flex;align-items:center;padding:0 9px;border:1px solid var(--line);border-radius:2px;background:var(--bg0);color:var(--t1)}
+.browser .url b{color:var(--t2);font-weight:400;margin-right:1px}
+.mock{flex:1;overflow:auto;padding:26px 30px;background:#0E1013;color:var(--t1);font-family:var(--sans);font-size:13px}
+.mock h4{font:600 16px var(--sans);color:var(--t0);margin-bottom:4px}
+.mock .sub{color:var(--t2);margin-bottom:18px}
+.mock .row{display:grid;grid-template-columns:140px 1fr;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.mock .row span:first-child{color:var(--t2)}
+.mock .row:last-child{border-bottom:1px solid var(--line)}
+.mock .pill{display:inline-block;margin-left:8px;padding:1px 6px;border:1px solid var(--line2);border-radius:2px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--t2)}
+.mock .btnrow{display:flex;gap:8px;margin-top:14px}
+.mock .mbtn{padding:6px 10px;border:1px solid var(--line2);border-radius:3px;font-size:12px}
+.mock .mbtn.p{background:var(--t0);color:var(--bg0);border-color:var(--t0)}
+.term{margin:14px;flex:1;min-height:0;border:1px solid var(--line2);border-radius:5px;overflow:hidden;display:flex;flex-direction:column;background:#0A0B0D}
+.term .bar{height:30px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--line);font-size:11.5px;color:var(--t2)}
+.term .bar .live{display:flex;align-items:center;gap:6px;color:var(--amber)}
+.term pre{flex:1;overflow:auto;padding:14px 16px;font-size:12px;line-height:1.55;color:var(--t1)}
+.term pre b{color:var(--t0);font-weight:500}
+.term pre .g{color:var(--add)} .term pre .y{color:var(--amber)}
+
+/* marvin pane */
+.mv-head{padding:12px 14px;border-bottom:1px solid var(--line);display:grid;gap:10px;flex:none}
+.mv-head .r1{display:flex;align-items:center;gap:10px}
+.mv-head h3{font:600 13px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.mv-head .sp{flex:1}
+.mv-head .r2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border:1px solid var(--line);border-radius:2px;font-size:11px;color:var(--t1);background:var(--bg1)}
+.tag .k{color:var(--t2);font-family:var(--sans);letter-spacing:.06em;text-transform:uppercase;font-size:10px}
+.stopbtn{display:none;color:var(--t0)}
+body[data-state=working] .stopbtn{display:inline-flex}
+.bolt{margin-left:auto;gap:6px}
+.bolt[aria-pressed=true]{color:var(--amber);border-color:var(--amber-line);background:var(--amber-dim)}
+.bolt .ic{width:13px;height:13px}
+.turns{flex:1;min-height:0;overflow:auto;padding:6px 0 10px}
+.turn{padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.turn .u{display:flex;gap:10px;align-items:baseline;font-size:12.5px;line-height:1.5}
+.turn .u .who{color:var(--t2);font-size:11px;flex:none;width:32px;text-align:right}
+.turn .u .who.m{color:var(--amber)}
+.turn .u p{color:var(--t0)}
+.turn .u p.ans{color:var(--t1)}
+.turn .u p.ans code{color:var(--t0);background:var(--bg2);padding:0 4px;border-radius:2px;font-size:11.5px}
+.tools{margin:10px 0 10px 42px;border-left:1px solid var(--line2);padding-left:10px;display:grid;gap:1px}
+.tool{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;font-size:11.5px;line-height:22px;color:var(--t1)}
+.tool .fam{font-family:var(--sans);font-weight:600;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase}
+.tool[data-fam=exec] .fam{color:var(--amber)} .tool[data-fam=read] .fam{color:var(--read)} .tool[data-fam=write] .fam{color:var(--add)}
+.tool .arg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t1)}
+.tool .tstat{font-size:10.5px;color:var(--t2);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.tool .tstat.run{color:var(--amber)} .tool .tstat.deny{color:var(--del)}
+details.tool{display:block}
+details.tool summary{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;cursor:pointer;list-style:none}
+details.tool summary::-webkit-details-marker{display:none}
+details.tool summary .tstat::after{content:"▸";color:var(--t2);font-size:10px;transition:transform .15s}
+details.tool[open] summary .tstat::after{transform:rotate(90deg)}
+details.tool pre{margin:4px 0 6px 54px;padding:8px 10px;background:var(--bg1);border:1px solid var(--line);border-radius:2px;font-size:11px;line-height:1.5;color:var(--t2);overflow:auto}
+details.tool pre b{color:var(--add);font-weight:500}
+.spin{width:10px;height:10px;border-radius:50%;border:1px solid var(--amber-line);border-top-color:var(--amber);animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.turn .meta{margin-left:42px;font-size:10.5px;color:var(--t2);letter-spacing:.04em;text-transform:uppercase;display:flex;gap:10px}
+.turn2{display:none}
+body:not([data-state=listening]) .turn2,.turn2.done{display:block}
+.turn2 .ans-wrap{display:none}
+.turn2.done .ans-wrap{display:flex}
+.approval{display:none;margin:10px 14px 0;padding:11px 12px 12px;border:1px solid var(--amber-line);background:var(--amber-dim);border-radius:var(--r);gap:10px;flex-direction:column;flex:none}
+body[data-state=waiting] .approval{display:flex;animation:flipin .25s ease-out}
+@keyframes flipin{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.approval .txt{min-width:0;font-size:12.5px;line-height:1.5}
+.approval .txt .lbl{color:var(--amber);margin-bottom:2px;font-size:10.5px}
+.approval .txt code{display:block;width:max-content;max-width:100%;margin-top:5px;background:rgba(0,0,0,.4);padding:3px 8px;border-radius:2px;color:var(--t0);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.approval .txt code b{color:var(--amber);font-weight:600;font-family:var(--sans);font-size:10.5px;letter-spacing:.06em;margin-right:8px}
+.approval .btns{display:flex;gap:6px;justify-content:flex-end}
+.composer{border-top:1px solid var(--line);padding:10px 14px 12px;display:grid;gap:8px;flex:none}
+.attach{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px 0 6px;border:1px solid var(--line2);border-radius:2px;font-size:11px;color:var(--t1);width:max-content}
+.attach button{color:var(--t2);display:inline-flex}
+.attach button:hover{color:var(--t0)}
+.composer .row{display:flex;gap:8px}
+.composer input{flex:1;height:32px;padding:0 10px;background:var(--bg1);border:1px solid var(--line2);border-radius:var(--r);outline:none;color:var(--t0)}
+.composer input:focus{border-color:var(--t2)}
+.composer input::placeholder{color:#5A636E}
+.composer .send{height:32px;width:32px;padding:0;justify-content:center}
+
+/* transcript */
+.lines{flex:1;min-height:0;overflow:auto;padding:10px 0}
+.line{display:grid;grid-template-columns:40px 48px 1fr;gap:12px;padding:6px 14px;font-size:12.5px;line-height:1.5}
+.line .t{color:#4E5763;font-size:11px;padding-top:2px}
+.line .w{color:var(--t2);text-align:right}
+.line .w.m{color:var(--amber)}
+.line p{color:var(--t1)}
+.line.me p{color:var(--t0)}
+.line.interim p{color:var(--t2);font-style:normal}
+.line.interim p::after{content:"";display:inline-block;width:6px;height:12px;background:var(--amber);vertical-align:-2px;margin-left:3px;animation:caret 1s steps(2,end) infinite}
+@keyframes caret{0%{opacity:1}100%{opacity:0}}
+.tr-foot{border-top:1px solid var(--line);padding:8px 14px;font-size:11px;color:var(--t2);display:flex;justify-content:space-between;flex:none}
+
+/* mobile-only chrome */
+.mbar,.mtabs,.only-m{display:none}
+.mbar{flex:none;border-top:1px solid var(--line);background:var(--bg1);padding:10px 14px;align-items:center;gap:12px}
+.mbar .pres{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.mbar .pres .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbar .pres .vu{height:16px;width:34px}
+.talk{height:52px;min-width:150px;padding:0 18px;border:1px solid var(--line2);border-radius:26px;background:var(--bg3);display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--sans);font-size:14px;font-weight:600;color:var(--t0);transition:background .2s,color .2s,border-color .2s}
+.talk .ic{width:18px;height:18px}
+body[data-muted=true] .talk{background:transparent;color:var(--del);border-color:rgba(242,113,107,.5)}
+body[data-muted=true] .talk .on{display:none}
+body:not([data-muted=true]) .talk .off{display:none}
+.mbar .ctl{height:44px;width:44px;border-radius:22px}
+.mtabs{flex:none;height:56px;border-top:1px solid var(--line);background:var(--bg1)}
+.mtabs button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:var(--sans);font-size:11px;letter-spacing:.04em;color:var(--t2);position:relative}
+.mtabs button .ic{width:17px;height:17px}
+.mtabs button[aria-selected=true]{color:var(--t0)}
+.mtabs button[aria-selected=true]::before{content:"";position:absolute;top:-1px;left:22%;right:22%;height:1px;background:var(--t0)}
+.mtabs .live{position:absolute;top:10px;right:calc(50% - 16px);width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber-line)}
+
+@container app (max-width: 720px){
+  .cols{display:flex;flex-direction:column}
+  .gutter,.people,.tabs{display:none}
+  .work,.side{display:contents}
+  .app .work .pane,.app .side .pane{display:none}
+  .app[data-mpane=changes] .pane-changes,.app[data-mpane=web] .pane-web,.app[data-mpane=screen] .pane-screen,.app[data-mpane=marvin] .pane-marvin,.app[data-mpane=transcript] .pane-transcript{display:flex}
+  .pane{flex:1;min-height:0}
+  .rail .hide-m{display:none}
+  .rail>div{padding:0 10px}
+  .approval{order:5;margin:0;border-radius:0;border-left:0;border-right:0;padding:12px 14px}
+  .approval .btns .btn{flex:1;height:44px;font-size:14px}
+  .mbar .vu{height:20px;width:46px;gap:3px}
+  .mbar .vu i{width:3px}
+  .only-m{display:inline}
+  .hide-m{display:none}
+  .mbar{display:flex;order:6}
+  .mtabs{display:flex;order:7}
+  .changes-body{flex-direction:column}
+  .files{width:auto;max-height:36%;border-right:0;border-bottom:1px solid var(--line)}
+  .chg-head{height:auto;padding:10px 14px;flex-wrap:wrap;gap:8px 12px}
+  .chg-head .sp{display:none}
+  .browser,.term{margin:10px}
+  .mock{padding:18px}
+  .mv-head .bolt{margin-left:0}
+  .composer{padding:8px 14px 10px}
+  .line{grid-template-columns:38px 1fr;gap:4px 10px}
+  .line .w{grid-column:2;text-align:left;font-size:11px}
+  .line p{grid-column:2}
+  .line .t{grid-row:1/3;padding-top:3px}
+  .app .sgrid{grid-template-columns:1fr}
+  .app .card.notes{display:none}
+  .app .kv{grid-template-columns:104px 1fr}
+  .two{grid-template-columns:1fr}
+}
+
+/* ---------- settings ---------- */
+.settings{flex-direction:column;overflow:auto}
+.shead{display:flex;align-items:center;gap:14px;padding:0 20px;height:48px;border-bottom:1px solid var(--line);background:var(--bg1);position:sticky;top:0;z-index:2;flex:none}
+.shead h2{font:600 13px var(--mono);letter-spacing:.06em}
+.shead h2 span{color:var(--t2);font-weight:400}
+.shead .sp{flex:1}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.card{background:var(--bg0);padding:20px 22px 24px}
+.card h3{font:600 13px var(--mono);letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.card h3 span{color:var(--t2);font-weight:400;text-transform:none;letter-spacing:0}
+.kv{display:grid;grid-template-columns:132px 1fr;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:12.5px;line-height:1.5;align-items:baseline}
+.kv:last-child{border-bottom:1px solid var(--line)}
+.kv .k{color:var(--t2);font-family:var(--sans);font-size:12px;letter-spacing:.02em}
+.kv .v{color:var(--t1);min-width:0;overflow-wrap:anywhere}
+.kv .v b{color:var(--t0);font-weight:500}
+.kv .v code{color:var(--t0)}
+.kv .v .inline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kv .v .note{color:var(--t2);font-size:11.5px;margin-top:4px;font-family:var(--sans)}
+.kv .v a.lk{color:var(--t2);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line2);font-size:12px}
+.kv .v a.lk:hover{color:var(--t0)}
+.checks{display:grid;gap:6px}
+.checks label{display:flex;align-items:center;gap:9px;cursor:pointer;color:var(--t1)}
+.checks input{appearance:none;width:13px;height:13px;border:1px solid var(--t2);border-radius:2px;display:grid;place-items:center}
+.checks input:checked{border-color:var(--t0);background:var(--t0)}
+.checks input:checked::after{content:"";width:7px;height:4px;border-left:1.5px solid var(--bg0);border-bottom:1.5px solid var(--bg0);transform:translateY(-1px) rotate(-45deg)}
+.notes textarea{width:100%;min-height:210px;height:auto;padding:10px 12px;line-height:1.55;resize:vertical;font-size:12px}
+.notes .actions{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11px;color:var(--t2)}
+.gh-user{display:flex;align-items:center;gap:10px}
+.avatar{width:26px;height:26px;border-radius:50%;border:1px solid var(--line2);background:var(--bg3);display:grid;place-items:center;font-size:10px;font-weight:600;color:var(--t1);letter-spacing:.02em}
+.clientid{display:none;gap:8px;margin-top:8px}
+.clientid.open{display:flex}
+.clientid input{flex:1;height:28px;padding:0 9px;background:var(--bg1);border:1px solid var(--line2);border-radius:var(--r);outline:none}
+
+/* ---------- prototype toolbar (not part of the product) ---------- */
+.proto{position:fixed;right:12px;bottom:12px;z-index:50;display:flex;align-items:center;gap:4px;padding:5px 6px 5px 10px;background:#F2F3F5;color:#15171B;border-radius:6px;font:11px/1 var(--sans);box-shadow:0 8px 24px rgba(0,0,0,.55);user-select:none}
+.proto b{font-weight:600;letter-spacing:.1em;margin-right:6px;color:#6C727C}
+.proto button{padding:6px 8px;border-radius:3px;font-weight:500;color:#3A3F47}
+.proto button:hover{background:#E0E3E8}
+.proto button[aria-pressed=true]{background:#15171B;color:#fff}
+.proto .sep{width:1px;height:16px;background:#C9CDD3;margin:0 4px}
+.proto .cyc{display:inline-flex;align-items:center;gap:6px;border:1px solid #C9CDD3}
+.proto .cyc i{width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block}
+
+@media (max-width: 720px){
+  .stage{height:calc(100% - 40px)}
+  .proto{left:0;right:0;bottom:0;height:40px;border-radius:0;justify-content:center;gap:2px;padding:0 6px}
+  .proto b,.proto [data-pdev]{display:none}
+  .proto .sep:nth-of-type(1){display:none}
+  /* on a real phone the phone frame is pointless: render edge to edge whatever the toggle says */
+  body[data-device=phone] .stage{place-items:stretch;background:#000}
+  body[data-device=phone] .app{width:100%;height:100%;max-height:none;border-radius:0;padding-top:0;box-shadow:none}
+  body[data-device=phone] .app::before,body[data-device=phone] .app::after,body[data-device=phone] .app .pstat{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body data-screen="signin" data-state="listening" data-device="desktop" data-muted="false">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-micoff" viewBox="0 0 24 24"><path d="M15 9V6a3 3 0 0 0-5.6-1.5M9 9v3a3 3 0 0 0 5.1 2.1"/><path d="M5 11a7 7 0 0 0 11.3 5.5M19 11a7 7 0 0 1-.8 3.2M12 18v3M4 4l16 16"/></symbol>
+  <symbol id="i-screen" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M8 21h8"/></symbol>
+  <symbol id="i-leave" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><path d="M4 7h9M18 7h2M4 17h4M13 17h7"/><circle cx="15.5" cy="7" r="2.5"/><circle cx="10.5" cy="17" r="2.5"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3 3 0 0 1 4.5 4.5l-9 9a1.5 1.5 0 0 1-2-2l8-8"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></symbol>
+  <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M12 3v4M8 12h.01M16 12h.01M9 16h6"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+  <symbol id="i-diff" viewBox="0 0 24 24"><path d="M8 3v18M16 3v18M4 8h8M12 16h8"/></symbol>
+</svg>
+
+<div class="stage">
+<div class="app" id="app" data-mpane="marvin" data-speaking="">
+  <div class="pstat"><span>5G</span><i></i></div>
+
+  <!-- ================= SIGN IN ================= -->
+  <section class="screen signin" id="s-signin">
+    <div class="signin-card">
+      <header class="brand">
+        <div>
+          <h1><span class="lamp on"></span>Marvin</h1>
+          <p>A voice room with a coding agent in it. Say <q>Marvin</q> to talk to it.</p>
+        </div>
+        <div class="who">signed in as <b>gil</b> <span class="badge">admin</span> · <button type="button">log out</button></div>
+      </header>
+
+      <div class="rooms">
+        <div class="lbl"><span>rooms</span><span>3 · 2 live</span></div>
+        <div class="roomrow" data-go="room" role="button" tabindex="0">
+          <span class="lamp on"></span>
+          <div><div class="name">dev</div><div class="repo">repo <b>marvin</b></div></div>
+          <span class="readout"><span class="lamp on"></span>live</span>
+          <span class="btn sm">join</span>
+        </div>
+        <div class="roomrow" data-go="room" role="button" tabindex="0">
+          <span class="lamp on"></span>
+          <div><div class="name">sandbox</div><div class="repo">repo <b>marvin-smoke</b></div></div>
+          <span class="readout"><span class="lamp on"></span>live</span>
+          <span class="btn sm">join</span>
+        </div>
+        <div class="roomrow offline" data-go="room" role="button" tabindex="0">
+          <span class="lamp off"></span>
+          <div><div class="name">abf-frontend</div><div class="repo">repo <b>abf-optimizer-frontend</b> · main</div></div>
+          <span class="readout"><span class="lamp off"></span>offline</span>
+          <span class="btn sm">start</span>
+        </div>
+
+        <div class="newroom" id="newroom">
+          <button type="button" class="btn ghost" id="newroomToggle" aria-expanded="false">
+            <span style="display:inline-flex;align-items:center;gap:8px"><svg class="ic"><use href="#i-plus"/></svg>new room</span>
+            <svg class="ic chev"><use href="#i-chev"/></svg>
+          </button>
+          <form onsubmit="return false">
+            <label class="field"><span class="lbl">room name</span><input placeholder="e.g. billing-api" autocomplete="off"></label>
+            <div class="radios" role="radiogroup" aria-label="source">
+              <label><input type="radio" name="src" checked> folder on this machine</label>
+              <label><input type="radio" name="src"> clone from GitHub</label>
+            </div>
+            <div class="two">
+              <label class="field"><span class="lbl">repository url</span><input placeholder="https://github.com/org/repo"></label>
+              <label class="field"><span class="lbl">branch</span><input placeholder="default"></label>
+            </div>
+            <div class="cta" style="margin-top:4px"><button type="button" class="btn" data-go="room">create and join</button></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="cta">
+        <span class="dim" style="font-size:11.5px">you were here 14 min ago</span>
+        <button type="button" class="btn primary" data-go="room">Join dev <svg class="ic"><use href="#i-leave"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ROOM ================= -->
+  <section class="screen room" id="s-room">
+    <div class="rail" role="status" aria-label="room status">
+      <div class="roomname">MARVIN <span>#dev</span></div>
+      <div><span class="readout state"><span class="lamp state"></span><span class="hide-m" data-state-label>listening</span><span class="only-m" data-state-short>listening</span></span></div>
+      <div class="scope"><canvas id="scopeRail" aria-label="room audio"></canvas></div>
+      <div class="hide-m"><span class="k">branch</span> feat/sandbox <span class="dim">→ main</span></div>
+      <div class="hide-m"><span class="k">harness</span> Claude Code <span class="dim">·</span> Sonnet 4.5</div>
+      <div class="hide-m"><span class="k">live</span> <span class="lamp on"></span> <span data-presence-short>gil</span></div>
+      <div class="clock" id="clock">00:14:32</div>
+    </div>
+
+    <div class="cols">
+      <!-- left: people -->
+      <aside class="col people">
+        <div class="head"><h2>Marvin <span>#dev</span></h2></div>
+        <div class="sect lbl">in the room · 4</div>
+        <div class="person" data-id="marvin">
+          <span class="lamp state"></span>
+          <div class="nm"><b>Marvin</b> <span class="role">agent</span></div>
+          <div class="st"><span data-state-short>listening</span></div>
+        </div>
+        <div class="person" data-id="gil">
+          <span class="lamp on"></span>
+          <div class="nm"><b>gil</b> <span class="role">admin</span></div>
+          <div class="st"><span class="vu" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span class="txt">quiet</span></div>
+        </div>
+        <div class="person" data-id="maria">
+          <span class="lamp"></span>
+          <div class="nm"><b>maria</b></div>
+          <div class="st"><span class="txt">quiet</span></div>
+        </div>
+        <div class="person away" data-id="tom">
+          <span class="lamp off"></span>
+          <div class="nm"><b>tom</b></div>
+          <div class="st"><svg class="ic" style="width:12px;height:12px"><use href="#i-micoff"/></svg>away</div>
+        </div>
+
+        <div class="sect lbl" style="margin-top:8px">app</div>
+        <div class="applinks">
+          <a href="#" onclick="return false">web <span>localhost:5173</span></a>
+          <a href="#" onclick="return false">api <span>localhost:8000</span></a>
+        </div>
+
+        <div class="foot">
+          <button type="button" class="ctl" title="settings" data-go="settings"><svg class="ic"><use href="#i-set"/></svg></button>
+          <span class="sp"></span>
+          <button type="button" class="ctl mic" title="mute / unmute" data-mute><svg class="ic i-mic"><use href="#i-mic"/></svg><svg class="ic i-micoff"><use href="#i-micoff"/></svg></button>
+          <button type="button" class="ctl" title="share screen"><svg class="ic"><use href="#i-screen"/></svg></button>
+          <button type="button" class="ctl leave" title="leave" data-go="signin"><svg class="ic"><use href="#i-leave"/></svg></button>
+        </div>
+      </aside>
+      <div class="gutter" role="separator" aria-orientation="vertical"></div>
+
+      <!-- center: workspace -->
+      <main class="col work" data-tab="changes">
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="changes" aria-selected="true"><svg class="ic" style="width:13px;height:13px"><use href="#i-diff"/></svg>Changes</button>
+          <button role="tab" data-tab="web" aria-selected="false"><svg class="ic fill" style="width:10px;height:10px"><use href="#i-play"/></svg>web</button>
+          <button role="tab" data-tab="screen" aria-selected="false"><span class="lamp on"></span>gil's screen</button>
+          <span class="sp"></span>
+          <span class="meta">container marvin-dev · up 2h 14m</span>
+        </div>
+
+        <div class="pane pane-changes">
+          <div class="chg-head">
+            <div class="br"><b>feat/sandbox</b><span class="arrow">→</span><span>main</span></div>
+            <div class="stats"><span class="p">+2179</span> <span class="m">−33</span> · 35 files</div>
+            <span class="sp"></span>
+            <button type="button" class="btn sm">commit</button>
+            <button type="button" class="btn sm primary">open PR</button>
+          </div>
+          <div class="changes-body">
+            <div class="files" id="files" role="listbox" aria-label="changed files"></div>
+            <div class="diff" id="diff"></div>
+          </div>
+        </div>
+
+        <div class="pane pane-web">
+          <div class="browser">
+            <div class="bar">
+              <span class="dots"><i></i><i></i><i></i></span>
+              <span class="url"><b>http://</b>localhost:5173/settings#github</span>
+              <span class="readout"><span class="lamp on"></span>hmr</span>
+            </div>
+            <div class="mock">
+              <h4>GitHub</h4>
+              <div class="sub">Commits, pushes and pull requests happen as the person who asked.</div>
+              <div class="row"><span>OAuth App</span><span>client id Ov23••••••••8o36 <span class="pill">set here</span> <a href="#" onclick="return false" style="margin-left:8px;color:var(--t2)">change</a></span></div>
+              <div class="row"><span>Connected as</span><span><b style="color:var(--t0)">@gillmoreno</b> · gmc.luu@gmail.com</span></div>
+              <div class="row"><span>Scopes</span><span>repo, read:user, user:email</span></div>
+              <div class="btnrow"><span class="mbtn p">test connection</span><span class="mbtn">disconnect</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pane pane-screen">
+          <div class="term">
+            <div class="bar"><span>gil's screen · iTerm2 · 1512×982</span><span class="live"><span class="lamp on"></span>live · 30 fps</span></div>
+<pre><b>~/Projects/marvin</b> on <b>feat/sandbox</b> ❯ make test
+cd worker &amp;&amp; pytest tests -q
+........................                                        [100%]
+<span class="g">24 passed</span> in 3.41s
+cd web &amp;&amp; npm test -- --run
+
+ <span class="g">✓</span> src/GitHubConnect.test.tsx (6 tests) 412ms
+ <span class="g">✓</span> src/Settings.test.tsx (4 tests) 188ms
+ <span class="g">✓</span> src/mask.test.ts (3 tests) 9ms
+
+ Test Files  <span class="g">3 passed</span> (3)
+      Tests  <span class="g">13 passed</span> (13)
+   Duration  1.92s
+
+<b>~/Projects/marvin</b> on <b>feat/sandbox</b> ❯ docker ps --filter name=marvin-dev --format '{{.Names}}  {{.Status}}'
+marvin-dev  Up 2 hours
+<b>~/Projects/marvin</b> on <b>feat/sandbox</b> ❯ <span class="y">▍</span></pre>
+          </div>
+        </div>
+      </main>
+      <div class="gutter" role="separator" aria-orientation="vertical"></div>
+
+      <!-- right: marvin / transcript -->
+      <aside class="col side" data-tab="marvin">
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="marvin" aria-selected="true"><span class="lamp state"></span>Marvin</button>
+          <button role="tab" data-tab="transcript" aria-selected="false">Transcript</button>
+          <span class="sp"></span>
+          <span class="meta">turn 2 · 00:00:<span id="turnclock">07</span></span>
+        </div>
+
+        <div class="approval" role="alert">
+          <div class="txt">
+            <div class="lbl">approval required</div>
+            Marvin wants to run <code><b>Bash</b>git push origin feat/sandbox</code>
+          </div>
+          <div class="btns">
+            <button type="button" class="btn primary" data-approve="allow">Allow</button>
+            <button type="button" class="btn" data-approve="always">Always</button>
+            <button type="button" class="btn danger" data-approve="deny">Deny</button>
+          </div>
+        </div>
+
+        <div class="pane pane-marvin">
+          <div class="mv-head">
+            <div class="r1">
+              <span class="lamp state"></span>
+              <h3>Marvin</h3>
+              <span class="readout state"><span data-state-label>listening</span></span>
+              <span class="sp"></span>
+              <button type="button" class="btn sm stopbtn" data-stop><svg class="ic" style="width:12px;height:12px"><use href="#i-stop"/></svg>stop</button>
+            </div>
+            <div class="r2">
+              <span class="tag"><span class="k">harness</span>Claude Code</span>
+              <span class="tag"><span class="k">model</span>Sonnet 4.5</span>
+              <button type="button" class="btn sm bolt" id="bolt" aria-pressed="false" title="admin · always allow tool calls"><svg class="ic"><use href="#i-bolt"/></svg>always allow</button>
+            </div>
+          </div>
+
+          <div class="turns" id="turns">
+            <article class="turn">
+              <div class="u"><span class="who">gil</span><p>Marvin, move the GitHub client id into Settings so nobody needs a .env</p></div>
+              <div class="tools">
+                <div class="tool" data-fam="read"><span class="fam">Read</span><span class="arg">worker/marvin/github.py</span><span class="tstat">340 lines</span></div>
+                <div class="tool" data-fam="read"><span class="fam">Grep</span><span class="arg">MARVIN_GITHUB_CLIENT_ID</span><span class="tstat">3 hits</span></div>
+                <div class="tool" data-fam="read"><span class="fam">Read</span><span class="arg">worker/marvin/token_server.py</span><span class="tstat">118 lines</span></div>
+                <div class="tool" data-fam="write"><span class="fam">Edit</span><span class="arg">web/src/GitHubConnect.tsx</span><span class="tstat">+152</span></div>
+                <div class="tool" data-fam="write"><span class="fam">Edit</span><span class="arg">worker/marvin/admin.py</span><span class="tstat">+88 −7</span></div>
+                <div class="tool" data-fam="write"><span class="fam">Write</span><span class="arg">worker/tests/test_github.py</span><span class="tstat">+202</span></div>
+                <details class="tool" data-fam="exec">
+                  <summary><span class="fam">Bash</span><span class="arg">pytest worker/tests -q</span><span class="tstat">exit 0 · 3.4s</span></summary>
+<pre>........................                          [100%]
+<b>24 passed</b> in 3.41s</pre>
+                </details>
+              </div>
+              <div class="u"><span class="who m">Marvin</span><p class="ans">Done. The client id is now a field in Settings → GitHub, admin-only, stored in <code>github.json</code> next to the token store. <code>MARVIN_GITHUB_CLIENT_ID</code> still works as an override and the UI says where the value comes from. Masked as <code>Ov23••••••••8o36</code>. 24 tests pass.</p></div>
+              <div class="meta"><span>done · 42.3s</span><span>7 tools</span><span>18.4k tokens</span></div>
+            </article>
+
+            <article class="turn turn2" id="turn2">
+              <div class="u"><span class="who">gil</span><p>Marvin, commit that and push it, then open a PR against main</p></div>
+              <div class="tools">
+                <div class="tool" data-fam="exec"><span class="fam">Bash</span><span class="arg">git add -A &amp;&amp; git commit -m "Move GitHub client id into Settings"</span><span class="tstat">exit 0 · 0.4s</span></div>
+                <div class="tool" data-fam="exec" id="pushTool"><span class="fam">Bash</span><span class="arg">git push origin feat/sandbox</span><span class="tstat run" id="pushStat"><span class="spin"></span>running</span></div>
+                <div class="tool" data-fam="exec" id="prTool" style="display:none"><span class="fam">Bash</span><span class="arg">gh pr create --base main --fill</span><span class="tstat">exit 0 · 2.1s</span></div>
+              </div>
+              <div class="u ans-wrap"><span class="who m">Marvin</span><p class="ans" id="turn2Ans"></p></div>
+              <div class="meta" id="turn2Meta"><span>working · <span id="turn2Elapsed">7.2s</span></span><span>2 tools</span></div>
+            </article>
+          </div>
+
+          <div class="composer">
+            <span class="attach"><svg class="ic" style="width:12px;height:12px"><use href="#i-clip"/></svg>screenshot.png <span class="dim">from gil</span><button type="button" title="remove"><svg class="ic" style="width:11px;height:11px"><use href="#i-x"/></svg></button></span>
+            <form class="row" id="composer" onsubmit="return false">
+              <input id="ask" placeholder="Ask Marvin…" autocomplete="off">
+              <button type="submit" class="btn primary send" title="send"><svg class="ic"><use href="#i-send"/></svg></button>
+            </form>
+          </div>
+        </div>
+
+        <div class="pane pane-transcript">
+          <div class="lines" id="lines">
+            <div class="line me"><span class="t">11:02</span><span class="w">gil</span><p>Marvin, move the GitHub client id into settings so nobody needs a .env</p></div>
+            <div class="line"><span class="t">11:02</span><span class="w m">Marvin</span><p>On it. I'll read the token server first.</p></div>
+            <div class="line"><span class="t">11:03</span><span class="w m">Marvin</span><p>Found it: MARVIN_GITHUB_CLIENT_ID is read in three places. I'll keep it as an override and add a stored setting.</p></div>
+            <div class="line"><span class="t">11:04</span><span class="w">maria</span><p>can we also mask it in the UI?</p></div>
+            <div class="line me"><span class="t">11:04</span><span class="w">gil</span><p>yes, show the first four and the last four</p></div>
+            <div class="line"><span class="t">11:04</span><span class="w m">Marvin</span><p>Masked as Ov23••••••••8o36. Tests pass, 24 of 24.</p></div>
+            <div class="line me"><span class="t">11:05</span><span class="w">gil</span><p>Marvin, commit that and push it, then open a PR against main</p></div>
+            <div class="line"><span class="t">11:05</span><span class="w m">Marvin</span><p>Committed on feat/sandbox. Pushing needs your approval.</p></div>
+            <div class="line me interim"><span class="t">11:05</span><span class="w">gil</span><p>and add maria as a reviewer when you open the</p></div>
+          </div>
+          <div class="tr-foot"><span>stt · whisper-large-v3 · en</span><span>9 lines · 3 min</span></div>
+        </div>
+
+        <!-- mobile-only chrome (lives here so it can flow into the column on small screens) -->
+        <div class="mbar">
+          <div class="pres">
+            <span class="vu" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+            <span class="lbl" data-presence>gil is speaking</span>
+          </div>
+          <button type="button" class="talk" data-mute>
+            <svg class="ic on"><use href="#i-mic"/></svg><span class="on">mute</span>
+            <svg class="ic off"><use href="#i-micoff"/></svg><span class="off">muted · tap to talk</span>
+          </button>
+          <button type="button" class="ctl leave" title="leave" data-go="signin"><svg class="ic"><use href="#i-leave"/></svg></button>
+        </div>
+        <nav class="mtabs" role="tablist">
+          <button role="tab" data-pane="marvin" aria-selected="true"><svg class="ic"><use href="#i-bot"/></svg>Marvin</button>
+          <button role="tab" data-pane="transcript" aria-selected="false"><svg class="ic"><use href="#i-text"/></svg>Transcript</button>
+          <button role="tab" data-pane="changes" aria-selected="false"><svg class="ic"><use href="#i-diff"/></svg>Changes</button>
+          <button role="tab" data-pane="web" aria-selected="false"><svg class="ic"><use href="#i-play"/></svg>Preview</button>
+          <button role="tab" data-pane="screen" aria-selected="false"><span class="live"></span><svg class="ic"><use href="#i-screen"/></svg>Screen</button>
+        </nav>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="screen settings" id="s-settings">
+    <header class="shead">
+      <span class="lbl">settings</span>
+      <h2>Marvin <span>#dev</span></h2>
+      <span class="sp"></span>
+      <button type="button" class="btn ghost" data-go="room">close <svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="sgrid">
+      <section class="card">
+        <h3>This room <span>· dev</span></h3>
+        <div class="kv"><span class="k">Works in</span><span class="v"><code>/Users/gil/Projects/marvin</code><div class="note">Local folder on this machine. Changes show up in the web app on save.</div></span></div>
+        <div class="kv"><span class="k">Agent runs in</span><span class="v">container <b>marvin-dev</b> · image <b>marvin-sandbox</b><div class="note">Marvin's shell, tests and installs happen inside the container, never on the host.</div></span></div>
+        <div class="kv"><span class="k">Linked repos</span><span class="v checks">
+          <label><input type="checkbox" checked> abf-optimizer-frontend</label>
+          <label><input type="checkbox"> rw_srt_opt</label>
+          <div class="note">Linked repos are mounted read-only so Marvin can reference them.</div>
+        </span></div>
+      </section>
+
+      <section class="card notes">
+        <h3>Machine notes</h3>
+        <label class="field">
+          <textarea spellcheck="false"># Machine notes · gil's MacBook Pro
+
+- Node 22 via `fnm`; run `fnm use` before `npm install` in `web/`.
+- Docker Desktop must be running for the sandbox; `make sandbox-build` after Dockerfile changes.
+- LiveKit dev server on :7880, token server on :8000, web on :5173.
+- Marvin: prefer `pytest -q`; the slow integration tests are marked `@pytest.mark.slow`.
+- The abf-optimizer-frontend link is read-only, don't try to edit it here.</textarea>
+        </label>
+        <div class="actions"><span>read by Marvin at the start of every turn · 612 chars</span><button type="button" class="btn sm">save notes</button></div>
+      </section>
+
+      <section class="card">
+        <h3>Account</h3>
+        <div class="kv"><span class="k">Signed in as</span><span class="v"><b>gil</b> · with the room password</span></div>
+        <div class="kv"><span class="k">Roles</span><span class="v"><span class="inline"><span class="badge">admin</span><span class="badge grey">participant</span></span></span></div>
+        <div class="kv"><span class="k">Session</span><span class="v">started 10:48 · expires in 6 h</span></div>
+        <div class="kv"><span class="k"></span><span class="v"><button type="button" class="btn sm" data-go="signin">log out</button></span></div>
+      </section>
+
+      <section class="card">
+        <h3>GitHub</h3>
+        <div class="kv"><span class="k">OAuth App</span><span class="v">
+          <span class="inline">client id <code>Ov23••••••••8o36</code> <span class="badge grey">set here</span> <a href="#" class="lk" id="cidChange" onclick="return false">change</a></span>
+          <div class="clientid" id="clientid"><input placeholder="paste the client id from github.com/settings/developers" autocomplete="off"><button type="button" class="btn sm">save</button></div>
+          <div class="note">Set from Settings by an admin. <code>MARVIN_GITHUB_CLIENT_ID</code> in the environment would override it.</div>
+        </span></div>
+        <div class="kv"><span class="k">Connected as</span><span class="v"><span class="gh-user"><span class="avatar">GM</span><span><b>@gillmoreno</b> <span class="dim">· gmc.luu@gmail.com</span></span></span></span></div>
+        <div class="kv"><span class="k">Attribution</span><span class="v">When you (gil) ask Marvin to commit, push or open a PR, it happens as <b>@gillmoreno</b>.</span></div>
+        <div class="kv"><span class="k"></span><span class="v"><button type="button" class="btn sm danger">disconnect</button></span></div>
+      </section>
+    </div>
+  </section>
+</div>
+</div>
+
+<!-- prototype chrome — not part of the product -->
+<aside class="proto" aria-label="prototype controls">
+  <b>PROTOTYPE</b>
+  <button type="button" data-pgo="signin" aria-pressed="true">Sign in</button>
+  <button type="button" data-pgo="room">Room</button>
+  <button type="button" data-pgo="settings">Settings</button>
+  <span class="sep"></span>
+  <button type="button" data-pdev="desktop" aria-pressed="true">Desktop</button>
+  <button type="button" data-pdev="phone">Phone</button>
+  <span class="sep"></span>
+  <button type="button" class="cyc" id="cycle" title="cycle Marvin's state"><i></i><span id="cycleLabel">listening</span> ▸</button>
+</aside>
+
+<script>
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const body = document.body, app = $('#app');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- navigation ---------- */
+function go(screen) {
+  body.dataset.screen = screen;
+  $$('.proto [data-pgo]').forEach(b => b.setAttribute('aria-pressed', b.dataset.pgo === screen));
+}
+$$('[data-go]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); go(el.dataset.go); }));
+$$('.proto [data-pgo]').forEach(b => b.addEventListener('click', () => go(b.dataset.pgo)));
+$$('.proto [data-pdev]').forEach(b => b.addEventListener('click', () => {
+  body.dataset.device = b.dataset.pdev;
+  $$('.proto [data-pdev]').forEach(x => x.setAttribute('aria-pressed', x === b));
+}));
+
+/* ---------- tabs (desktop) & panes (mobile) ---------- */
+$$('.tabs[role=tablist]').forEach(strip => $$('button[data-tab]', strip).forEach(b => b.addEventListener('click', () => {
+  strip.parentElement.dataset.tab = b.dataset.tab;
+  $$('button[data-tab]', strip).forEach(x => x.setAttribute('aria-selected', x === b));
+})));
+$$('.mtabs button').forEach(b => b.addEventListener('click', () => {
+  app.dataset.mpane = b.dataset.pane;
+  $$('.mtabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+}));
+
+/* ---------- new room form, client id change ---------- */
+$('#newroomToggle').addEventListener('click', () => {
+  const open = $('#newroom').classList.toggle('open');
+  $('#newroomToggle').setAttribute('aria-expanded', open);
+});
+$('#cidChange').addEventListener('click', () => $('#clientid').classList.toggle('open'));
+
+/* ---------- Marvin state machine ---------- */
+const STATES = ['listening', 'working', 'waiting'];
+const LABEL = { listening: 'listening', working: 'working', waiting: 'waiting for approval' };
+const SHORT = { listening: 'listening', working: 'working', waiting: 'waiting' };
+let workTimer = null, turnStart = performance.now() - 7200;
+function setState(s, opts = {}) {
+  body.dataset.state = s;
+  $$('[data-state-label]').forEach(e => e.textContent = LABEL[s]);
+  $$('[data-state-short]').forEach(e => e.textContent = SHORT[s]);
+  $('#cycleLabel').textContent = LABEL[s];
+  const stat = $('#pushStat');
+  clearTimeout(workTimer);
+  if (opts.resetTurn) { $('#turn2').classList.remove('done'); $('#prTool').style.display = 'none'; turnStart = performance.now() - 7200; }
+  if (s === 'working') {
+    stat.className = 'tstat run'; stat.innerHTML = '<span class="spin"></span>running';
+    if (opts.finishAfter) workTimer = setTimeout(finishTurn2, opts.finishAfter);
+  } else if (s === 'waiting') {
+    stat.className = 'tstat run'; stat.textContent = 'needs approval';
+  }
+}
+function finishTurn2() {
+  const stat = $('#pushStat');
+  stat.className = 'tstat'; stat.textContent = 'exit 0 · 1.8s';
+  $('#prTool').style.display = '';
+  $('#turn2Ans').innerHTML = 'Pushed and opened <code>PR #142</code> "Move GitHub client id into Settings" against main, maria requested as reviewer. CI is running.';
+  $('#turn2Meta').innerHTML = '<span>done · 11.6s</span><span>3 tools</span><span>2.1k tokens</span>';
+  $('#turn2').classList.add('done');
+  setState('listening');
+  addLine('Marvin', 'Pushed. PR #142 is open against main, maria is on it as reviewer.', true);
+}
+function denyTurn2() {
+  const stat = $('#pushStat');
+  stat.className = 'tstat deny'; stat.textContent = 'denied by gil';
+  $('#turn2Ans').textContent = 'Okay, I won\'t push. The commit stays local on feat/sandbox; say the word when you want it up.';
+  $('#turn2Meta').innerHTML = '<span>stopped · 9.0s</span><span>2 tools</span>';
+  $('#turn2').classList.add('done');
+  setState('listening');
+  addLine('Marvin', 'Not pushing. The commit stays local on feat/sandbox.', true);
+}
+$$('[data-approve]').forEach(b => b.addEventListener('click', () => {
+  const a = b.dataset.approve;
+  if (a === 'deny') return denyTurn2();
+  if (a === 'always') $('#bolt').setAttribute('aria-pressed', 'true');
+  setState('working', { finishAfter: 2600 });
+}));
+$('[data-stop]').addEventListener('click', () => {
+  const stat = $('#pushStat'); stat.className = 'tstat deny'; stat.textContent = 'stopped';
+  $('#turn2Ans').textContent = 'Stopped. Nothing was pushed.';
+  $('#turn2Meta').innerHTML = '<span>stopped · 8.4s</span><span>2 tools</span>';
+  $('#turn2').classList.add('done');
+  setState('listening');
+});
+$('#bolt').addEventListener('click', () => $('#bolt').setAttribute('aria-pressed', $('#bolt').getAttribute('aria-pressed') !== 'true'));
+$('#cycle').addEventListener('click', () => {
+  const next = STATES[(STATES.indexOf(body.dataset.state) + 1) % STATES.length];
+  setState(next, { resetTurn: true });
+});
+
+/* elapsed readouts */
+setInterval(() => {
+  const el = $('#turn2Elapsed');
+  if (el && body.dataset.state !== 'listening') el.textContent = ((performance.now() - turnStart) / 1000).toFixed(1) + 's';
+  $('#turnclock').textContent = String(Math.floor((performance.now() - turnStart) / 1000) % 60).padStart(2, '0');
+}, 200);
+
+/* ---------- transcript & composer ---------- */
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function addLine(who, text, isMarvin) {
+  const lines = $('#lines'), interim = $('.line.interim', lines);
+  const el = document.createElement('div');
+  el.className = 'line' + (who === 'gil' ? ' me' : '');
+  el.innerHTML = `<span class="t">11:05</span><span class="w${isMarvin ? ' m' : ''}">${esc(who)}</span><p>${esc(text)}</p>`;
+  lines.insertBefore(el, interim);
+  lines.scrollTop = lines.scrollHeight;
+}
+$('#composer').addEventListener('submit', () => {
+  const input = $('#ask'), text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  const turns = $('#turns'), art = document.createElement('article');
+  art.className = 'turn';
+  art.innerHTML = `<div class="u"><span class="who">gil</span><p>${esc(text)} <span class="dim">(typed)</span></p></div>
+    <div class="tools"><div class="tool" data-fam="read"><span class="fam">Read</span><span class="arg">CLAUDE.md</span><span class="tstat run"><span class="spin"></span>running</span></div></div>
+    <div class="meta"><span>working</span></div>`;
+  turns.appendChild(art); turns.scrollTop = turns.scrollHeight;
+  addLine('gil', text + ' (typed)');
+});
+
+/* ---------- mute ---------- */
+$$('[data-mute]').forEach(b => b.addEventListener('click', () => { body.dataset.muted = body.dataset.muted !== 'true'; }));
+
+/* ---------- session clock ---------- */
+let secs = 14 * 60 + 32;
+setInterval(() => {
+  secs++;
+  const h = String(Math.floor(secs / 3600)).padStart(2, '0'), m = String(Math.floor(secs / 60) % 60).padStart(2, '0'), s = String(secs % 60).padStart(2, '0');
+  $('#clock').textContent = `${h}:${m}:${s}`;
+}, 1000);
+
+/* ---------- oscilloscope + VU: the room is an instrument that listens ---------- */
+const AMBER = '#FFB224';
+function drawScope(c, t, level) {
+  const dpr = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  if (!w || !h) return;
+  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+  const x = c.getContext('2d');
+  x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h);
+  x.strokeStyle = 'rgba(255,255,255,.07)'; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(0, Math.round(h / 2) + .5); x.lineTo(w, Math.round(h / 2) + .5); x.stroke();
+  // hairline ticks every 40px, like a grid on a scope
+  x.strokeStyle = 'rgba(255,255,255,.05)';
+  for (let i = 40; i < w; i += 40) { x.beginPath(); x.moveTo(i + .5, h / 2 - 3); x.lineTo(i + .5, h / 2 + 3); x.stroke(); }
+  const amp = (h / 2 - 3) * level;
+  x.strokeStyle = level > .04 ? AMBER : 'rgba(255,178,36,.55)';
+  x.lineWidth = 1.25; x.shadowColor = AMBER; x.shadowBlur = level > .1 ? 6 : 0;
+  x.beginPath();
+  for (let i = 0; i <= w; i += 2) {
+    const p = i / w, win = Math.sin(Math.PI * p) ** .7;
+    const y = h / 2 + amp * win * (Math.sin(i * .085 + t * 9) * .55 + Math.sin(i * .21 - t * 14.3) * .3 + Math.sin(i * .47 + t * 23) * .15);
+    i ? x.lineTo(i, y) : x.moveTo(i, y);
+  }
+  x.stroke(); x.shadowBlur = 0;
+}
+const scopes = $$('canvas[id^=scope]'), vus = $$('.vu');
+const bands = [.45, .8, 1, .7, .35];
+let speaking = true, level = 0, target = 0, phraseEnd = 0, nextTick = 0, lastPresence = null;
+function setPresence(on) {
+  if (on === lastPresence) return; lastPresence = on;
+  app.dataset.speaking = on ? 'gil' : '';
+  $$('[data-presence]').forEach(e => e.textContent = on ? 'gil is speaking' : (body.dataset.muted === 'true' ? 'you are muted' : 'room is quiet'));
+  $$('[data-presence-short]').forEach(e => e.textContent = on ? 'gil' : '—');
+  vus.forEach(v => v.classList.toggle('quiet', !on));
+}
+function frame(ts) {
+  const t = ts / 1000, muted = body.dataset.muted === 'true';
+  if (t > phraseEnd) { speaking = !speaking; phraseEnd = t + (speaking ? 1.6 + Math.random() * 2.4 : .5 + Math.random() * 1.1); }
+  if (t > nextTick) { target = speaking && !muted ? .22 + Math.random() * .78 : 0; nextTick = t + .07 + Math.random() * .1; }
+  level += (target - level) * .28;
+  const on = speaking && !muted && level > .06;
+  setPresence(on);
+  if (body.dataset.screen === 'room') {
+    scopes.forEach(c => drawScope(c, t, level));
+    vus.forEach(v => [...v.children].forEach((bar, i) => { const l = Math.max(.12, Math.min(1, level * bands[i] * (1.1 + .5 * Math.sin(t * 17 + i * 2.1)))); bar.style.transform = `scaleY(${l.toFixed(3)})`; }));
+  }
+  requestAnimationFrame(frame);
+}
+if (reduced) {
+  // A still frame: the line is drawn once at a moderate level; state is shown by readouts, not motion.
+  setPresence(true);
+  const draw = () => scopes.forEach(c => drawScope(c, 1.7, .55));
+  draw(); new ResizeObserver(draw).observe(app);
+  vus.forEach(v => [...v.children].forEach((bar, i) => bar.style.transform = `scaleY(${bands[i] * .6})`));
+} else {
+  requestAnimationFrame(frame);
+}
+
+/* ---------- changes: files & diffs ---------- */
+const FILES = [
+  ['A', '.cursor/rules/configuration-in-the-ui.mdc', 28, 0],
+  ['M', '.env.example', 6, 0],
+  ['M', 'Makefile', 16, 2],
+  ['M', 'README.md', 24, 0],
+  ['M', 'docs_and_changelog/decisions-log.md', 41, 0],
+  ['M', 'web/src/GitHubConnect.tsx', 152, 0],
+  ['M', 'web/src/Settings.tsx', 67, 12],
+  ['M', 'web/src/api.ts', 31, 8],
+  ['M', 'worker/marvin/admin.py', 88, 7],
+  ['A', 'worker/marvin/github.py', 340, 0],
+  ['A', 'worker/marvin/sandbox.py', 350, 0],
+  ['M', 'worker/marvin/token_server.py', 19, 4],
+  ['A', 'worker/tests/test_github.py', 202, 0],
+  ['A', 'worker/tests/test_sandbox.py', 188, 0],
+];
+const DIFFS = {
+'worker/marvin/github.py': `@@ -0,0 +1,340 @@
++"""GitHub connection: device-flow OAuth, the encrypted token store, and the admin-set client id."""
++from __future__ import annotations
++
++import json
++import os
++from dataclasses import dataclass
++from pathlib import Path
++
++from cryptography.fernet import Fernet
++
++SETTINGS_FILE = "github.json"
++
++
++@dataclass
++class TokenStore:
++    state_dir: Path
++    fernet: Fernet
++
++    def _path(self) -> Path:
++        return self.state_dir / SETTINGS_FILE
++
++    def _read(self) -> dict:
++        if not self._path().exists():
++            return {}
++        return json.loads(self._path().read_text())
++
++    def get_setting(self, key: str) -> str | None:
++        return self._read().get("settings", {}).get(key)
++
++    def set_setting(self, key: str, value: str) -> None:
++        data = self._read()
++        data.setdefault("settings", {})[key] = value
++        self._path().write_text(json.dumps(data, indent=2))
++
++
++class GitHubConnect:
++    def __init__(self, store: TokenStore) -> None:
++        self.store = store
++
++    @property
++    def client_id(self) -> str | None:
++        # The environment wins so automation can seed it; otherwise the value set in Settings.
++        return os.environ.get("MARVIN_GITHUB_CLIENT_ID") or self.store.get_setting("client_id")
++
++    def client_id_source(self) -> str | None:
++        if os.environ.get("MARVIN_GITHUB_CLIENT_ID"):
++            return "env"
++        return "settings" if self.store.get_setting("client_id") else None`,
+'web/src/GitHubConnect.tsx': `@@ -12,6 +12,7 @@ import { useIsAdmin } from "./auth";
+ import { api } from "./api";
+ import { Field } from "./Field";
++import { maskId } from "./mask";
+ 
+ type Config = { client_id: string | null; source: "env" | "settings" | null };
+ 
+@@ -41,10 +42,26 @@ export function GitHubConnect() {
+   const isAdmin = useIsAdmin();
+-  if (!config.client_id) {
+-    return <p>Set MARVIN_GITHUB_CLIENT_ID in .env and restart the worker.</p>;
+-  }
++  const [editing, setEditing] = useState(false);
++
++  if (!config.client_id || editing) {
++    return <ClientIdSetup current={config.client_id} onSaved={() => { setEditing(false); reload(); }} />;
++  }
++
+   return (
+     <section>
++      <p className="muted">
++        OAuth App client id <code>{maskId(config.client_id)}</code>{" "}
++        <Pill>{config.source === "env" ? "from the environment" : "set here"}</Pill>
++        {isAdmin && config.source === "settings" && (
++          <button className="link" onClick={() => setEditing(true)}>change</button>
++        )}
++      </p>
+       <ConnectionStatus />
+     </section>
+   );
+ }
+@@ -71,3 +88,32 @@ function ConnectionStatus() {
+   );
+ }
++
++function ClientIdSetup({ current, onSaved }: { current: string | null; onSaved: () => void }) {
++  const [value, setValue] = useState(current ?? "");
++  const [error, setError] = useState<string | null>(null);
++  const valid = /^(Ov23|Iv1\\.)[A-Za-z0-9]{12,}$/.test(value.trim());
++
++  async function save(e: FormEvent) {
++    e.preventDefault();
++    const res = await api.put("/github/config", { client_id: value.trim() });
++    if (!res.ok) return setError((await res.json()).detail);
++    onSaved();
++  }
++
++  return (
++    <form onSubmit={save} className="setup">
++      <ol className="steps">
++        <li>Open <a href="https://github.com/settings/developers" target="_blank" rel="noreferrer">GitHub → Developer settings → OAuth Apps</a></li>
++        <li>New OAuth App · tick "Enable Device Flow" · leave the callback URL empty</li>
++        <li>Paste the client id below</li>
++      </ol>
++      <Field label="Client id" value={value} onChange={setValue}
++        error={error ?? (value && !valid ? "Client ids start with Ov23 or Iv1." : null)} />
++      <button disabled={!valid}>save</button>
++    </form>
++  );
++}`,
+'Makefile': `@@ -1,9 +1,23 @@
+-.PHONY: dev test
++.PHONY: dev test sandbox-build sandbox-shell
+ 
+ dev:
+ 	docker compose up --build
+ 
+ test:
+-	cd worker && pytest tests -q
++	cd worker && pytest tests -q
++	cd web && npm test -- --run
++
++SANDBOX_IMAGE ?= marvin-sandbox
++
++sandbox-build:
++	docker build -f worker/sandbox/Dockerfile -t $(SANDBOX_IMAGE) worker/sandbox
++
++sandbox-shell:
++	docker run --rm -it -v $(PWD):/work -w /work $(SANDBOX_IMAGE) bash
++
++.PHONY: lint
++lint:
++	cd worker && ruff check . && cd ../web && npm run lint`,
+'worker/marvin/admin.py': `@@ -1,9 +1,11 @@
++import re
+ from fastapi import APIRouter, Depends, Header, HTTPException
+ from pydantic import BaseModel
+ 
+ from .github import GitHubConnect, get_connect
++from .roles import require_admin
+ 
+ router = APIRouter(prefix="/github")
+ 
+@@ -41,3 +43,26 @@ def status(connect: GitHubConnect = Depends(get_connect)):
+     user = connect.current_user()
+     return {"connected": user is not None, "login": user and user.login}
++
++
++CLIENT_ID_RE = re.compile(r"(Ov23|Iv1\\.)[A-Za-z0-9]{12,}")
++
++
++class ConfigBody(BaseModel):
++    client_id: str
++
++
++@router.put("/config")
++def put_config(
++    body: ConfigBody,
++    roles: str = Header("", alias="X-Marvin-Roles"),
++    connect: GitHubConnect = Depends(get_connect),
++):
++    require_admin(roles)
++    value = body.client_id.strip()
++    if not CLIENT_ID_RE.fullmatch(value):
++        raise HTTPException(422, "That does not look like a GitHub OAuth client id.")
++    connect.store.set_setting("client_id", value)
++    return {"client_id": value, "source": connect.client_id_source()}`,
+'worker/marvin/token_server.py': `@@ -18,7 +18,9 @@ ADMIN_ONLY_PREFIXES = (
+     "/rooms/create",
+     "/rooms/delete",
++    "/github/config",
++    "/sandbox/rebuild",
+ )
+ 
+-CLIENT_ID = os.environ["MARVIN_GITHUB_CLIENT_ID"]
++# The client id is no longer required at boot; see GitHubConnect.client_id.
+ 
+ def _roles_for(identity: str) -> list[str]:
+@@ -61,7 +63,5 @@ async def token(req: TokenRequest):
+     grant = VideoGrants(room_join=True, room=req.room)
+-    if not CLIENT_ID:
+-        raise HTTPException(500, "MARVIN_GITHUB_CLIENT_ID is not set")
+     return {"token": _mint(req.identity, grant, roles), "roles": roles}`,
+'.cursor/rules/configuration-in-the-ui.mdc': `@@ -0,0 +1,28 @@
++# Configuration lives in the UI
++
++Whatever can safely be configured from the front end is configured from the front end.
++Do not add a new environment variable as the *only* way to set something unless it must
++exist before the UI can (LiveKit keys, MARVIN_AUTH, MARVIN_SESSION_SECRET, bind addresses).
++
++When adding a setting:
++
++- Put it in **Settings**, admin-only if it affects other people, behind a useIsAdmin()
++  check in the UI *and* an X-Marvin-Roles check in the worker route, plus
++  ADMIN_ONLY_PREFIXES in token_server.py.
++- Persist it in the worker's state dir (a small JSON next to its feature), never in
++  the repo or in .env. Secrets are encrypted at rest.
++- Keep the environment variable as an **override/seed** for automation, document it in
++  .env.example as optional, and show in the UI where the current value comes from.
++- Guide instead of instruct: link to the exact external page, list the clicks, accept
++  the paste, validate the shape, and give a precise error. No restart after saving.`,
+'.env.example': `@@ -9,3 +9,9 @@ MARVIN_AUTH=password
+ MARVIN_SESSION_SECRET=change-me
++
++# Optional. Set the GitHub OAuth App client id here to seed it for automation;
++# otherwise an admin sets it in Settings → GitHub and it is stored in the state dir.
++# MARVIN_GITHUB_CLIENT_ID=Ov23liXXXXXXXXXXXXXX
++
++# Optional. Image used for the agent sandbox container.
++# MARVIN_SANDBOX_IMAGE=marvin-sandbox`,
+'README.md': `@@ -44,6 +44,30 @@ make dev
+ 
+ Open http://localhost:5173, sign in with the room password, and join \`dev\`.
+ 
++## Connecting GitHub
++
++No \`.env\` editing needed. An admin opens **Settings → GitHub**, follows the three
++steps to create an OAuth App (device flow on, no callback URL) and pastes the client id.
++Every participant then connects their own GitHub account from the same page, so
++commits, pushes and PRs are attributed to the person who asked Marvin.
++
++## The sandbox
++
++Marvin runs shell commands inside a container (\`marvin-sandbox\` image) with the
++project mounted at \`/work\`. Build it once with \`make sandbox-build\`.`,
+'docs_and_changelog/decisions-log.md': `@@ -88,3 +88,44 @@
++## 2026-09-12 · Design principle: configuration happens in the browser
++
++**Decision.** Anything that can be configured safely after the UI exists is configured
++from the UI, by an admin, and stored in the worker's state dir. Environment variables
++remain as overrides/seeds for automation only.
++
++**Why.** The first pilots stalled on "edit .env and restart the worker". Non-developers
++in the room could not do it, and developers did it wrong. A masked field with a link to
++the exact GitHub page turned a 20-minute setup into two minutes.
++
++**First instance.** The GitHub OAuth App client id (this branch).`,
+'web/src/Settings.tsx': `@@ -3,7 +3,7 @@ import { RoomSection } from "./RoomSection";
+ import { MachineNotes } from "./MachineNotes";
+ import { Account } from "./Account";
+-import { GitHubStatus } from "./GitHubStatus";
++import { GitHubConnect } from "./GitHubConnect";
+ 
+ export function Settings({ room }: { room: string }) {
+@@ -31,9 +31,7 @@ export function Settings({ room }: { room: string }) {
+       <Account />
+-      <section id="github">
+-        <GitHubStatus />
+-      </section>
++      <GitHubConnect />
+     </div>
+   );
+ }`,
+'web/src/api.ts': `@@ -12,8 +12,15 @@ export const api = {
+   get: (path: string) => request("GET", path),
+-  post: (path: string, body: unknown) => request("POST", path, body),
++  post: (path: string, body?: unknown) => request("POST", path, body),
++  put: (path: string, body?: unknown) => request("PUT", path, body),
++  del: (path: string) => request("DELETE", path),
+ };
+ 
+-async function request(method: string, path: string, body?: unknown) {
+-  const res = await fetch(BASE + path, { method, headers: { "content-type": "application/json" }, body: body && JSON.stringify(body) });
++async function request(method: string, path: string, body?: unknown): Promise<Response> {
++  const headers: Record<string, string> = { "content-type": "application/json" };
++  const roles = session.roles.join(",");
++  if (roles) headers["X-Marvin-Roles"] = roles;
++  const res = await fetch(BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), credentials: "include" });
+   return res;
+ }`,
+'worker/marvin/sandbox.py': `@@ -0,0 +1,350 @@
++"""Run the harness inside a container so its shell never touches the host."""
++from __future__ import annotations
++
++import asyncio
++import os
++import shlex
++from dataclasses import dataclass, field
++from pathlib import Path
++
++DEFAULT_IMAGE = "marvin-sandbox"
++
++
++@dataclass
++class Sandbox:
++    name: str
++    workdir: Path
++    image: str = field(default_factory=lambda: os.environ.get("MARVIN_SANDBOX_IMAGE", DEFAULT_IMAGE))
++    linked: list[Path] = field(default_factory=list)
++
++    async def ensure_running(self) -> None:
++        if await self._running():
++            return
++        mounts = ["-v", f"{self.workdir}:/work"]
++        for repo in self.linked:
++            mounts += ["-v", f"{repo}:/linked/{repo.name}:ro"]
++        await self._docker("run", "-d", "--name", self.name, "-w", "/work", *mounts, self.image, "sleep", "infinity")
++
++    async def exec(self, cmd: str, timeout: float = 600) -> tuple[int, str]:
++        proc = await asyncio.create_subprocess_exec(
++            "docker", "exec", self.name, "bash", "-lc", cmd,
++            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
++        )
++        out, _ = await asyncio.wait_for(proc.communicate(), timeout)
++        return proc.returncode or 0, out.decode(errors="replace")`,
+'worker/tests/test_github.py': `@@ -0,0 +1,202 @@
++import pytest
++from fastapi.testclient import TestClient
++
++from marvin.admin import router
++from marvin.github import GitHubConnect, TokenStore
++
++
++@pytest.fixture
++def client(tmp_path, monkeypatch, fernet):
++    monkeypatch.delenv("MARVIN_GITHUB_CLIENT_ID", raising=False)
++    store = TokenStore(tmp_path, fernet)
++    app = make_app(router, connect=GitHubConnect(store))
++    return TestClient(app), store
++
++
++def test_put_config_requires_admin(client):
++    c, _ = client
++    res = c.put("/github/config", json={"client_id": "Ov23liabcdefghijklmn"}, headers={"X-Marvin-Roles": "participant"})
++    assert res.status_code == 403
++
++
++def test_put_config_rejects_garbage(client):
++    c, _ = client
++    res = c.put("/github/config", json={"client_id": "not-a-client-id"}, headers={"X-Marvin-Roles": "admin"})
++    assert res.status_code == 422
++    assert "client id" in res.json()["detail"]
++
++
++def test_env_overrides_stored_setting(client, monkeypatch):
++    c, store = client
++    store.set_setting("client_id", "Ov23liabcdefghijklmn")
++    monkeypatch.setenv("MARVIN_GITHUB_CLIENT_ID", "Ov23lifromtheenvvvvvv")
++    assert c.get("/github/config").json() == {"client_id": "Ov23lifromtheenvvvvvv", "source": "env"}`,
+'worker/tests/test_sandbox.py': `@@ -0,0 +1,188 @@
++import pytest
++
++from marvin.sandbox import Sandbox
++
++
++@pytest.mark.asyncio
++async def test_linked_repos_are_mounted_read_only(tmp_path, fake_docker):
++    sb = Sandbox("marvin-test", tmp_path, linked=[tmp_path / "abf-optimizer-frontend"])
++    await sb.ensure_running()
++    assert any(arg.endswith("/linked/abf-optimizer-frontend:ro") for arg in fake_docker.calls[0])
++
++
++@pytest.mark.asyncio
++async def test_exec_returns_code_and_output(tmp_path, fake_docker):
++    fake_docker.reply(0, b"24 passed in 3.41s\\n")
++    sb = Sandbox("marvin-test", tmp_path)
++    code, out = await sb.exec("pytest -q")
++    assert (code, out) == (0, "24 passed in 3.41s\\n")`,
+};
+
+function renderFiles() {
+  const box = $('#files');
+  box.innerHTML = FILES.map(([st, path, add, del_], i) => {
+    const slash = path.lastIndexOf('/');
+    const dir = slash >= 0 ? esc(path.slice(0, slash + 1)) : '', base = esc(path.slice(slash + 1));
+    return `<button type="button" role="option" class="file" data-i="${i}" aria-selected="false" title="${esc(path)}">
+      <span class="chip ${st}">${st}</span><span class="path">${dir}<b>${base}</b></span>
+      <span class="n"><span class="p">+${add}</span>${del_ ? `<span class="m">−${del_}</span>` : ''}</span></button>`;
+  }).join('') + '<div class="more">… 21 more files</div>';
+  $$('.file', box).forEach(b => b.addEventListener('click', () => selectFile(+b.dataset.i)));
+}
+function selectFile(i) {
+  $$('.file').forEach((b, j) => b.setAttribute('aria-selected', j === i));
+  const [st, path, add, del_] = FILES[i];
+  const raw = DIFFS[path] || `@@ -0,0 +1,${add} @@\n+# ${path}`;
+  let oldN = 0, newN = 0, rows = '';
+  for (const line of raw.split('\n')) {
+    const k = line[0], text = esc(line.slice(1));
+    if (k === '@') {
+      const m = /-(\d+)(?:,\d+)? \+(\d+)/.exec(line); oldN = +m[1]; newN = +m[2];
+      rows += `<tr class="h"><td colspan="4">${esc(line)}</td></tr>`;
+    } else if (k === '+') rows += `<tr class="a"><td class="ln"></td><td class="ln">${newN++}</td><td class="sg">+</td><td class="code">${text}</td></tr>`;
+    else if (k === '-') rows += `<tr class="d"><td class="ln">${oldN++}</td><td class="ln"></td><td class="sg">−</td><td class="code">${text}</td></tr>`;
+    else rows += `<tr><td class="ln">${oldN++}</td><td class="ln">${newN++}</td><td class="sg"></td><td class="code">${text}</td></tr>`;
+  }
+  $('#diff').innerHTML = `<div class="diff-head"><span class="chip ${st}">${st}</span><span>${esc(path)}</span>
+    <span class="n"><span style="color:var(--add)">+${add}</span>${del_ ? ` <span style="color:var(--del)">−${del_}</span>` : ''}</span></div>
+    <table>${rows}</table>`;
+  $('#diff').scrollTop = 0;
+}
+renderFiles(); selectFile(9);
+})();
+</script>
+</body>
+</html>

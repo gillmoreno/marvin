@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Marvin — design exploration C · Signal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────────── tokens ───────────────────────────── */
+:root{
+  --bg:#1f2429;            /* graphite */
+  --bg-deep:#191d21;
+  --bg-lift:#262c32;
+  --panel:rgba(255,255,255,.045);
+  --panel-2:rgba(255,255,255,.075);
+  --panel-3:rgba(255,255,255,.11);
+  --line:rgba(255,255,255,.075);
+  --hi:rgba(255,255,255,.12);   /* 1px inner highlight */
+  --text:#ece7de;
+  --text-2:#b4ada1;
+  --text-3:#8b857b;
+  --accent:#8ff0d2;        /* mint — the light */
+  --accent-2:#5ed3b3;
+  --accent-ink:#0f2a22;
+  --accent-dim:rgba(143,240,210,.14);
+  --accent-glow:rgba(143,240,210,.45);
+  --amber:#f0b35c;         /* attention / approval */
+  --amber-dim:rgba(240,179,92,.14);
+  --amber-glow:rgba(240,179,92,.45);
+  --off:#6b727a;
+  --add:#8bcaa5; --add-bg:rgba(139,202,165,.10);
+  --del:#d8908a; --del-bg:rgba(216,144,138,.10);
+  --exec:#e3c68f; --read:#8ff0d2; --write:#a9c9e4;
+  --sig:var(--accent);
+  --r-lg:20px; --r-md:14px; --r-sm:9px;
+  --font:"Manrope",ui-sans-serif,sans-serif;
+  --mono:"DM Mono",ui-monospace,monospace;
+  --left-w:236px; --right-w:392px; --pad:12px;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg-deep);
+  color:var(--text);
+  font-family:var(--font);
+  font-size:14px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+a{color:var(--accent);text-decoration:none}
+code,.mono{font-family:var(--mono);font-size:.92em}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.10);border-radius:8px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ───────────────────────────── stage + prototype chrome ───────────────────────────── */
+.stage{position:fixed;inset:0 0 46px 0;display:flex;align-items:center;justify-content:center;background:var(--bg-deep)}
+.app{position:relative;width:100%;height:100%;overflow:hidden;background:var(--bg);container-type:inline-size;container-name:app;
+  transition:width .5s var(--ease),height .5s var(--ease),border-radius .5s var(--ease)}
+.stage.phone{background:
+  radial-gradient(60% 50% at 50% 40%, rgba(143,240,210,.06), transparent 70%), var(--bg-deep)}
+.stage.phone .app{width:392px;height:min(846px,calc(100% - 40px));border-radius:46px;
+  box-shadow:0 0 0 10px #0d0f11,0 0 0 12px #2c3138,0 40px 80px rgba(0,0,0,.6)}
+.stage.phone .app::after{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:110px;height:30px;border-radius:20px;background:#0d0f11;z-index:60}
+.grain{position:absolute;inset:0;pointer-events:none;z-index:50;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+
+.proto{position:fixed;left:0;right:0;bottom:0;height:46px;display:flex;align-items:center;justify-content:center;gap:14px;
+  background:#121417;border-top:1px dashed rgba(255,255,255,.14);font-size:12px;color:#9aa1a9;z-index:100;white-space:nowrap;overflow-x:auto;padding:0 12px}
+.proto .lbl{font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:10px;color:#6d747c;margin-right:4px}
+.proto .grp{display:flex;gap:2px;background:#1b1f23;border-radius:8px;padding:2px}
+.proto .grp button{padding:5px 10px;border-radius:6px;color:#9aa1a9;font-weight:600}
+.proto .grp button.on{background:#2b3138;color:#eef}
+.proto .cyc{padding:5px 12px;border-radius:8px;background:#1b1f23;font-weight:600;color:#cfd5db;display:flex;gap:8px;align-items:center}
+.proto .cyc i{width:8px;height:8px;border-radius:50%;background:var(--sig-proto,#8ff0d2);display:inline-block}
+
+/* ───────────────────────────── shared atoms ───────────────────────────── */
+.screen{position:absolute;inset:0;display:none}
+.app[data-screen="signin"] .screen-signin,.app[data-screen="room"] .screen-room,.app[data-screen="settings"] .screen-room{display:flex}
+.glass{background:var(--panel);border-radius:var(--r-lg);box-shadow:inset 0 1px 0 var(--hi),0 1px 0 rgba(0,0,0,.25);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:var(--r-sm);background:var(--panel-2);font-weight:600;font-size:13px;line-height:1;
+  box-shadow:inset 0 1px 0 var(--hi);transition:background .2s,transform .2s var(--ease)}
+.btn:hover{background:var(--panel-3)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);box-shadow:0 0 0 1px rgba(143,240,210,.4),0 8px 28px -8px var(--accent-glow)}
+.btn.primary:hover{background:#a3f5dd}
+.btn.amber{background:var(--amber);color:#2b1c07;box-shadow:0 8px 24px -8px var(--amber-glow)}
+.btn.amber:hover{background:#f6c27a}
+.btn.ghost{background:transparent;box-shadow:none;color:var(--text-2)}
+.btn.ghost:hover{background:var(--panel)}
+.btn.sm{padding:6px 10px;font-size:12px}
+.btn.icon{padding:8px;border-radius:10px}
+.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:var(--panel-2);font-size:11.5px;font-weight:600;color:var(--text-2);box-shadow:inset 0 1px 0 var(--hi);white-space:nowrap}
+.chip b{color:var(--text);font-weight:700}
+.badge{font-size:10px;font-weight:800;letter-spacing:.12em;padding:2px 7px;border-radius:6px;background:var(--accent-dim);color:var(--accent)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--off);display:inline-block;flex:none}
+.dot.live{background:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
+.dot.rec{background:#e07a72;box-shadow:0 0 8px rgba(224,122,114,.6);animation:blink 1.6s ease-in-out infinite}
+.field{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-2);font-weight:600}
+.field input,.field textarea{background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px;color:var(--text);font-weight:500;font-size:13.5px;outline:none;transition:border-color .2s,box-shadow .2s}
+.field input:focus,.field textarea:focus{border-color:rgba(143,240,210,.5);box-shadow:0 0 0 3px var(--accent-dim)}
+.field input::placeholder,.field textarea::placeholder{color:var(--text-3)}
+.eyebrow{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
+.sep{height:1px;background:var(--line)}
+
+/* stagger */
+.rise{opacity:0;transform:translateY(10px);animation:rise .6s var(--ease) both;animation-delay:calc(var(--i,0)*70ms)}
+@keyframes rise{to{opacity:1;transform:none}}
+@keyframes blink{50%{opacity:.35}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spinr{to{transform:rotate(-360deg)}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ───────────────────────────── the signal ───────────────────────────── */
+.signal{position:relative;display:grid;place-items:center;--sig:var(--accent);width:var(--sz,72px);height:var(--sz,72px);flex:none}
+.signal svg{width:100%;height:100%;overflow:visible;transition:filter .5s}
+.sig-halo{fill:var(--sig);opacity:.10;filter:blur(7px);transform-origin:center;transition:opacity .5s;animation:breathe 4.2s ease-in-out infinite}
+.sig-core{fill:var(--sig);filter:drop-shadow(0 0 5px var(--sig));transition:fill .5s,r .5s;transform-origin:center;animation:breathe 4.2s ease-in-out infinite}
+.sig-ring{fill:none;stroke:var(--sig);stroke-width:1.1;opacity:.55;transition:opacity .5s,stroke .5s}
+.sig-orbit{fill:none;stroke:var(--sig);stroke-width:1.6;stroke-dasharray:3.2 4.4;opacity:0;transform-origin:center;transition:opacity .5s}
+.sig-ticks{transform-origin:center;transition:opacity .5s}
+.sig-ticks line{stroke:var(--sig);stroke-width:1.5;stroke-linecap:round;opacity:.85;transition:stroke .5s}
+/* states are driven from .app[data-state] */
+.app[data-state="working"] .signal .sig-orbit{opacity:.95;animation:spin 1.5s linear infinite}
+.app[data-state="working"] .signal .sig-ticks{opacity:.55;animation:spinr 6s linear infinite}
+.app[data-state="working"] .signal .sig-halo{animation-duration:1.1s;opacity:.16}
+.app[data-state="working"] .signal .sig-core{animation-duration:1.1s}
+.app[data-state="waiting"] .signal{--sig:var(--amber)}
+.app[data-state="waiting"] .signal .sig-halo{animation:none;opacity:.2}
+.app[data-state="waiting"] .signal .sig-core{animation:none}
+.app[data-state="waiting"] .signal .sig-ring{opacity:.9;stroke-width:1.6}
+.app[data-state="offline"] .signal{--sig:var(--off)}
+.app[data-state="offline"] .signal .sig-ticks,.app[data-state="offline"] .signal .sig-halo{opacity:0}
+
+/* ───────────────────────────── voice presence: avatars ───────────────────────────── */
+.avatar{--lvl:0;position:relative;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:11.5px;letter-spacing:.02em;
+  background:var(--bg-lift);color:var(--text-2);flex:none;box-shadow:inset 0 1px 0 var(--hi)}
+.avatar.marvin{background:radial-gradient(circle at 50% 40%,rgba(143,240,210,.35),rgba(143,240,210,.06) 70%);color:var(--accent)}
+.avatar.speaking{color:var(--text);
+  box-shadow:0 0 0 calc(1.5px + var(--lvl)*3.5px) var(--accent),0 0 calc(var(--lvl)*26px) calc(var(--lvl)*2px) var(--accent-glow)}
+.avatar.away{opacity:.5}
+.avatar .st{position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:50%;border:2px solid var(--bg);background:var(--off)}
+.avatar.speaking .st{background:var(--accent)}
+.meter{display:inline-flex;gap:2px;align-items:center;height:12px}
+.meter i{width:2.5px;height:3px;border-radius:2px;background:var(--accent);display:block;transition:height .08s linear}
+
+/* ───────────────────────────── sign in ───────────────────────────── */
+.screen-signin{align-items:center;justify-content:center;padding:32px 20px;overflow:auto;
+  background:radial-gradient(48% 42% at 50% 34%,rgba(143,240,210,.10),transparent 70%)}
+.signin{width:min(560px,100%);display:flex;flex-direction:column;align-items:center;gap:22px}
+.signin .hero{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.signin h1{font-size:34px;font-weight:800;letter-spacing:-.02em}
+.signin .tag{color:var(--text-2);font-size:15px;max-width:38ch}
+.signin .tag b{color:var(--text);font-weight:700}
+.signin .who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-2)}
+.signin .who b{color:var(--text)}
+.signin .who .lo{color:var(--text-3);text-decoration:underline dotted;text-underline-offset:3px}
+.rooms{width:100%;padding:8px}
+.room-row{display:flex;align-items:center;gap:14px;width:100%;padding:12px 14px;border-radius:var(--r-md);text-align:left;transition:background .2s}
+.room-row:hover{background:var(--panel-2)}
+.room-row.sel{background:var(--panel-2);box-shadow:inset 0 0 0 1px rgba(143,240,210,.35)}
+.room-row .nm{font-weight:700;font-size:15px}
+.room-row .rp{color:var(--text-3);font-size:12.5px;margin-left:6px}
+.room-row .rp code{color:var(--text-2)}
+.room-row .live{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--accent)}
+.room-row .offl{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--text-3)}
+.newroom{padding:12px 14px;border-radius:var(--r-md);color:var(--text-2);font-weight:600;display:flex;align-items:center;gap:10px;width:100%}
+.newroom:hover{background:var(--panel-2)}
+.newroom .plus{width:22px;height:22px;border-radius:50%;background:var(--panel-3);display:grid;place-items:center;font-size:16px;line-height:1;color:var(--text)}
+.newform{display:none;flex-direction:column;gap:12px;padding:6px 14px 14px}
+.newform.open{display:flex}
+.newform .radios{display:flex;gap:16px;font-weight:500;color:var(--text-2);font-size:13px}
+.newform .radios label{display:flex;align-items:center;gap:7px;cursor:pointer}
+.newform input[type=radio]{accent-color:var(--accent)}
+.newform .row{display:grid;grid-template-columns:1fr 140px;gap:10px}
+.signin .cta{display:flex;align-items:center;gap:14px}
+.signin .cta .btn.primary{padding:12px 22px;font-size:14px;border-radius:12px}
+
+/* ───────────────────────────── room: desktop layout ───────────────────────────── */
+.screen-room{padding:var(--pad);gap:0;
+  background:radial-gradient(40% 30% at 11% 14%,rgba(143,240,210,.07),transparent 70%)}
+.app[data-state="waiting"] .screen-room{background:radial-gradient(40% 30% at 11% 14%,rgba(240,179,92,.09),transparent 70%)}
+.col{display:flex;flex-direction:column;min-height:0;min-width:0}
+.col-left{width:var(--left-w);flex:none}
+.col-center{flex:1}
+.col-right{width:var(--right-w);flex:none}
+.gutter{width:10px;flex:none;position:relative;cursor:col-resize}
+.gutter::after{content:"";position:absolute;top:50%;left:50%;width:2px;height:36px;border-radius:2px;background:var(--line);transform:translate(-50%,-50%);transition:background .2s}
+.gutter:hover::after{background:rgba(143,240,210,.5)}
+
+/* left column */
+.col-left .head{display:flex;align-items:center;gap:12px;padding:14px 14px 10px}
+.col-left .head .ttl{font-weight:800;font-size:15px;letter-spacing:-.01em}
+.col-left .head .ttl span{color:var(--text-3);font-weight:600}
+.col-left .head .sub{font-size:11.5px;color:var(--text-3);font-weight:600;margin-top:1px}
+.col-left .head .sub b{color:var(--accent);font-weight:700}
+.app[data-state="waiting"] .col-left .head .sub b{color:var(--amber)}
+.people{padding:6px 8px;display:flex;flex-direction:column;gap:2px}
+.person{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px}
+.person .nm{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:6px}
+.person .role{font-size:11px;color:var(--text-3);font-weight:600}
+.person .r{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--text-3)}
+.person .r svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+.person.speaking .nm{color:var(--accent)}
+.section-h{padding:14px 16px 6px}
+.applinks{padding:0 8px;display:flex;flex-direction:column;gap:2px}
+.applink{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:10px;font-weight:600;font-size:13px;color:var(--text-2)}
+.applink:hover{background:var(--panel-2);color:var(--text)}
+.applink code{color:var(--text-3);font-size:12px;margin-left:auto}
+.col-left .foot{margin-top:auto;padding:10px;display:flex;align-items:center;gap:6px;border-top:1px solid var(--line)}
+.callbtn{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--panel-2);box-shadow:inset 0 1px 0 var(--hi);color:var(--text);transition:background .2s}
+.callbtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.callbtn:hover{background:var(--panel-3)}
+.callbtn.live{background:var(--accent-dim);color:var(--accent);box-shadow:inset 0 0 0 1px rgba(143,240,210,.35)}
+.callbtn.muted{background:rgba(216,144,138,.15);color:var(--del)}
+.callbtn.leave{background:rgba(216,144,138,.12);color:var(--del);margin-left:auto}
+.callbtn.leave:hover{background:rgba(216,144,138,.24)}
+
+/* center workspace */
+.tabs{display:flex;align-items:center;gap:2px;padding:8px 10px 0}
+.tab{padding:8px 12px;border-radius:10px 10px 0 0;font-weight:600;font-size:13px;color:var(--text-3);display:flex;align-items:center;gap:7px;position:relative}
+.tab:hover{color:var(--text-2)}
+.tab.on{color:var(--text)}
+.tab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px;background:var(--accent);box-shadow:0 0 10px var(--accent-glow)}
+.tab .tri{color:var(--accent);font-size:10px}
+.pane{display:none;flex:1;min-height:0;flex-direction:column}
+.pane.on{display:flex}
+.changes-h{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.changes-h .br{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px}
+.changes-h .br code{padding:2px 7px;border-radius:6px;background:var(--panel-2);color:var(--text)}
+.changes-h .br .arr{color:var(--text-3)}
+.changes-h .stat{font-family:var(--mono);font-size:12px;color:var(--text-3)}
+.changes-h .stat .p{color:var(--add)} .changes-h .stat .m{color:var(--del)}
+.changes-h .acts{margin-left:auto;display:flex;gap:8px}
+.changes-body{display:flex;flex:1;min-height:0}
+.files{width:300px;flex:none;overflow:auto;border-right:1px solid var(--line);padding:6px}
+.file{display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border-radius:8px;text-align:left;font-family:var(--mono);font-size:12px;color:var(--text-2);transition:background .15s}
+.file:hover{background:var(--panel)}
+.file.on{background:var(--panel-2);color:var(--text)}
+.file .s{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;font-size:9.5px;font-weight:700;flex:none}
+.file .s.A{background:var(--add-bg);color:var(--add)} .file .s.M{background:rgba(227,198,143,.14);color:var(--exec)} .file .s.D{background:var(--del-bg);color:var(--del)}
+.file .p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left;flex:1}
+.file .n{margin-left:auto;font-size:11px;white-space:nowrap}
+.file .n .pl{color:var(--add)} .file .n .mi{color:var(--del)}
+.file.more{color:var(--text-3);justify-content:center;font-family:var(--font);font-weight:600}
+.diff{flex:1;min-width:0;overflow:auto;font-family:var(--mono);font-size:12.2px;line-height:1.55}
+.diff .fh{position:sticky;top:0;display:flex;align-items:center;gap:10px;padding:8px 14px;background:rgba(31,36,41,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);color:var(--text-2);z-index:2}
+.diff .fh b{color:var(--text);font-weight:500}
+.diff .ln{display:grid;grid-template-columns:40px 40px 1fr;white-space:pre;color:var(--text-2)}
+.diff .ln .no{color:var(--text-3);text-align:right;padding-right:10px;opacity:.7;user-select:none}
+.diff .ln .c{padding-right:16px}
+.diff .ln.add{background:var(--add-bg);color:#d9ede1} .diff .ln.add .no{color:var(--add)}
+.diff .ln.del{background:var(--del-bg);color:#efd5d2} .diff .ln.del .no{color:var(--del)}
+.diff .ln.hunk{background:rgba(143,240,210,.06);color:var(--accent-2);padding:3px 0;margin:6px 0 2px}
+.diff .ln.hunk .no{opacity:0}
+
+.browser{flex:1;margin:0 12px 12px;display:flex;flex-direction:column;border-radius:var(--r-md);overflow:hidden;background:#111417;box-shadow:inset 0 0 0 1px var(--line)}
+.browser .bar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg-lift);border-bottom:1px solid var(--line)}
+.browser .bar .lights{display:flex;gap:5px} .browser .bar .lights i{width:9px;height:9px;border-radius:50%;background:var(--panel-3);display:block}
+.browser .bar .url{flex:1;font-family:var(--mono);font-size:12px;color:var(--text-2);background:rgba(0,0,0,.25);padding:5px 10px;border-radius:7px}
+.browser .body{flex:1;display:grid;place-items:center;color:var(--text-3);font-size:13px;position:relative;overflow:hidden}
+.browser .fake{width:min(520px,80%);display:flex;flex-direction:column;gap:10px}
+.browser .fake .l{height:12px;border-radius:6px;background:var(--panel-2)}
+.browser .fake .l.w{width:60%} .browser .fake .l.n{width:35%;background:var(--accent-dim)}
+.browser .fake .card{height:60px;border-radius:10px;background:var(--panel);box-shadow:inset 0 1px 0 var(--hi)}
+.browser .live-tag{position:absolute;top:12px;right:12px}
+.screenshare .body{background:radial-gradient(60% 60% at 50% 50%,#20262c,#111417)}
+
+/* right column */
+.col-right .tabs{padding:8px 10px 0}
+.mv-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mv-head .state{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px}
+.mv-head .state .dot{background:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
+.app[data-state="waiting"] .mv-head .state{color:var(--amber)}
+.app[data-state="waiting"] .mv-head .state .dot{background:var(--amber);box-shadow:0 0 8px var(--amber-glow)}
+.app[data-state="offline"] .mv-head .state{color:var(--text-3)}
+.app[data-state="offline"] .mv-head .state .dot{background:var(--off);box-shadow:none}
+.mv-head .chips{display:flex;gap:6px;margin-left:auto;align-items:center}
+.stopbtn{display:none;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:rgba(216,144,138,.14);color:var(--del);font-weight:700;font-size:11.5px}
+.stopbtn i{width:8px;height:8px;background:currentColor;border-radius:2px;display:block}
+.app[data-state="working"] .stopbtn{display:inline-flex}
+.bolt{width:28px;height:28px;border-radius:999px;display:grid;place-items:center;color:var(--text-3);background:var(--panel-2);box-shadow:inset 0 1px 0 var(--hi)}
+.bolt svg{width:14px;height:14px;fill:currentColor}
+.bolt.on{color:var(--amber);background:var(--amber-dim);box-shadow:inset 0 0 0 1px rgba(240,179,92,.4)}
+.turns{flex:1;overflow:auto;padding:14px 14px 8px;display:flex;flex-direction:column;gap:18px;transition:padding .4s var(--ease)}
+.app[data-state="waiting"] .turns{padding-bottom:168px}  /* room for the floating approval card */
+.turn{display:flex;flex-direction:column;gap:8px}
+.turn .ask{display:flex;gap:10px;align-items:flex-start;font-size:13.5px}
+.turn .ask .who{font-weight:800;color:var(--text-2);flex:none}
+.turn .ask .q{color:var(--text);font-weight:500}
+.tools{display:flex;flex-direction:column;gap:3px;padding-left:4px;border-left:2px solid var(--line);margin-left:6px}
+.tool{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--text-2)}
+.tool .k{font-weight:500;padding:1px 6px;border-radius:5px;font-size:11px}
+.tool.read .k{background:rgba(143,240,210,.12);color:var(--read)}
+.tool.exec .k{background:rgba(227,198,143,.14);color:var(--exec)}
+.tool.write .k{background:rgba(169,201,228,.14);color:var(--write)}
+.tool .a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool .t{margin-left:auto;color:var(--text-3);font-size:11px;flex:none}
+.tool .ok{color:var(--accent);font-size:11px;margin-left:auto}
+.tool .run{margin-left:auto;width:11px;height:11px;border-radius:50%;border:1.6px solid var(--accent-dim);border-top-color:var(--accent);animation:spin .9s linear infinite;flex:none}
+.tool .wait{margin-left:auto;color:var(--amber);font-size:11px;font-weight:500;flex:none}
+.tool .den{margin-left:auto;color:var(--del);font-size:11px;flex:none}
+details.out{margin:2px 0 2px 12px}
+details.out summary{cursor:pointer;color:var(--text-3);font-size:11.5px;font-weight:600;list-style:none;display:flex;gap:6px;align-items:center;padding:2px 6px}
+details.out summary::before{content:"›";display:inline-block;transition:transform .2s}
+details.out[open] summary::before{transform:rotate(90deg)}
+details.out pre{margin:4px 0 0 8px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.28);font-family:var(--mono);font-size:11.5px;color:var(--text-2);overflow:auto;line-height:1.5}
+details.out pre .g{color:var(--add)}
+.answer{font-size:13.5px;color:var(--text);line-height:1.55;padding:2px 2px 0 14px}
+.answer code{background:var(--panel-2);padding:1px 5px;border-radius:5px;font-size:.88em}
+.thinking{height:10px;width:46%;margin-left:14px;border-radius:5px;background:linear-gradient(90deg,var(--panel) 0%,var(--panel-3) 50%,var(--panel) 100%);background-size:200% 100%;animation:shimmer 1.6s linear infinite}
+.meta{font-size:11.5px;color:var(--text-3);font-weight:600;padding-left:14px}
+.attach{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;margin-left:14px;padding:5px 10px;border-radius:8px;background:var(--panel-2);font-size:12px;font-weight:600;color:var(--text-2);box-shadow:inset 0 1px 0 var(--hi)}
+.attach .thumb{width:18px;height:14px;border-radius:3px;background:linear-gradient(135deg,var(--accent-dim),var(--panel-3))}
+.ask-box{display:flex;gap:8px;padding:10px 12px 12px;border-top:1px solid var(--line)}
+.ask-box input{flex:1;background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:12px;padding:10px 14px;outline:none;font-size:13.5px}
+.ask-box input:focus{border-color:rgba(143,240,210,.45);box-shadow:0 0 0 3px var(--accent-dim)}
+.ask-box input::placeholder{color:var(--text-3)}
+.transcript{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
+.tl{display:grid;grid-template-columns:42px 1fr;gap:10px;font-size:13.5px;line-height:1.5}
+.tl time{font-family:var(--mono);font-size:11.5px;color:var(--text-3);padding-top:2px}
+.tl .who{font-weight:800;color:var(--text-2);margin-right:6px}
+.tl .who.m{color:var(--accent)}
+.tl.interim .txt{color:var(--text-3);font-style:italic}
+.tl.interim .who{color:var(--text-3)}
+.tl.interim .cursor{display:inline-block;width:6px;height:13px;vertical-align:-2px;margin-left:2px;background:var(--accent);opacity:.7;animation:blink 1s steps(1) infinite;border-radius:1px}
+
+/* approval */
+.approval{position:absolute;right:calc(var(--pad) + 14px);bottom:calc(var(--pad) + 68px);width:calc(var(--right-w) - 28px);display:none;flex-direction:column;gap:10px;padding:14px 14px 12px;border-radius:var(--r-md);
+  background:rgba(48,42,32,.72);box-shadow:inset 0 1px 0 rgba(240,179,92,.35),0 0 0 1px rgba(240,179,92,.28),0 24px 60px -20px var(--amber-glow);backdrop-filter:blur(20px);z-index:20;
+  animation:rise .45s var(--ease) both}
+.app[data-state="waiting"] .approval.open{display:flex}
+.approval .ttl{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--amber)}
+.approval .ttl .dot{background:var(--amber);box-shadow:0 0 8px var(--amber-glow)}
+.approval .cmd{font-family:var(--mono);font-size:12.5px;color:var(--text);padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.3);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.approval .cmd .k{color:var(--exec);font-weight:500}
+.approval .acts{display:flex;gap:8px}
+.approval .acts .btn{flex:1;justify-content:center;padding:9px 10px}
+.approval .who{font-size:11.5px;color:var(--text-3);font-weight:600}
+
+/* mobile-only elements (hidden on desktop) */
+.m-top,.m-dock{display:none}
+
+/* ───────────────────────────── settings sheet ───────────────────────────── */
+.settings{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:24px;z-index:40;background:rgba(18,21,24,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.app[data-screen="settings"] .settings{display:flex}
+.sheet{width:min(720px,100%);max-height:100%;display:flex;flex-direction:column;background:rgba(38,44,50,.86);border-radius:var(--r-lg);
+  box-shadow:inset 0 1px 0 var(--hi),0 40px 100px -20px rgba(0,0,0,.7);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);animation:rise .4s var(--ease) both;overflow:hidden}
+.sheet .sh{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.sheet .sh h2{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.sheet .sh .x{margin-left:auto}
+.sheet .body{overflow:auto;padding:6px 20px 20px;display:flex;flex-direction:column}
+.sect{padding:18px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.sect:last-child{border-bottom:0}
+.sect h3{font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px}
+.sect h3 span{color:var(--text-3);font-weight:600}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:13px;align-items:baseline}
+.kv .k{color:var(--text-3);font-weight:600}
+.kv .v{color:var(--text)} .kv .v code{color:var(--text-2)}
+.kv .v small{color:var(--text-3);font-weight:600;margin-left:6px}
+.checks{display:flex;gap:16px;flex-wrap:wrap}
+.checks label{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12.5px;color:var(--text-2);cursor:pointer}
+.checks input{accent-color:var(--accent);width:14px;height:14px}
+.sect textarea{min-height:120px;resize:vertical;line-height:1.5;font-family:var(--mono);font-size:12.5px}
+.sect .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.gh{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r-md);background:var(--panel);box-shadow:inset 0 1px 0 var(--hi)}
+.gh .av{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#c9d3dc,#5c6670);flex:none}
+.gh .nm{font-weight:800} .gh .em{color:var(--text-3);font-size:12.5px}
+.gh .r{margin-left:auto}
+.note{font-size:12.5px;color:var(--text-2);line-height:1.55}
+.note b{color:var(--text)}
+
+/* ───────────────────────────── reduced motion ───────────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  .sig-ticks{display:none}
+  .sig-ring{opacity:.9!important}
+  .thinking{background:var(--panel-2)}
+}
+
+/* ───────────────────────────── mobile (container ≤ 720px: responsive AND phone frame) ───────────────────────────── */
+@container app (max-width: 720px){
+  .screen-room{flex-direction:column;padding:0;gap:0;background:linear-gradient(180deg,rgba(143,240,210,.06),transparent 30%)}
+  .app[data-state="waiting"] .screen-room{background:linear-gradient(180deg,rgba(240,179,92,.09),transparent 30%)}
+  .col-left,.gutter,.tabs,.approval .who{display:none}
+  .col.glass{border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}
+  .col-center,.col-right{display:none;width:auto;flex:1}
+  .app[data-mpane="changes"] .col-center,.app[data-mpane="preview"] .col-center,.app[data-mpane="screen"] .col-center{display:flex}
+  .app[data-mpane="marvin"] .col-right,.app[data-mpane="transcript"] .col-right{display:flex}
+  .m-top{display:flex;flex-direction:column;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px 10px}
+  .stage.phone .m-top{padding-top:54px}
+  .m-top .row{display:flex;align-items:center;gap:10px}
+  .m-top .ttl{font-weight:800;font-size:16px;letter-spacing:-.01em}
+  .m-top .ttl span{color:var(--text-3);font-weight:600}
+  .m-top .st{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent)}
+  .app[data-state="waiting"] .m-top .st{color:var(--amber)}
+  .app[data-state="waiting"] .m-top .st .dot{background:var(--amber);box-shadow:0 0 8px var(--amber-glow)}
+  .seg{display:flex;gap:2px;padding:3px;border-radius:12px;background:rgba(0,0,0,.25);box-shadow:inset 0 1px 0 rgba(0,0,0,.3)}
+  .seg button{flex:1;padding:7px 4px;border-radius:9px;font-size:12px;font-weight:700;color:var(--text-3);display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+  .seg button.on{background:var(--panel-3);color:var(--text);box-shadow:inset 0 1px 0 var(--hi)}
+  .seg .tri{color:var(--accent);font-size:9px}
+  .mv-head{border-top:0}
+  .hm{display:none!important}
+  .changes-h{border-top:0;padding:10px 14px}
+  .changes-h .acts{width:100%;margin-left:0}
+  .changes-h .acts .btn{flex:1;justify-content:center}
+  .changes-body{flex-direction:column}
+  .files{width:auto;flex:none;display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--line);padding:8px 12px;scrollbar-width:none}
+  .files::-webkit-scrollbar{display:none}
+  .file{width:auto;flex:none;background:var(--panel);padding:6px 10px;border-radius:999px}
+  .file .p{direction:ltr;max-width:160px} .file .n{margin-left:2px}
+  .file.more{display:none}
+  .diff{font-size:11.5px}
+  .diff .ln{grid-template-columns:34px 1fr} .diff .ln .no:first-child{display:none}
+  .browser{margin:0 12px 12px}
+  .ask-box{padding:8px 12px 10px}
+  .m-dock{display:flex;align-items:center;gap:14px;padding:12px 18px calc(env(safe-area-inset-bottom,0px) + 16px);border-top:1px solid var(--line);
+    background:rgba(25,29,33,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);position:relative;z-index:15}
+  .m-dock .signal{--sz:56px}
+  .m-dock .who{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+  .m-dock .who .l1{font-weight:800;font-size:13px;display:flex;align-items:center;gap:8px}
+  .m-dock .who .l1 .avatar{width:24px;height:24px;font-size:10px}
+  .m-dock .who .l2{font-size:11.5px;color:var(--text-3);font-weight:600;line-height:1.35}
+  .m-dock .who .l2 b{color:var(--accent);font-weight:700}
+  .app[data-state="waiting"] .m-dock .who .l2 b{color:var(--amber)}
+  .talk{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);
+    box-shadow:0 0 0 6px var(--accent-dim),0 12px 30px -8px var(--accent-glow);transition:background .3s,box-shadow .3s,transform .2s var(--ease);flex:none}
+  .talk:active{transform:scale(.96)}
+  .talk svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .talk.muted{background:var(--bg-lift);color:var(--del);box-shadow:inset 0 0 0 1.5px rgba(216,144,138,.5)}
+  .m-dock .callbtn.leave{margin-left:0;width:42px;height:42px}
+  .approval{right:12px;left:12px;width:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 108px);padding:16px 16px 14px;border-radius:18px}
+  .approval .acts .btn{padding:14px 10px;font-size:14px;border-radius:12px}
+  .approval .cmd{font-size:13px}
+  /* settings on a phone: full sheet, no machine notes */
+  .settings{padding:0}
+  .sheet{width:100%;max-height:100%;height:100%;border-radius:0}
+  .stage.phone .sheet .sh{padding-top:54px}
+  .sect.notes{display:none}
+  .kv{grid-template-columns:1fr;gap:2px 0} .kv .k{margin-top:8px}
+  /* sign in */
+  .signin h1{font-size:30px}
+  .newform .row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+<div class="app" id="app" data-screen="signin" data-state="listening" data-mpane="marvin">
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ═══════════════════════ 1 · SIGN IN ═══════════════════════ -->
+  <section class="screen screen-signin" aria-label="Sign in">
+    <div class="signin">
+      <div class="hero">
+        <div class="signal rise" style="--sz:112px;--i:0" data-signal></div>
+        <h1 class="rise" style="--i:1">Marvin</h1>
+        <p class="tag rise" style="--i:2">A voice room with a coding agent in it. Say <b>“Marvin”</b> to talk to it.</p>
+        <div class="who rise" style="--i:3">Signed in as <b>gil</b> <span class="badge">ADMIN</span> <a class="lo" href="#" onclick="return false">log out</a></div>
+      </div>
+
+      <div class="rooms glass rise" style="--i:4" role="list">
+        <button class="room-row sel" onclick="selectRoom(this,'dev')" role="listitem">
+          <span class="dot live"></span><span class="nm">dev</span><span class="rp">repo <code>marvin</code></span><span class="live">live · 3 in room</span>
+        </button>
+        <button class="room-row" onclick="selectRoom(this,'sandbox')" role="listitem">
+          <span class="dot live"></span><span class="nm">sandbox</span><span class="rp">repo <code>marvin-smoke</code></span><span class="live">live</span>
+        </button>
+        <button class="room-row" onclick="selectRoom(this,'abf-frontend')" role="listitem">
+          <span class="dot"></span><span class="nm">abf-frontend</span><span class="rp">repo <code>abf-optimizer-frontend</code> · main</span><span class="offl">offline</span>
+        </button>
+        <div class="sep" style="margin:6px 8px"></div>
+        <button class="newroom" onclick="toggleNewRoom()"><span class="plus">+</span> new room</button>
+        <form class="newform" id="newform" onsubmit="event.preventDefault();joinRoom('new')">
+          <label class="field">Room name<input placeholder="e.g. billing-rewrite" autocomplete="off"></label>
+          <div class="radios">
+            <label><input type="radio" name="src" checked onchange="srcMode(false)"> folder on this machine</label>
+            <label><input type="radio" name="src" onchange="srcMode(true)"> clone from GitHub</label>
+          </div>
+          <div class="row">
+            <label class="field" id="repoField">Folder<input id="repoInput" placeholder="/Users/gil/Projects/…"></label>
+            <label class="field">Branch<input placeholder="default"></label>
+          </div>
+          <div><button class="btn primary" type="submit">create and join</button></div>
+        </form>
+      </div>
+
+      <div class="cta rise" style="--i:5">
+        <button class="btn primary" id="joinBtn" onclick="joinRoom()">Join dev</button>
+        <span style="color:var(--text-3);font-size:12.5px;font-weight:600">mic on · camera off</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ 2 · THE ROOM ═══════════════════════ -->
+  <section class="screen screen-room" aria-label="Room dev">
+
+    <!-- mobile top: title, state, segmented panes -->
+    <div class="m-top">
+      <div class="row">
+        <div class="ttl">Marvin <span>#dev</span></div>
+        <div class="st"><span class="dot live"></span><span data-state-label>listening</span></div>
+      </div>
+      <div class="seg" role="tablist">
+        <button class="on" data-mp="marvin" onclick="setMPane('marvin')">Marvin</button>
+        <button data-mp="transcript" onclick="setMPane('transcript')">Transcript</button>
+        <button data-mp="changes" onclick="setMPane('changes')">Changes</button>
+        <button data-mp="preview" onclick="setMPane('preview')"><span class="tri">▶</span>web</button>
+        <button data-mp="screen" onclick="setMPane('screen')"><span class="dot rec" style="width:6px;height:6px"></span>gil</button>
+      </div>
+    </div>
+
+    <!-- LEFT · people / app / call -->
+    <aside class="col col-left glass rise" style="--i:0">
+      <div class="head">
+        <div class="signal" style="--sz:64px" data-signal></div>
+        <div>
+          <div class="ttl">Marvin <span>#dev</span></div>
+          <div class="sub"><b data-state-label>listening</b> · repo marvin</div>
+        </div>
+      </div>
+      <div class="people">
+        <div class="person">
+          <div class="avatar marvin">M</div>
+          <div><div class="nm">Marvin</div><div class="role">agent · <span data-state-label>listening</span></div></div>
+        </div>
+        <div class="person speaking" id="personGil">
+          <div class="avatar speaking" data-speaker="gil">G<span class="st"></span></div>
+          <div><div class="nm">gil <span class="badge">admin</span></div><div class="role" id="gilRole">speaking</div></div>
+          <div class="r"><span class="meter" data-meter><i></i><i></i><i></i><i></i><i></i></span></div>
+        </div>
+        <div class="person">
+          <div class="avatar">MA<span class="st" style="background:var(--accent)"></span></div>
+          <div><div class="nm">maria</div><div class="role">participant</div></div>
+        </div>
+        <div class="person">
+          <div class="avatar away">T<span class="st"></span></div>
+          <div><div class="nm">tom</div><div class="role">away · muted</div></div>
+          <div class="r"><svg viewBox="0 0 24 24"><path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V5a3 3 0 0 0-6 0v1M5 10a7 7 0 0 0 11.6 5.3M19 10a7 7 0 0 1-1 3.6M12 17v4M3 3l18 18"/></svg></div>
+        </div>
+      </div>
+      <div class="section-h eyebrow">App</div>
+      <div class="applinks">
+        <a class="applink" href="#" onclick="setCenterTab('preview');return false"><span class="tri" style="color:var(--accent);font-size:10px">▶</span>web <code>localhost:5173</code></a>
+        <a class="applink" href="#" onclick="return false"><span class="dot live" style="width:6px;height:6px"></span>api <code>localhost:8000</code></a>
+      </div>
+      <div class="foot">
+        <button class="callbtn" title="Settings" onclick="openSettings()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+        <span style="flex:1"></span>
+        <button class="callbtn live" id="micBtn" title="Mute" onclick="toggleMic()"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+        <button class="callbtn" title="Share screen" onclick="setCenterTab('screen')"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M12 13V8m-3 3 3-3 3 3"/></svg></button>
+        <button class="callbtn leave" title="Leave" onclick="setScreen('signin')"><svg viewBox="0 0 24 24"><path d="M10 17l-4-4 4-4M6 13h9M14 4h3a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-3"/></svg></button>
+      </div>
+    </aside>
+    <div class="gutter" aria-hidden="true"></div>
+
+    <!-- CENTER · workspace -->
+    <main class="col col-center glass rise" style="--i:1">
+      <div class="tabs" role="tablist">
+        <button class="tab on" data-ct="changes" onclick="setCenterTab('changes')">Changes <span class="chip" style="padding:1px 7px;font-size:10.5px">35</span></button>
+        <button class="tab" data-ct="preview" onclick="setCenterTab('preview')"><span class="tri">▶</span> web</button>
+        <button class="tab" data-ct="screen" onclick="setCenterTab('screen')"><span class="dot rec"></span> gil's screen</button>
+      </div>
+
+      <div class="pane on" data-cp="changes">
+        <div class="changes-h">
+          <div class="br"><code>feat/sandbox</code><span class="arr">→</span><code>main</code></div>
+          <div class="stat"><span class="p">+2179</span> <span class="m">−33</span> · 35 files</div>
+          <div class="acts"><button class="btn sm">commit</button><button class="btn sm primary">open PR</button></div>
+        </div>
+        <div class="changes-body">
+          <div class="files" id="files"></div>
+          <div class="diff" id="diff"></div>
+        </div>
+      </div>
+
+      <div class="pane" data-cp="preview">
+        <div class="browser">
+          <div class="bar"><span class="lights"><i></i><i></i><i></i></span><span class="url">http://localhost:5173/settings</span><span class="chip"><span class="dot live"></span> hot reload</span></div>
+          <div class="body">
+            <div class="fake"><div class="l n"></div><div class="l w"></div><div class="card"></div><div class="l"></div><div class="l w"></div><div class="card"></div></div>
+            <span class="live-tag chip">web · vite 6</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane" data-cp="screen">
+        <div class="browser screenshare">
+          <div class="bar"><span class="dot rec"></span><span style="font-weight:700;font-size:12.5px">gil is sharing a screen</span><span class="chip" style="margin-left:auto">1440×900 · 30fps</span></div>
+          <div class="body"><div style="text-align:center"><div style="font-size:15px;font-weight:700;color:var(--text-2)">Cursor — GitHubConnect.tsx</div><div style="margin-top:4px">live capture placeholder</div></div></div>
+        </div>
+      </div>
+    </main>
+    <div class="gutter" aria-hidden="true"></div>
+
+    <!-- RIGHT · Marvin / Transcript -->
+    <aside class="col col-right glass rise" style="--i:2">
+      <div class="tabs" role="tablist">
+        <button class="tab on" data-rt="marvin" onclick="setRightTab('marvin')">Marvin</button>
+        <button class="tab" data-rt="transcript" onclick="setRightTab('transcript')">Transcript</button>
+      </div>
+
+      <div class="pane on" data-rp="marvin">
+        <div class="mv-head">
+          <div class="state"><span class="dot"></span><span data-state-label>listening</span></div>
+          <div class="chips">
+            <button class="stopbtn" onclick="setMarvinState('listening')"><i></i>stop</button>
+            <span class="chip hm">harness <b>Claude Code</b></span>
+            <span class="chip">model <b>Sonnet 4.5</b></span>
+            <button class="bolt" id="bolt" title="Always allow (admin)" onclick="toggleBolt()"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></button>
+          </div>
+        </div>
+
+        <div class="turns" id="turns">
+          <div class="turn">
+            <div class="ask"><span class="who">gil</span><span class="q">Marvin, move the GitHub client id into Settings so nobody needs a <code>.env</code>.</span></div>
+            <div class="tools">
+              <div class="tool read"><span class="k">Read</span><span class="a">worker/marvin/github.py</span><span class="t">0.4s</span></div>
+              <div class="tool read"><span class="k">Grep</span><span class="a">MARVIN_GITHUB_CLIENT_ID</span><span class="t">0.2s</span></div>
+              <div class="tool read"><span class="k">Read</span><span class="a">worker/marvin/token_server.py</span><span class="t">0.3s</span></div>
+              <div class="tool write"><span class="k">Edit</span><span class="a">worker/marvin/admin.py</span><span class="t">1.1s</span></div>
+              <div class="tool write"><span class="k">Edit</span><span class="a">web/src/GitHubConnect.tsx</span><span class="t">2.6s</span></div>
+              <div class="tool exec"><span class="k">Bash</span><span class="a">pytest worker/tests -q</span><span class="t">14.8s</span></div>
+              <details class="out"><summary>output · 3 lines</summary><pre>............................................ [100%]
+<span class="g">44 passed</span> in 12.91s
+exit 0</pre></details>
+            </div>
+            <p class="answer">Done. The client id is now an admin setting under <b>Settings → GitHub</b>, stored in <code>github.json</code> next to the tokens. <code>MARVIN_GITHUB_CLIENT_ID</code> still works as an override and the UI says where the value comes from. I also added a shape check so a pasted secret is rejected with a clear error.</p>
+            <div class="meta">done · 42.3s · 6 tool calls</div>
+          </div>
+
+          <div class="turn" id="turn2">
+            <div class="ask"><span class="who">gil</span><span class="q">Marvin, push the branch and open a PR against main.</span></div>
+            <div class="attach"><span class="thumb"></span>📎 screenshot.png <span style="color:var(--text-3)">from gil</span></div>
+            <div class="tools">
+              <div class="tool exec"><span class="k">Bash</span><span class="a">git add -A && git commit -m "Move GitHub client id into Settings"</span><span class="t">0.8s</span></div>
+              <div class="tool exec" id="pushTool"><span class="k">Bash</span><span class="a">git push origin feat/sandbox</span><span class="run" data-tool-status></span></div>
+            </div>
+            <div id="turn2tail"></div>
+          </div>
+        </div>
+
+        <div class="ask-box">
+          <input placeholder="Ask Marvin…" aria-label="Ask Marvin">
+          <button class="btn primary icon" title="Send"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+        </div>
+      </div>
+
+      <div class="pane" data-rp="transcript">
+        <div class="transcript">
+          <div class="tl"><time>11:02</time><div><span class="who">gil</span><span class="txt">Marvin, move the GitHub client id into settings so nobody needs a .env</span></div></div>
+          <div class="tl"><time>11:02</time><div><span class="who m">Marvin</span><span class="txt">On it. I'll read the token server first.</span></div></div>
+          <div class="tl"><time>11:03</time><div><span class="who">tom</span><span class="txt">brb, coffee</span></div></div>
+          <div class="tl"><time>11:04</time><div><span class="who">maria</span><span class="txt">can we also mask it in the UI?</span></div></div>
+          <div class="tl"><time>11:04</time><div><span class="who m">Marvin</span><span class="txt">Yes — I'll show the first four and last four characters, like Ov23••••••••8o36.</span></div></div>
+          <div class="tl"><time>11:05</time><div><span class="who">gil</span><span class="txt">Marvin, push the branch and open a PR against main.</span></div></div>
+          <div class="tl"><time>11:05</time><div><span class="who m">Marvin</span><span class="txt">Committed. Pushing needs your approval.</span></div></div>
+          <div class="tl interim"><time>11:06</time><div><span class="who">gil</span><span class="txt">and put maria as reviewer, she knows the settings pa<span class="cursor"></span></span></div></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- approval (floats over the Marvin column; bottom sheet on phone) -->
+    <div class="approval open" id="approval" role="alertdialog" aria-label="Approval needed">
+      <div class="ttl"><span class="dot"></span>Marvin wants to run <code class="k" style="color:var(--exec)">Bash</code></div>
+      <div class="cmd"><span class="k">$</span>git push origin feat/sandbox</div>
+      <div class="acts">
+        <button class="btn amber" onclick="approve('allow')">Allow</button>
+        <button class="btn" onclick="approve('always')">Always</button>
+        <button class="btn ghost" onclick="approve('deny')">Deny</button>
+      </div>
+      <div class="who">asked by gil · runs as @gillmoreno in container marvin-dev</div>
+    </div>
+
+    <!-- mobile dock: the walkie-talkie -->
+    <div class="m-dock">
+      <div class="signal" data-signal></div>
+      <div class="who">
+        <div class="l1"><span class="avatar speaking" data-speaker="gil">G</span>gil <span class="meter" data-meter><i></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="l2">Marvin · <b data-state-label>listening</b><br>with maria, tom</div>
+      </div>
+      <button class="talk" id="talkBtn" onclick="toggleMic()" aria-label="Mute microphone"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <button class="callbtn leave" onclick="setScreen('signin')" aria-label="Leave"><svg viewBox="0 0 24 24"><path d="M10 17l-4-4 4-4M6 13h9M14 4h3a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-3"/></svg></button>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ 3 · SETTINGS ═══════════════════════ -->
+  <div class="settings" onclick="if(event.target===this)closeSettings()">
+    <div class="sheet" role="dialog" aria-label="Settings">
+      <div class="sh"><h2>Settings</h2><span class="chip">room <b>dev</b></span><button class="btn icon ghost x" onclick="closeSettings()" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <div class="body">
+        <div class="sect">
+          <h3>This room <span>· dev</span></h3>
+          <div class="kv">
+            <span class="k">Works in</span><span class="v"><code>/Users/gil/Projects/marvin</code></span>
+            <span class="k">Agent runs in</span><span class="v">container <code>marvin-dev</code> <small>image marvin-sandbox</small></span>
+            <span class="k">Linked repos</span><span class="v checks"><label><input type="checkbox" checked>abf-optimizer-frontend</label><label><input type="checkbox">rw_srt_opt</label></span>
+          </div>
+        </div>
+        <div class="sect notes">
+          <h3>Machine notes</h3>
+          <label class="field"><textarea>## dev box
+- Node 22 via fnm, Python 3.12 via uv
+- `make sandbox` rebuilds the agent image (≈ 4 min)
+- ports: web 5173, api 8000, livekit 7880
+- **never** run migrations against `abf-prod` from here</textarea></label>
+          <div class="row"><button class="btn sm">save notes</button><span class="note" style="color:var(--text-3)">saved 11:01 · visible to everyone in the room</span></div>
+        </div>
+        <div class="sect">
+          <h3>Account</h3>
+          <div class="kv">
+            <span class="k">Signed in as</span><span class="v"><b>gil</b> <small>with the room password</small></span>
+            <span class="k">Roles</span><span class="v"><span class="chip">admin</span> <span class="chip">participant</span></span>
+          </div>
+          <div class="row"><button class="btn sm ghost" onclick="setScreen('signin')">log out</button></div>
+        </div>
+        <div class="sect">
+          <h3>GitHub</h3>
+          <div class="kv">
+            <span class="k">OAuth App client id</span><span class="v"><code>Ov23••••••••8o36</code> <small>set here</small> · <a href="#" onclick="return false">change</a></span>
+          </div>
+          <div class="gh">
+            <div class="av"></div>
+            <div><div class="nm">Connected as @gillmoreno</div><div class="em">gmc.luu@gmail.com</div></div>
+            <button class="btn sm ghost r">disconnect</button>
+          </div>
+          <p class="note">When you (<b>gil</b>) ask Marvin to commit, push or open a PR, it happens as <b>@gillmoreno</b>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════ prototype chrome (not product) ═══════════════════════ -->
+<div class="proto" aria-label="Prototype controls">
+  <span class="lbl">prototype</span>
+  <div class="grp" id="protoScreens">
+    <button data-s="signin" class="on" onclick="setScreen('signin')">Sign in</button>
+    <button data-s="room" onclick="setScreen('room')">Room</button>
+    <button data-s="settings" onclick="setScreen('settings')">Settings</button>
+  </div>
+  <div class="grp" id="protoDevice">
+    <button class="on" data-d="desktop" onclick="setPhone(false)">Desktop</button>
+    <button data-d="phone" onclick="setPhone(true)">Phone</button>
+  </div>
+  <button class="cyc" onclick="cycleState()"><i id="cycDot"></i>Marvin: <span id="cycLbl">listening</span> →</button>
+</div>
+
+<script>
+/* ───────────────────────────── data ───────────────────────────── */
+const FILES = [
+  ['A','.cursor/rules/configuration-in-the-ui.mdc',28,0],
+  ['M','Makefile',16,2],
+  ['M','README.md',24,0],
+  ['M','.env.example',9,3],
+  ['M','web/src/GitHubConnect.tsx',152,0],
+  ['M','web/src/Settings.tsx',61,8],
+  ['A','worker/marvin/github.py',340,0],
+  ['A','worker/marvin/sandbox.py',350,0],
+  ['M','worker/marvin/admin.py',88,11],
+  ['M','worker/marvin/token_server.py',37,4],
+  ['A','worker/tests/test_github.py',202,0],
+  ['A','worker/tests/test_sandbox.py',178,0],
+  ['M','docs_and_changelog/decisions-log.md',45,0],
+];
+// diff text: first char = ' ' ctx, '+' add, '-' del, '@' hunk
+const DIFFS = {
+'worker/marvin/github.py': `@@ -0,0 +1,340 @@
++"""GitHub OAuth device flow + token storage for Marvin."""
++from __future__ import annotations
++
++import json
++import os
++import re
++from dataclasses import dataclass
++from pathlib import Path
++
++from cryptography.fernet import Fernet
++
++CLIENT_ID_RE = re.compile(r"^(Ov23|Iv1\\.)[A-Za-z0-9]{12,}$")
++
++
++@dataclass(frozen=True)
++class GitHubUser:
++    login: str
++    email: str | None
++
++
++class TokenStore:
++    """Encrypted-at-rest store for per-user tokens and public settings."""
++
++    def __init__(self, state_dir: Path, secret: str) -> None:
++        self._path = state_dir / "github.json"
++        self._fernet = Fernet(_derive_key(secret))
++
++    def get_setting(self, key: str) -> str | None:
++        return self._read().get("settings", {}).get(key)
++
++    def put_setting(self, key: str, value: str) -> None:
++        data = self._read()
++        data.setdefault("settings", {})[key] = value
++        self._write(data)
++
++    def put_token(self, user: str, token: str) -> None:
++        data = self._read()
++        data.setdefault("tokens", {})[user] = self._fernet.encrypt(token.encode()).decode()
++        self._write(data)
++
++
++class GitHubConnect:
++    def __init__(self, store: TokenStore) -> None:
++        self.store = store
++
++    def client_id(self) -> str | None:
++        return os.environ.get("MARVIN_GITHUB_CLIENT_ID") or self.store.get_setting("client_id")
++
++    def client_id_source(self) -> str:
++        if os.environ.get("MARVIN_GITHUB_CLIENT_ID"):
++            return "environment"
++        return "settings" if self.store.get_setting("client_id") else "unset"`,
+'web/src/GitHubConnect.tsx': `@@ -12,7 +12,9 @@ import { useIsAdmin } from "./auth";
+ export function GitHubConnect() {
+   const isAdmin = useIsAdmin();
+-  const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
++  const { data: config, refetch } = useGitHubConfig();
++  const clientId = config?.client_id ?? null;
++  const source = config?.source ?? "unset";
+   const [status, setStatus] = useState<Status>("idle");
+ 
+@@ -41,6 +43,34 @@ export function GitHubConnect() {
+   if (!clientId) {
+-    return <p className="muted">Set VITE_GITHUB_CLIENT_ID in .env</p>;
++    return isAdmin ? <ClientIdSetup onSaved={refetch} /> : <NeedsAdmin />;
+   }
++
++function ClientIdSetup({ onSaved }: { onSaved: () => void }) {
++  const [value, setValue] = useState("");
++  const [error, setError] = useState<string | null>(null);
++  const origin = window.location.origin;
++
++  const save = async () => {
++    if (!/^(Ov23|Iv1\\.)[A-Za-z0-9]{12,}$/.test(value)) {
++      setError("That doesn't look like a GitHub OAuth App client id.");
++      return;
++    }
++    await api.put("/github/config", { client_id: value });
++    onSaved();
++  };
++
++  return (
++    <section className="setup">
++      <ol>
++        <li>Open <a href="https://github.com/settings/developers">Developer settings → OAuth Apps</a></li>
++        <li>New OAuth App · callback <code>{origin}/github/callback</code></li>
++        <li>Paste the client id below</li>
++      </ol>
++      <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Ov23…" />
++      {error && <p className="error">{error}</p>}
++      <button onClick={save}>save</button>
++    </section>
++  );
++}`,
+'worker/marvin/admin.py': `@@ -88,6 +88,29 @@ def _require_admin(request: web.Request) -> None:
+     if "admin" not in roles:
+         raise web.HTTPForbidden(text="admin role required")
+ 
++
++async def get_github_config(request: web.Request) -> web.Response:
++    connect: GitHubConnect = request.app["github"]
++    client_id = connect.client_id()
++    return web.json_response({
++        "client_id": _mask(client_id) if client_id else None,
++        "source": connect.client_id_source(),
++    })
++
++
++async def put_github_config(request: web.Request) -> web.Response:
++    _require_admin(request)
++    body = await request.json()
++    client_id = str(body.get("client_id", "")).strip()
++    if not CLIENT_ID_RE.match(client_id):
++        raise web.HTTPBadRequest(text="client_id must look like Ov23… or Iv1.…")
++    request.app["github"].store.put_setting("client_id", client_id)
++    return web.json_response({"ok": True})
++
++
++def _mask(value: str) -> str:
++    return value[:4] + "•" * 8 + value[-4:]
+@@ -140,7 +163,9 @@ def routes(app: web.Application) -> None:
+     app.router.add_get("/admin/rooms", list_rooms)
+-    app.router.add_post("/admin/rooms", create_room)
++    app.router.add_post("/admin/rooms", create_room)
++    app.router.add_get("/github/config", get_github_config)
++    app.router.add_put("/github/config", put_github_config)`,
+'worker/marvin/token_server.py': `@@ -21,9 +21,11 @@ from .auth import roles_from_request
+ 
+ ADMIN_ONLY_PREFIXES = (
+     "/admin/",
+-    "/settings/",
++    "/settings/",
++    "/github/config",
+ )
+ 
+@@ -64,7 +66,7 @@ async def guard(request: web.Request, handler):
+-    if request.path.startswith(ADMIN_ONLY_PREFIXES):
++    if request.method != "GET" and request.path.startswith(ADMIN_ONLY_PREFIXES):
+         if "admin" not in roles_from_request(request):
+             raise web.HTTPForbidden(text="admin role required")`,
+'Makefile': `@@ -3,8 +3,22 @@ PYTHON ?= python3
+ .PHONY: dev test lint
+ 
+-dev:
+-	cd worker && $(PYTHON) -m marvin
++dev: ## run worker + web with hot reload
++	$(MAKE) -j2 dev-worker dev-web
++
++dev-worker:
++	cd worker && $(PYTHON) -m marvin --reload
++
++dev-web:
++	cd web && npm run dev
++
++sandbox: ## build the agent sandbox image
++	docker build -t marvin-sandbox -f sandbox/Dockerfile .
+ 
+ test:
+ 	cd worker && $(PYTHON) -m pytest -q`,
+'.env.example': `@@ -4,9 +4,15 @@ LIVEKIT_API_SECRET=
+ MARVIN_AUTH=password
+ MARVIN_SESSION_SECRET=change-me
+ 
+-# required: GitHub OAuth App
+-MARVIN_GITHUB_CLIENT_ID=
+-VITE_GITHUB_CLIENT_ID=
++# optional — overrides the client id saved in Settings → GitHub.
++# Only set this for automated deployments; humans should paste it in the UI.
++# MARVIN_GITHUB_CLIENT_ID=
++
++# optional — where the agent sandbox image lives
++# MARVIN_SANDBOX_IMAGE=marvin-sandbox`,
+'.cursor/rules/configuration-in-the-ui.mdc': `@@ -0,0 +1,28 @@
++# Configuration lives in the UI
++
++Whatever can safely be configured from the front end is configured from the
++front end. Do not add a new environment variable as the *only* way to set
++something unless it must exist before the UI can (LiveKit keys, MARVIN_AUTH,
++MARVIN_SESSION_SECRET, bind addresses).
++
++When adding a setting:
++
++- Put it in **Settings**, admin-only if it affects other people.
++- Persist it in the worker's state dir, never in the repo or in .env.
++- Keep the environment variable as an override for automation.
++- Guide instead of instruct: link to the exact external page, accept the
++  paste, validate the shape, and give a precise error.`,
+'README.md': `@@ -38,6 +38,30 @@ make dev
+ 
+ Open http://localhost:5173 and join a room.
+ 
++## Connecting GitHub
++
++Marvin commits and opens PRs as *you*, not as a bot. An admin pastes the
++OAuth App client id once under **Settings → GitHub**; everyone else clicks
++"Connect GitHub" and signs in with the device flow.
++
++1. https://github.com/settings/developers → New OAuth App
++2. Callback URL: \`https://<your-marvin>/github/callback\`
++3. Copy the client id (starts with \`Ov23\`) into Settings
++
++No restart is needed. Tokens are encrypted at rest with the session secret.`,
+'web/src/Settings.tsx': `@@ -71,14 +71,18 @@ export function Settings({ room }: { room: Room }) {
+       <Section title="Account">
+         <Account />
+       </Section>
+-      {isAdmin && (
+-        <Section title="GitHub (admin)">
+-          <p className="muted">Configured through the environment.</p>
+-        </Section>
+-      )}
++      <Section title="GitHub">
++        <GitHubConnect />
++      </Section>
+     </Sheet>
+   );
+ }`,
+'worker/marvin/sandbox.py': `@@ -0,0 +1,350 @@
++"""Run the harness inside a per-room container."""
++from __future__ import annotations
++
++import asyncio
++import shlex
++from dataclasses import dataclass, field
++
++
++@dataclass
++class Sandbox:
++    room: str
++    image: str = "marvin-sandbox"
++    mounts: list[tuple[str, str]] = field(default_factory=list)
++
++    @property
++    def name(self) -> str:
++        return f"marvin-{self.room}"
++
++    async def ensure_running(self) -> None:
++        if await self._exists():
++            return
++        args = ["docker", "run", "-d", "--name", self.name, "--network", "host"]
++        for host, guest in self.mounts:
++            args += ["-v", f"{host}:{guest}"]
++        await _run(*args, self.image, "sleep", "infinity")
++
++    async def exec(self, cmd: str, *, cwd: str = "/work") -> tuple[int, str]:
++        return await _run("docker", "exec", "-w", cwd, self.name, "sh", "-lc", cmd)`,
+'worker/tests/test_github.py': `@@ -0,0 +1,202 @@
++import os
++from pathlib import Path
++
++import pytest
++
++from marvin.github import GitHubConnect, TokenStore
++
++
++@pytest.fixture
++def connect(tmp_path: Path) -> GitHubConnect:
++    return GitHubConnect(TokenStore(tmp_path, secret="test-secret"))
++
++
++def test_client_id_prefers_environment(connect, monkeypatch):
++    connect.store.put_setting("client_id", "Ov23liStored0000000")
++    monkeypatch.setenv("MARVIN_GITHUB_CLIENT_ID", "Ov23liFromEnv000000")
++    assert connect.client_id() == "Ov23liFromEnv000000"
++    assert connect.client_id_source() == "environment"
++
++
++def test_client_id_falls_back_to_settings(connect, monkeypatch):
++    monkeypatch.delenv("MARVIN_GITHUB_CLIENT_ID", raising=False)
++    connect.store.put_setting("client_id", "Ov23liStored0000000")
++    assert connect.client_id_source() == "settings"
++
++
++def test_tokens_are_not_stored_in_plaintext(connect, tmp_path):
++    connect.store.put_token("gil", "gho_secret")
++    assert "gho_secret" not in (tmp_path / "github.json").read_text()`,
+'worker/tests/test_sandbox.py': `@@ -0,0 +1,178 @@
++import pytest
++
++from marvin.sandbox import Sandbox
++
++
++def test_container_name_is_derived_from_room():
++    assert Sandbox(room="dev").name == "marvin-dev"
++
++
++@pytest.mark.asyncio
++async def test_ensure_running_is_idempotent(fake_docker):
++    sb = Sandbox(room="dev")
++    await sb.ensure_running()
++    await sb.ensure_running()
++    assert fake_docker.calls.count("run") == 1`,
+'docs_and_changelog/decisions-log.md': `@@ -210,3 +210,48 @@
++## 2026-09-12 — Design principle: configuration happens in the browser
++
++**Decision.** Anything that can safely be set from the front end is set from
++the front end. Environment variables remain only for what must exist before
++the UI does, and as overrides for automation.
++
++**Why.** Non-developers join Marvin rooms. Asking them (or the person who
++set the machine up) to edit a \`.env\` and restart is friction we do not need.
++The GitHub client id was the first casualty: it is a public identifier, so
++it belongs in Settings with a mask, not in a file.`,
+};
+
+/* ───────────────────────────── signal (one component, many instances) ───────────────────────────── */
+const TICKS = 36, R0 = 27;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function buildSignal(el){
+  let lines = '';
+  for(let i=0;i<TICKS;i++){ lines += `<line x1="0" y1="${-R0}" x2="0" y2="${-R0-3}" transform="rotate(${i*360/TICKS})"/>`; }
+  el.innerHTML = `<svg viewBox="-50 -50 100 100" aria-hidden="true">
+    <circle class="sig-halo" r="42"/>
+    <g class="sig-ticks">${lines}</g>
+    <circle class="sig-orbit" r="21"/>
+    <circle class="sig-ring" r="15"/>
+    <circle class="sig-core" r="6"/>
+  </svg>`;
+  el._ticks = [...el.querySelectorAll('.sig-ticks line')];
+}
+document.querySelectorAll('[data-signal]').forEach(buildSignal);
+
+// fake audio envelope, 0..1, with natural pauses
+function env(t){
+  const a=Math.sin(t*1.7)*.5+.5, b=Math.sin(t*4.3+1)*.5+.5, c=Math.sin(t*.61)*.5+.5;
+  let v = .2 + .8*(a*.45 + b*.35 + c*.2);
+  if(Math.sin(t*.43) > .72) v *= .12;           // breath between phrases
+  return v;
+}
+const app = document.getElementById('app');
+const signals = [...document.querySelectorAll('[data-signal]')];
+const speakers = [...document.querySelectorAll('[data-speaker="gil"]')];
+const meters = [...document.querySelectorAll('[data-meter]')];
+let smooth = new Float32Array(TICKS);
+
+function frame(now){
+  const t = now/1000, st = app.dataset.state, live = st !== 'offline';
+  const e = env(t);
+  // Marvin's signal: listening = radial waveform of the room; working = tight structured pattern; waiting = still
+  for(let i=0;i<TICKS;i++){
+    let target;
+    if(st==='listening'){
+      const ph = Math.sin(t*5.2 + i*.72) * .5 + .5;
+      const ph2 = Math.sin(t*2.3 - i*.31) * .5 + .5;
+      target = 1.2 + e * (2 + 9 * (ph*.6 + ph2*.4));
+    } else if(st==='working'){
+      target = (i%3===0) ? 5.5 : 1.6;
+    } else if(st==='waiting'){
+      target = 3.2;
+    } else target = 0;
+    smooth[i] += (target - smooth[i]) * (st==='listening' ? .28 : .12);
+  }
+  for(const s of signals){ for(let i=0;i<TICKS;i++){ s._ticks[i].setAttribute('y2', (-R0 - smooth[i]).toFixed(2)); } }
+  // the light passes to whoever speaks
+  const lvl = muted ? 0 : e;
+  for(const a of speakers) a.style.setProperty('--lvl', lvl.toFixed(3));
+  for(const m of meters){ const bars=m.children; for(let i=0;i<bars.length;i++){ const h = 3 + lvl*9*(.45+.55*(Math.sin(t*7+i*1.3)*.5+.5)); bars[i].style.height = h.toFixed(1)+'px'; } }
+  requestAnimationFrame(frame);
+}
+if(!reduced) requestAnimationFrame(frame);
+else { document.querySelectorAll('.avatar.speaking').forEach(a=>a.style.setProperty('--lvl','.6')); }
+
+/* ───────────────────────────── navigation ───────────────────────────── */
+let muted = false, always = false;
+function restagger(scope){
+  scope.querySelectorAll('.rise').forEach(el=>{ el.style.animation='none'; el.offsetHeight; el.style.animation=''; });
+}
+function setScreen(s){
+  const prev = app.dataset.screen;
+  app.dataset.screen = s;
+  document.querySelectorAll('#protoScreens button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+  if(s==='signin') restagger(document.querySelector('.screen-signin'));
+  if(s==='room' && prev!=='settings') restagger(document.querySelector('.screen-room'));
+}
+function joinRoom(){ setScreen('room'); setMarvinState('waiting'); /* the room opens on its most interesting moment */ }
+function selectRoom(btn,name){
+  document.querySelectorAll('.room-row').forEach(b=>b.classList.toggle('sel', b===btn));
+  document.getElementById('joinBtn').textContent = 'Join ' + name;
+}
+function toggleNewRoom(){ document.getElementById('newform').classList.toggle('open'); }
+function srcMode(github){
+  const f = document.getElementById('repoField'), i = document.getElementById('repoInput');
+  f.firstChild.textContent = github ? 'Repository URL' : 'Folder';
+  i.placeholder = github ? 'https://github.com/org/repo' : '/Users/gil/Projects/…';
+}
+function openSettings(){ setScreen('settings'); }
+function closeSettings(){ setScreen('room'); }
+function setPhone(on){
+  document.getElementById('stage').classList.toggle('phone', on);
+  document.querySelectorAll('#protoDevice button').forEach(b=>b.classList.toggle('on', (b.dataset.d==='phone')===on));
+}
+function setCenterTab(t){
+  document.querySelectorAll('[data-ct]').forEach(b=>b.classList.toggle('on', b.dataset.ct===t));
+  document.querySelectorAll('[data-cp]').forEach(p=>p.classList.toggle('on', p.dataset.cp===t));
+  app.dataset.mpane = t; syncSeg();
+}
+function setRightTab(t){
+  document.querySelectorAll('[data-rt]').forEach(b=>b.classList.toggle('on', b.dataset.rt===t));
+  document.querySelectorAll('[data-rp]').forEach(p=>p.classList.toggle('on', p.dataset.rp===t));
+  app.dataset.mpane = t; syncSeg();
+}
+function setMPane(p){ (p==='marvin'||p==='transcript') ? setRightTab(p) : setCenterTab(p); }
+function syncSeg(){ document.querySelectorAll('[data-mp]').forEach(b=>b.classList.toggle('on', b.dataset.mp===app.dataset.mpane)); }
+function toggleMic(){
+  muted = !muted;
+  const m = document.getElementById('micBtn'), t = document.getElementById('talkBtn');
+  m.classList.toggle('live', !muted); m.classList.toggle('muted', muted);
+  t.classList.toggle('muted', muted);
+  t.setAttribute('aria-label', muted ? 'Unmute microphone' : 'Mute microphone');
+  document.getElementById('gilRole').textContent = muted ? 'muted' : 'speaking';
+  document.getElementById('personGil').classList.toggle('speaking', !muted);
+  document.querySelectorAll('[data-speaker="gil"]').forEach(a=>a.classList.toggle('speaking', !muted));
+}
+function toggleBolt(){ always = !always; document.getElementById('bolt').classList.toggle('on', always); }
+
+/* ───────────────────────────── Marvin state ───────────────────────────── */
+const LABELS = {listening:'listening', working:'working', waiting:'waiting for approval', offline:'not in the room'};
+const ORDER = ['listening','working','waiting'];
+const CYC = {listening:'#8ff0d2', working:'#8ff0d2', waiting:'#f0b35c'};
+function setMarvinState(s, opts={}){
+  app.dataset.state = s;
+  document.querySelectorAll('[data-state-label]').forEach(el=>el.textContent = LABELS[s]);
+  document.getElementById('cycLbl').textContent = LABELS[s];
+  document.getElementById('cycDot').style.background = CYC[s];
+  if(s==='waiting') document.getElementById('approval').classList.add('open');
+  renderTurn2(s, opts);
+}
+function cycleState(){ setMarvinState(ORDER[(ORDER.indexOf(app.dataset.state)+1) % ORDER.length]); }
+function renderTurn2(s, {denied}={}){
+  const status = document.querySelector('#pushTool [data-tool-status]'), tail = document.getElementById('turn2tail');
+  if(denied){
+    status.className='den'; status.textContent='denied';
+    tail.innerHTML = `<p class="answer">Okay, I won't push. The commit is on <code>feat/sandbox</code> locally — say the word when you want it up.</p><div class="meta">stopped · 6.1s</div>`;
+    return;
+  }
+  if(s==='working'){ status.className='run'; status.textContent=''; tail.innerHTML = `<div class="thinking" aria-label="Marvin is working"></div>`; }
+  else if(s==='waiting'){ status.className='wait'; status.textContent='needs approval'; tail.innerHTML = `<div class="meta">paused · waiting for gil</div>`; }
+  else { status.className='ok'; status.textContent='✓ 3.9s';
+    tail.innerHTML = `<div class="tools" style="margin-top:-5px"><div class="tool exec"><span class="k">Bash</span><span class="a">gh pr create --base main --fill --reviewer maria</span><span class="t">2.2s</span></div></div>
+    <p class="answer">Pushed <code>feat/sandbox</code> and opened <a href="#" onclick="return false">PR #47</a> against <code>main</code> with maria as reviewer. 35 files, +2179 −33.</p><div class="meta">done · 18.4s · 3 tool calls</div>`; }
+}
+function approve(kind){
+  document.getElementById('approval').classList.remove('open');
+  if(kind==='deny'){ app.dataset.state='listening'; setMarvinState('listening',{denied:true}); return; }
+  if(kind==='always'){ always = true; document.getElementById('bolt').classList.add('on'); }
+  setMarvinState('working');
+  setTimeout(()=>{ if(app.dataset.state==='working') setMarvinState('listening'); }, 2400);
+}
+
+/* ───────────────────────────── changes: files + diff ───────────────────────────── */
+const filesEl = document.getElementById('files'), diffEl = document.getElementById('diff');
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderFiles(sel){
+  filesEl.innerHTML = FILES.map(([s,p,a,d])=>`<button class="file ${p===sel?'on':''}" onclick="selectFile('${p}')" title="${p}">
+    <span class="s ${s}">${s}</span><span class="p">${p}</span><span class="n">${a?`<span class="pl">+${a}</span>`:''} ${d?`<span class="mi">−${d}</span>`:''}</span></button>`).join('')
+    + `<button class="file more">and 22 more files…</button>`;
+}
+function renderDiff(path){
+  const f = FILES.find(x=>x[1]===path), src = DIFFS[path] || `@@ -1,1 +1,1 @@\n-\n+`;
+  let o=0,n=0, out=`<div class="fh"><span class="s ${f[0]}" style="font-weight:500;color:${f[0]==='A'?'var(--add)':f[0]==='D'?'var(--del)':'var(--exec)'}">${f[0]==='A'?'added':f[0]==='D'?'deleted':'modified'}</span><b>${path}</b><span style="margin-left:auto">${f[2]?'+'+f[2]:''} ${f[3]?'−'+f[3]:''}</span></div>`;
+  for(const raw of src.split('\n')){
+    const k = raw[0], txt = raw.slice(1);
+    if(k==='@'){ const m = /\+(\d+)/.exec(raw), m2=/-(\d+)/.exec(raw); n = m?+m[1]:1; o = m2?+m2[1]:1; out += `<div class="ln hunk"><span class="no"></span><span class="no"></span><span class="c">${esc(raw)}</span></div>`; continue; }
+    const cls = k==='+'?'add':k==='-'?'del':'';
+    const on = k==='+'?'':o, nn = k==='-'?'':n;
+    out += `<div class="ln ${cls}"><span class="no">${on}</span><span class="no">${nn}</span><span class="c">${k==='+'?'+':k==='-'?'−':' '} ${esc(txt)}</span></div>`;
+    if(k!=='+') o++; if(k!=='-') n++;
+  }
+  diffEl.innerHTML = out; diffEl.scrollTop = 0;
+}
+function selectFile(p){ renderFiles(p); renderDiff(p); }
+selectFile('web/src/GitHubConnect.tsx');
+setMarvinState('listening');
+</script>
+</body>
+</html>

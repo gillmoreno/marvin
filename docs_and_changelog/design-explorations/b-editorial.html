@@ -1,0 +1,1279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marvin · Editorial — design exploration B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────────────────────── tokens ───────────────────────── */
+:root{
+  --paper:#F5F0E6; --paper-2:#FBF8F1; --paper-3:#ECE5D6;
+  --ink:#1B1712; --ink-2:#463F37; --ink-3:#6B635A;
+  --rule:#D6CDBD; --rule-2:#E5DDCD;
+  --accent:#7A1E2B; --accent-deep:#5C1420; --accent-wash:#F2E4E2;
+  --live:#3F7A4C;
+  --add-bg:#E3EDDA; --add-fg:#2C5A2E; --del-bg:#F2DEDB; --del-fg:#8A2A2A; --hunk-bg:#ECE6D8;
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+  --sans:"Source Sans 3","Source Sans Pro",Helvetica,sans-serif;
+  --mono:"IBM Plex Mono",Menlo,Consolas,monospace;
+  --r:3px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased;font-feature-settings:"kern","liga";}
+button,input,textarea,select{font:inherit;color:inherit;background:none;border:0}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+code,pre,kbd,.mono{font-family:var(--mono);font-size:.86em}
+.serif{font-family:var(--serif)}
+.tnum{font-variant-numeric:tabular-nums}
+.sc{font-family:var(--serif);font-variant-caps:all-small-caps;letter-spacing:.06em;font-weight:500}
+.cap{font-size:12px;color:var(--ink-3);letter-spacing:.02em}
+/* ───────────────────────── stage / phone frame ───────────────────────── */
+.stage{position:relative;min-height:100vh;container-type:inline-size;container-name:stage;background:var(--paper)}
+body.phone{background:#DED6C6;padding:32px 0 96px}
+body.phone .stage{width:390px;height:844px;min-height:0;margin:0 auto;border-radius:46px;border:11px solid #1B1712;overflow:hidden;box-shadow:0 30px 60px -20px rgba(27,23,18,.45),0 0 0 1px #3a332c}
+body.phone .screen{overflow:auto}
+body.phone .stage::before{content:"";position:absolute;top:10px;left:50%;transform:translateX(-50%);width:110px;height:28px;background:#1B1712;border-radius:16px;z-index:50}
+
+.screen{display:none;height:100vh;height:100dvh}
+body.phone .screen{height:100%}
+#signin{overflow:auto}
+.screen.active{display:flex}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.screen.active .rise{animation:rise .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0) * 70ms)}
+
+/* ───────────────────────── ink underline (voice presence) ───────────────────────── */
+.ink{position:relative;display:inline-block;padding-bottom:1px}
+.ink svg{position:absolute;left:-2%;right:-2%;bottom:-5px;width:104%;height:10px;overflow:visible;pointer-events:none}
+.ink svg path{fill:none;stroke:var(--accent);stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-width:1.5;opacity:0;transition:opacity .3s}
+.speaking .ink svg path,.ink.on svg path{opacity:1}
+.ink.big svg{bottom:-9px;height:14px}
+
+/* the written rule: Marvin's own state */
+.agent-rule{position:relative;height:1px;background:var(--rule);overflow:visible}
+.agent-rule::before,.agent-rule::after{content:"";position:absolute;top:0;left:0;height:1px;background:var(--ink)}
+.agent-rule[data-state="listening"]::after{width:100%;background:var(--rule)}
+.agent-rule[data-state="listening"]::before{width:7px;height:7px;border-radius:50%;top:-3px;background:var(--ink);animation:breathe 3.2s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+.agent-rule[data-state="working"]::after{width:0;animation:write 2.6s cubic-bezier(.4,0,.2,1) infinite}
+.agent-rule[data-state="working"]::before{width:5px;height:5px;border-radius:50%;top:-2px;background:var(--ink);animation:nib 2.6s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes write{0%{width:0;opacity:1}78%{width:100%;opacity:1}100%{width:100%;opacity:0}}
+@keyframes nib{0%{left:0;opacity:1}78%{left:calc(100% - 5px);opacity:1}100%{left:calc(100% - 5px);opacity:0}}
+.agent-rule[data-state="waiting"]{background:none;border-top:1px dashed var(--accent)}
+.agent-rule[data-state="waiting"]::before{width:7px;height:7px;border-radius:50%;top:-4px;left:calc(50% - 3px);background:var(--paper);border:1px solid var(--accent)}
+.agent-rule[data-state="away"]{background:var(--rule-2)}
+
+/* ───────────────────────── buttons ───────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:.45em;padding:6px 12px;border:1px solid var(--ink);border-radius:var(--r);font-weight:500;line-height:1.2;transition:background .15s,color .15s}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn.primary:hover{background:var(--accent-deep);border-color:var(--accent-deep)}
+.btn.quiet{border-color:var(--rule);color:var(--ink-2)}
+.btn.quiet:hover{background:var(--paper-3);color:var(--ink)}
+.btn.accent{border-color:var(--accent);color:var(--accent)}
+.btn.accent:hover{background:var(--accent);color:#fff}
+.btn.sm{padding:3px 9px;font-size:13px}
+.link{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(122,30,43,.4)}
+.link:hover{text-decoration-color:var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:.4em;padding:1px 8px;border:1px solid var(--rule);border-radius:999px;font-size:12.5px;color:var(--ink-2);background:var(--paper-2)}
+.chip b{font-weight:600;color:var(--ink)}
+.badge{display:inline-block;padding:0 6px;border:1px solid var(--accent);color:var(--accent);border-radius:2px;font-size:10.5px;letter-spacing:.14em;font-weight:600;vertical-align:middle;line-height:1.5}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--rule);vertical-align:middle}
+.dot.live{background:var(--live)}
+.dot.accent{background:var(--accent)}
+.field{display:grid;gap:4px}
+.field label{font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.12em;font-weight:600}
+.field input,.field textarea{border-bottom:1px solid var(--rule);padding:6px 0;background:transparent;outline:none;width:100%}
+.field input:focus,.field textarea:focus{border-bottom-color:var(--ink)}
+.field input::placeholder,.field textarea::placeholder{color:var(--ink-3);font-style:italic}
+
+/* ───────────────────────── sign in ───────────────────────── */
+#signin{align-items:stretch;justify-content:center}
+.masthead{width:min(680px,100% - 48px);margin:0 auto;padding:64px 0 48px}
+.masthead .nameplate{text-align:center;padding:26px 0 18px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+.masthead h1{font:300 76px/1 var(--serif);letter-spacing:-.02em;font-variation-settings:"opsz" 144}
+.masthead h1 span{color:var(--accent)}
+.masthead .tag{margin-top:14px;font:italic 400 19px/1.35 var(--serif);color:var(--ink-2)}
+.masthead .tag em{font-style:normal;color:var(--accent)}
+.whoami{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--rule);font-size:13.5px;color:var(--ink-2)}
+.whoami b{font-family:var(--serif);font-weight:600;color:var(--ink);font-size:15px}
+.rooms{margin-top:36px}
+.rooms h2{font:600 13px/1 var(--sans);text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3);display:flex;justify-content:space-between;align-items:center}
+.room-row{display:grid;grid-template-columns:20px 1fr auto auto;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--rule)}
+.room-row .name{font:500 22px/1.1 var(--serif);letter-spacing:-.01em}
+.room-row .repo{font-size:13px;color:var(--ink-3);margin-top:3px}
+.room-row .repo code{font-size:12.5px;color:var(--ink-2)}
+.room-row .status{font-size:12.5px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.room-row.offline .name{color:var(--ink-3)}
+.newroom{margin-top:8px}
+.newroom summary{list-style:none;cursor:pointer;padding:14px 0;color:var(--accent);font-weight:500;display:flex;align-items:center;gap:8px}
+.newroom summary::-webkit-details-marker{display:none}
+.newroom summary::before{content:"+";font-family:var(--serif);font-size:20px;line-height:0;width:20px;text-align:center}
+.newroom[open] summary::before{content:"–"}
+.newroom form{display:grid;gap:18px;padding:6px 0 24px 34px;border-bottom:1px solid var(--rule)}
+.radios{display:flex;gap:22px;font-size:14px}
+.radios label{display:flex;align-items:center;gap:8px;cursor:pointer}
+.radios input{appearance:none;width:14px;height:14px;border:1px solid var(--ink);border-radius:50%;display:grid;place-items:center}
+.radios input:checked::after{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.two{display:grid;grid-template-columns:1fr 160px;gap:24px}
+.colophon{margin-top:40px;font-size:12px;color:var(--ink-3);text-align:center;font-style:italic;font-family:var(--serif)}
+
+/* ───────────────────────── room ───────────────────────── */
+#room{flex-direction:column}
+.room{display:grid;grid-template-columns:236px 5px minmax(0,1fr) 5px 392px;grid-template-rows:minmax(0,1fr);flex:1;min-height:0}
+.room > *{min-width:0;min-height:0}
+.gutter{background:transparent;cursor:col-resize;position:relative}
+.gutter::after{content:"";position:absolute;top:0;bottom:0;left:2px;width:1px;background:var(--rule)}
+.gutter:hover::after{background:var(--ink-3)}
+.col{display:flex;flex-direction:column;min-height:0;min-width:0}
+.pane{display:none;flex-direction:column;min-height:0;flex:1}
+.room[data-ctab="changes"] #pane-changes,.room[data-ctab="web"] #pane-web,.room[data-ctab="screen"] #pane-screen,
+.room[data-rtab="marvin"] #pane-marvin,.room[data-rtab="transcript"] #pane-transcript{display:flex}
+
+/* left column */
+.col-left{padding:22px 18px 16px 22px}
+.dateline{font-size:11.5px;color:var(--ink-3);letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+.roomtitle{font:300 30px/1.05 var(--serif);letter-spacing:-.015em;margin-top:6px;padding-bottom:12px;border-bottom:1px solid var(--ink)}
+.roomtitle span{color:var(--accent)}
+.side-h{margin:22px 0 6px;font-size:11.5px;color:var(--ink-3);letter-spacing:.14em;text-transform:uppercase;font-weight:600;display:flex;justify-content:space-between;align-items:baseline}
+.people{list-style:none}
+.people li{display:grid;grid-template-columns:14px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid var(--rule-2);align-items:baseline}
+.people .mark{width:6px;height:6px;border-radius:50%;background:var(--ink);align-self:center;justify-self:center;margin-top:1px}
+.people .mark.agent{background:none;border:1px solid var(--ink);width:7px;height:7px}
+.people .mark.away{background:var(--rule)}
+.people .who{font:500 17px/1.2 var(--serif)}
+.people .who .role{font:400 12.5px/1 var(--sans);color:var(--ink-3);margin-left:6px;letter-spacing:.02em}
+.people .note{font-size:12.5px;color:var(--ink-3);margin-top:1px}
+.people li.away .who{color:var(--ink-3)}
+.people li.speaking .note{color:var(--accent)}
+.apps{list-style:none}
+.apps li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--rule-2);font-size:14px}
+.apps code{color:var(--ink-3)}
+.apps .dot{margin-right:8px}
+.callbar{margin-top:auto;padding-top:16px;display:grid;gap:8px}
+.callbar .row{display:flex;gap:6px}
+.callbar .btn{flex:1;justify-content:center;padding:8px 6px}
+.callbar .btn .ink svg{bottom:-4px}
+.btn.muted{border-color:var(--rule);color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px}
+.btn.leave{border-color:var(--rule);color:var(--accent)}
+.btn.leave:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.settings-btn{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-2);width:100%}
+.settings-btn:hover{color:var(--ink)}
+
+/* tabs as running heads */
+.tabs{display:flex;gap:22px;padding:22px 26px 0;border-bottom:1px solid var(--ink);font-size:13.5px}
+.tab{position:relative;padding:0 0 9px;color:var(--ink-3);font-weight:500;letter-spacing:.01em;display:inline-flex;align-items:center;gap:7px}
+.tab.on{color:var(--ink)}
+.tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--ink)}
+.tab:hover{color:var(--ink)}
+.tab .dot.live{animation:breathe 2.4s ease-in-out infinite}
+.tabs .spacer{flex:1}
+
+/* changes */
+.changes-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;padding:16px 26px 12px}
+.changes-head .branch{font:500 20px/1.2 var(--serif)}
+.changes-head .branch .vs{font:italic 400 15px var(--serif);color:var(--ink-3);margin:0 6px}
+.changes-head .branch code{font-size:15px;font-weight:500}
+.changes-head .stats{color:var(--ink-3);font-size:13.5px}
+.changes-head .stats .plus{color:var(--add-fg);font-weight:600}
+.changes-head .stats .minus{color:var(--del-fg);font-weight:600}
+.changes-head .actions{margin-left:auto;display:flex;gap:6px}
+.changes-body{display:grid;grid-template-columns:272px 1fr;flex:1;min-height:0;border-top:1px solid var(--rule)}
+.filelist{list-style:none;overflow:auto;border-right:1px solid var(--rule);padding:6px 0 12px}
+.filelist li{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:baseline;padding:6px 14px 6px 26px;cursor:pointer;font-size:13px}
+.filelist li:hover{background:var(--paper-2)}
+.filelist li.on{background:var(--paper-3)}
+.filelist li.on .path{font-weight:600}
+.filelist .st{font:600 10.5px/1.6 var(--mono);text-align:center;border-radius:2px;color:var(--paper-2);width:16px;height:16px;align-self:center}
+.st.A{background:var(--add-fg)}.st.M{background:var(--ink-2)}.st.D{background:var(--del-fg)}
+.filelist .path{font-family:var(--mono);font-size:12.2px;overflow-wrap:anywhere;color:var(--ink-2)}
+.filelist li.on .path{color:var(--ink)}
+.filelist .nums{font-family:var(--mono);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.nums .a{color:var(--add-fg)}.nums .d{color:var(--del-fg);margin-left:5px}
+.filelist .more{color:var(--ink-3);font-style:italic;font-family:var(--serif);font-size:13px;grid-template-columns:1fr;padding-left:26px;cursor:default}
+.filelist .more:hover{background:none}
+.mback{display:none}
+
+.figure{overflow:auto;min-height:0;padding:18px 26px 26px}
+.figure figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--ink);margin-bottom:0;font-size:13px}
+.figure figcaption .fig{font:italic 500 14px var(--serif)}
+.figure figcaption .fig b{font-style:normal;font-family:var(--mono);font-weight:500;font-size:12.5px;margin-left:8px;color:var(--ink)}
+.figure figcaption .nums{font-family:var(--mono);font-size:12px}
+.diff{background:var(--paper-2);border:1px solid var(--rule);border-top:0;font-family:var(--mono);font-size:12.3px;line-height:1.55;overflow:auto}
+.dl{display:grid;grid-template-columns:40px 40px 14px 1fr;min-height:1.55em}
+.dl .ln{text-align:right;padding-right:8px;color:var(--ink-3);font-variant-numeric:tabular-nums;font-size:11px;user-select:none;border-right:1px solid var(--rule-2);opacity:.8}
+.dl .sg{text-align:center;color:var(--ink-3);user-select:none}
+.dl code{white-space:pre;font-size:inherit;padding-right:16px;tab-size:4}
+.dl.add{background:var(--add-bg)}.dl.add code,.dl.add .sg{color:var(--add-fg)}
+.dl.del{background:var(--del-bg)}.dl.del code,.dl.del .sg{color:var(--del-fg)}
+.dl.hunk{background:var(--hunk-bg);color:var(--ink-3);font-style:italic}
+.dl.hunk code{color:var(--ink-3)}
+.figure .fignote{margin-top:10px;font:italic 13px var(--serif);color:var(--ink-3)}
+
+/* preview / screen */
+.browser{margin:22px 26px;flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid var(--rule);background:var(--paper-2)}
+.browser .bar{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--rule);font-size:12.5px;color:var(--ink-3)}
+.browser .bar .url{flex:1;font-family:var(--mono);color:var(--ink-2);background:var(--paper);padding:3px 10px;border-radius:2px;border:1px solid var(--rule-2)}
+.browser .bar .lights{display:flex;gap:5px}
+.browser .bar .lights i{width:9px;height:9px;border-radius:50%;background:var(--rule);display:block}
+.browser .body{flex:1;position:relative;background:repeating-linear-gradient(0deg,transparent 0 23px,var(--rule-2) 23px 24px);display:grid;place-items:center;text-align:center;padding:40px}
+.browser .body .ph{font:italic 300 22px/1.3 var(--serif);color:var(--ink-3);max-width:34ch}
+.browser .body .ph b{font-style:normal;font-weight:500;color:var(--ink-2)}
+.browser .body .ph code{color:var(--ink-2)}
+.browser.screen .body{background:var(--paper-3)}
+
+/* right column — the live document */
+.col-right{background:var(--paper)}
+.doc{flex:1;overflow:auto;min-height:0;padding:0 0 12px}
+.agent-head{padding:18px 26px 0}
+.agent-head .row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.agent-head .who{font:500 26px/1 var(--serif);letter-spacing:-.01em}
+.agent-head .state{font:italic 400 17px var(--serif);color:var(--ink-2)}
+.agent-head .state.waiting{color:var(--accent)}
+.agent-head .state.away{color:var(--ink-3)}
+.agent-head .controls{margin-left:auto;display:flex;gap:6px;align-items:center}
+.agent-head .chips{display:flex;gap:6px;margin:10px 0 12px}
+.bolt{width:28px;height:28px;border:1px solid var(--rule);border-radius:var(--r);display:grid;place-items:center;color:var(--ink-3)}
+.bolt.on{border-color:var(--accent);color:var(--accent);background:var(--accent-wash)}
+.stop{display:none}
+.room[data-agent="working"] .stop{display:inline-flex}
+
+.turn{display:grid;grid-template-columns:56px 1fr;padding:18px 26px 0 0;position:relative}
+.turn + .turn{border-top:1px solid var(--rule)}
+.turn .margin{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;text-align:right;padding:5px 12px 0 0;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.turn .margin .st{writing-mode:vertical-rl;text-orientation:mixed;font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:var(--ink-3);margin-top:10px}
+.turn.working .margin .st{color:var(--ink)}
+.turn.waiting .margin .st{color:var(--accent)}
+.turn .body{min-width:0}
+.prose{font-family:var(--serif);font-size:16.5px;line-height:1.5;font-variation-settings:"opsz" 16;text-indent:-.05em}
+.prose .spk{font-variant-caps:all-small-caps;letter-spacing:.06em;font-weight:600;margin-right:.3em}
+.prose .spk::after{content:"—";margin-left:.4em;color:var(--ink-3);font-weight:300}
+.prose.marvin{margin-top:14px;color:var(--ink-2);font-size:15.5px}
+.prose.marvin .spk{color:var(--ink)}
+.prose code{background:var(--paper-3);padding:0 4px;border-radius:2px;font-size:.8em}
+.tools{list-style:none;margin:10px 0 0 22px;border-left:1px solid var(--rule);padding-left:14px;display:grid;gap:3px}
+.tool{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:baseline;font-size:13px}
+.tool .fam{font-family:var(--serif);font-variant-caps:all-small-caps;letter-spacing:.08em;font-weight:600;font-size:13.5px}
+.tool.read .fam{color:var(--ink-3)}.tool.write .fam{color:var(--ink)}.tool.exec .fam{color:var(--accent)}
+.tool .arg{font-family:var(--mono);font-size:12px;color:var(--ink-2);overflow-wrap:anywhere}
+.tool.write .arg{color:var(--ink)}
+.tool .res{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tool .res.run{color:var(--ink);display:inline-flex;align-items:center;gap:8px}
+.tool .res.run i{display:block;width:28px;height:1px;position:relative;background:var(--rule)}
+.tool .res.run i::after{content:"";position:absolute;left:0;top:0;height:1px;background:var(--ink);animation:write 1.6s cubic-bezier(.4,0,.2,1) infinite}
+.tool .res.wait{color:var(--accent)}
+.tool .res.deny{color:var(--del-fg);text-decoration:line-through}
+.tool details{grid-column:2 / -1}
+.tool details summary{list-style:none;cursor:pointer;font-size:12px;color:var(--ink-3);font-style:italic;font-family:var(--serif)}
+.tool details summary::-webkit-details-marker{display:none}
+.tool details summary::before{content:"▸ ";font-style:normal}
+.tool details[open] summary::before{content:"▾ "}
+.tool details pre{margin-top:6px;padding:8px 10px;background:var(--paper-2);border:1px solid var(--rule);font-size:11.5px;line-height:1.5;color:var(--ink-2);overflow:auto;max-height:180px}
+.meta{margin-top:12px;font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;font-style:italic;font-family:var(--serif)}
+.turn.working .meta,.turn.waiting .meta{color:var(--ink-2)}
+
+/* approval */
+.approval{display:none;position:sticky;bottom:0;margin:16px 0 0;padding:12px 26px 14px 56px;border-top:1px solid var(--accent);background:var(--paper);box-shadow:0 -14px 20px -14px rgba(27,23,18,.25)}
+.room[data-agent="waiting"] .approval{display:block}
+.approval .lead{font:italic 400 13px var(--serif);color:var(--accent);letter-spacing:.02em}
+.approval .what{font-family:var(--serif);font-size:16.5px;margin-top:2px}
+.approval .what code{font-size:.82em;background:var(--accent-wash);color:var(--accent-deep);padding:0 5px;border-radius:2px}
+.approval .acts{display:flex;gap:6px;margin-top:10px}
+.approval .acts .btn{padding:6px 14px}
+
+.composer{border-top:1px solid var(--ink);padding:10px 26px 16px}
+.attach{display:flex;gap:6px;margin-bottom:8px}
+.attach .chip{color:var(--ink-2)}
+.attach .chip button{color:var(--ink-3);padding:0 2px}
+.composer .row{display:flex;gap:10px;align-items:flex-end}
+.composer input{flex:1;padding:6px 0;border-bottom:1px solid var(--rule);font-family:var(--serif);font-size:16px;outline:none}
+.composer input:focus{border-bottom-color:var(--ink)}
+.composer input::placeholder{font-style:italic;color:var(--ink-3)}
+
+/* transcript */
+.transcript{padding:14px 26px 12px 0;display:grid;gap:2px}
+.line{display:grid;grid-template-columns:56px 1fr;gap:0;padding:6px 0}
+.line time{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;text-align:right;padding:5px 12px 0 0}
+.line .t{font-family:var(--serif);font-size:16px;line-height:1.5;font-variation-settings:"opsz" 16}
+.line .spk{font-variant-caps:all-small-caps;letter-spacing:.06em;font-weight:600;margin-right:.3em}
+.line .spk::after{content:"—";margin-left:.4em;color:var(--ink-3);font-weight:300}
+.line.marvin .t{color:var(--ink-2)}
+.line.sys .t{font-style:italic;color:var(--ink-3);font-size:14.5px}
+.line.interim .t{color:var(--ink-3)}
+.line.interim .t .txt::after{content:"";display:inline-block;width:1px;height:.9em;background:var(--accent);margin-left:2px;vertical-align:-1px;animation:caret 1s steps(2) infinite}
+@keyframes caret{50%{opacity:0}}
+.transcript .day{grid-column:2;font:italic 13px var(--serif);color:var(--ink-3);padding:4px 0 8px;border-bottom:1px solid var(--rule);margin-bottom:6px}
+
+/* ───────────────────────── settings sheet ───────────────────────── */
+.sheet{display:none;position:absolute;inset:0;z-index:40;background:rgba(27,23,18,.32);padding:36px 20px;overflow:auto}
+.sheet.open{display:block}
+.page{width:min(760px,100%);margin:0 auto;background:var(--paper);border:1px solid var(--ink);box-shadow:0 30px 60px -30px rgba(27,23,18,.5);padding:36px 48px 44px}
+.page .head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--ink);padding-bottom:12px}
+.page h2{font:300 38px/1 var(--serif);letter-spacing:-.02em}
+.page .head .close{font-size:13.5px;color:var(--ink-2)}
+.page .head .close:hover{color:var(--ink)}
+.sect{display:grid;grid-template-columns:172px 1fr;gap:24px;padding:26px 0;border-bottom:1px solid var(--rule)}
+.sect:last-child{border-bottom:0;padding-bottom:0}
+.sect h3{font:500 19px/1.2 var(--serif)}
+.sect h3 small{display:block;font:italic 400 13px var(--serif);color:var(--ink-3);margin-top:4px}
+.sect .kv{display:grid;gap:12px;font-size:14.5px}
+.sect .kv p{color:var(--ink-2)}
+.sect .kv code{color:var(--ink);background:var(--paper-3);padding:0 5px;border-radius:2px}
+.sect .kv .k{font-size:11.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.12em;font-weight:600;display:block;margin-bottom:2px}
+.checks{display:grid;gap:6px}
+.checks label{display:flex;align-items:center;gap:10px;cursor:pointer}
+.checks input{appearance:none;width:14px;height:14px;border:1px solid var(--ink);border-radius:2px;display:grid;place-items:center}
+.checks input:checked::after{content:"";width:8px;height:8px;background:var(--ink)}
+.sect textarea{width:100%;min-height:150px;resize:vertical;font-family:var(--mono);font-size:12.5px;line-height:1.6;padding:10px 12px;border:1px solid var(--rule);background:var(--paper-2);outline:none}
+.sect textarea:focus{border-color:var(--ink)}
+.src{font:italic 12.5px var(--serif);color:var(--ink-3)}
+.gh-id{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.gh-id code{font-size:14px;letter-spacing:.04em}
+.ghuser{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.ghuser b{font-family:var(--serif);font-size:17px;font-weight:600}
+.quote{font-family:var(--serif);font-style:italic;color:var(--ink-2);border-left:2px solid var(--rule);padding-left:12px;font-size:15px}
+
+/* ───────────────────────── mobile chrome (hidden on desktop) ───────────────────────── */
+.mtop,.mseg,.mbottom,.mchanges-bar{display:none}
+
+/* ───────────────────────── prototype toolbar (not product) ───────────────────────── */
+.proto{position:fixed;right:14px;bottom:14px;z-index:100;display:flex;gap:4px;align-items:center;padding:5px 6px;background:#24211D;color:#EDE6D8;border-radius:8px;font:12px/1 var(--mono);box-shadow:0 8px 24px -8px rgba(0,0,0,.5)}
+.proto .lbl{opacity:.5;padding:0 4px 0 6px;font-size:10.5px;letter-spacing:.08em}
+.proto button{padding:6px 8px;border-radius:5px;color:#EDE6D8;opacity:.75}
+.proto button:hover{opacity:1;background:#3A352E}
+.proto button.on{opacity:1;background:#EDE6D8;color:#24211D}
+.proto .sep{width:1px;height:16px;background:#4A443C;margin:0 3px}
+
+/* ───────────────────────── mobile layout: real viewport AND phone frame ───────────────────────── */
+@container stage (max-width: 720px){
+  .masthead{padding:56px 0 32px}
+  .masthead h1{font-size:56px}
+  .two{grid-template-columns:1fr}
+  .room-row{grid-template-columns:20px 1fr auto}
+  .room-row .status{display:none}
+
+  .room{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}
+  .pane{min-width:0}
+  .col{display:contents}
+  .gutter,.col.col-left,.tabs{display:none}
+  /* one pane at a time; #roomEl[data-mpane] outranks the desktop two-pane rules */
+  #roomEl[data-mpane] .pane{display:none}
+  #roomEl[data-mpane="marvin"] #pane-marvin,#roomEl[data-mpane="transcript"] #pane-transcript,
+  #roomEl[data-mpane="changes"] #pane-changes,#roomEl[data-mpane="web"] #pane-web,#roomEl[data-mpane="screen"] #pane-screen{display:flex}
+
+  .mtop{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:54px 20px 10px;align-items:baseline}
+  body:not(.phone) .mtop{padding-top:16px}
+  .mtop .title{font:300 26px/1 var(--serif);letter-spacing:-.015em}
+  .mtop .title span{color:var(--accent)}
+  .mtop .state{grid-column:1 / -1;font:italic 400 14.5px var(--serif);color:var(--ink-2);display:flex;gap:10px;align-items:baseline}
+  .mtop .state .agent-rule{flex:1;top:-4px}
+  .mtop .gear{font-size:18px;color:var(--ink-2);padding:0 4px}
+
+  .mseg{display:flex;gap:0;margin:0 20px;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule)}
+  .mseg button{flex:1 1 0;min-width:0;padding:9px 0;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);position:relative;display:inline-flex;justify-content:center;align-items:center;gap:5px;white-space:nowrap}
+  .mseg button.on{color:var(--ink)}
+  .mseg button.on::after{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:var(--ink)}
+
+  .agent-head{display:none}
+  .turn{grid-template-columns:44px 1fr;padding-right:18px}
+  .turn .margin .st{display:none}
+  .transcript,.line{padding-right:18px}
+  .line{grid-template-columns:44px 1fr}
+  .approval{margin:12px 0 0;padding:14px 20px 16px}
+  .approval .acts .btn{flex:1;justify-content:center;padding:13px 0;font-size:16px}
+  .composer{padding:10px 20px 12px}
+  .attach{display:none}
+
+  .changes-head{padding:14px 20px 10px}
+  .changes-head .actions{width:100%;margin-left:0}
+  .changes-head .actions .btn{flex:1;justify-content:center;padding:10px}
+  .changes-body{grid-template-columns:1fr}
+  .changes-body[data-view="list"] .figure,.changes-body[data-view="diff"] .filelist{display:none}
+  .filelist{border-right:0}
+  .filelist li{padding:11px 20px;font-size:14px}
+  .figure{padding:14px 20px 20px}
+  .mback{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:500;font-size:14px;margin-bottom:8px}
+  .dl{grid-template-columns:34px 14px 1fr}
+  .dl .ln:first-child{display:none}
+  .browser{margin:14px 20px}
+  .browser .bar > span:last-child{display:none}
+  .browser .bar .url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .browser .body .ph{font-size:18px}
+
+  .mbottom{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 20px 30px;border-top:1px solid var(--ink)}
+  body:not(.phone) .mbottom{padding-bottom:16px}
+  .talk{display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:6px 0}
+  .talk .ink{font:500 30px/1 var(--serif);letter-spacing:-.01em}
+  .talk .hint{font-size:12.5px;color:var(--ink-3);margin-top:8px;letter-spacing:.02em}
+  .talk.muted .ink{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px}
+  .talk.muted .hint{color:var(--accent)}
+  .mbottom .btn{padding:12px 18px;font-size:15px}
+
+  .sheet{padding:0}
+  .page{width:100%;min-height:100%;border:0;box-shadow:none;padding:60px 22px 60px}
+  body:not(.phone) .page{padding-top:24px}
+  .page h2{font-size:32px}
+  .sect{grid-template-columns:1fr;gap:12px;padding:22px 0}
+  .sect.notes{display:none}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:0s!important}
+  .agent-rule[data-state="working"]::after{width:100%;opacity:1}
+  .agent-rule[data-state="working"]::before{left:calc(100% - 5px)}
+  .ink svg path{stroke-width:2px!important}
+}
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+
+<!-- ═══════════════════════════ 1 · SIGN IN / ROOMS ═══════════════════════════ -->
+<section id="signin" class="screen active">
+  <div class="masthead">
+    <header class="nameplate rise" style="--i:0">
+      <h1>Marvin<span>.</span></h1>
+      <p class="tag">A voice room with a coding agent in it. Say “<em>Marvin</em>” to talk to it.</p>
+    </header>
+    <div class="whoami rise" style="--i:1">
+      <span>Signed in as <b>gil</b> <span class="badge">ADMIN</span></span>
+      <a href="#" class="link" onclick="return false">log out</a>
+    </div>
+
+    <div class="rooms rise" style="--i:2">
+      <h2><span>Rooms</span><span class="cap tnum">Saturday 12 September · 3 rooms</span></h2>
+      <div class="room-row">
+        <span class="dot live"></span>
+        <div><div class="name">dev</div><div class="repo">repo <code>marvin</code></div></div>
+        <span class="status">live</span>
+        <button class="btn primary" onclick="go('room')">Join dev</button>
+      </div>
+      <div class="room-row">
+        <span class="dot live"></span>
+        <div><div class="name">sandbox</div><div class="repo">repo <code>marvin-smoke</code> · agent in a container</div></div>
+        <span class="status">live</span>
+        <button class="btn quiet" onclick="go('room')">join</button>
+      </div>
+      <div class="room-row offline">
+        <span class="dot"></span>
+        <div><div class="name">abf-frontend</div><div class="repo">repo <code>abf-optimizer-frontend</code> · <code>main</code></div></div>
+        <span class="status">offline</span>
+        <button class="btn quiet" onclick="go('room')">start</button>
+      </div>
+
+      <details class="newroom rise" style="--i:3">
+        <summary>new room</summary>
+        <form onsubmit="go('room');return false">
+          <div class="field"><label for="rn">Room name</label><input id="rn" placeholder="e.g. billing-rewrite"></div>
+          <div class="radios">
+            <label><input type="radio" name="src" checked> folder on this machine</label>
+            <label><input type="radio" name="src"> clone from GitHub</label>
+          </div>
+          <div class="two">
+            <div class="field"><label for="ru">Repository URL</label><input id="ru" placeholder="https://github.com/gillmoreno/…"></div>
+            <div class="field"><label for="rb">Branch</label><input id="rb" placeholder="default"></div>
+          </div>
+          <div><button class="btn primary" type="submit">create and join</button></div>
+        </form>
+      </details>
+    </div>
+    <p class="colophon rise" style="--i:4">Self-hosted at <span class="mono">marvin.local</span> · LiveKit · Claude Code</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ 2 · THE ROOM ═══════════════════════════ -->
+<section id="room" class="screen">
+<div class="room" id="roomEl" data-ctab="changes" data-rtab="marvin" data-mpane="marvin" data-agent="working">
+
+  <!-- mobile top bar -->
+  <div class="mtop">
+    <div class="title">Marvin <span>#dev</span></div>
+    <button class="gear" onclick="openSettings()" aria-label="settings">⚙</button>
+    <div class="state"><span class="agent-state-text">working</span><div class="agent-rule" data-state="working"></div></div>
+  </div>
+  <div class="mseg" role="tablist">
+    <button class="on" data-mp="marvin" onclick="setMPane('marvin')">Marvin</button>
+    <button data-mp="transcript" onclick="setMPane('transcript')">Transcript</button>
+    <button data-mp="changes" onclick="setMPane('changes')">Changes</button>
+    <button data-mp="web" onclick="setMPane('web')">Preview</button>
+    <button data-mp="screen" onclick="setMPane('screen')"><span class="dot live"></span>Screen</button>
+  </div>
+
+  <!-- ── left column ── -->
+  <aside class="col col-left">
+    <div class="dateline tnum">Saturday 12 September · 11:07</div>
+    <div class="roomtitle">Marvin <span>#dev</span></div>
+
+    <div class="side-h"><span>People</span><span>4</span></div>
+    <ul class="people">
+      <li id="pMarvin"><span class="mark agent"></span><div><div class="who">Marvin <span class="role">agent</span></div><div class="note agent-state-text">working</div></div></li>
+      <li class="speaking" id="pGil"><span class="mark"></span><div><div class="who"><span class="ink" data-ink>gil</span> <span class="role">admin</span></div><div class="note">speaking</div></div></li>
+      <li><span class="mark"></span><div><div class="who">maria</div></div></li>
+      <li class="away"><span class="mark away"></span><div><div class="who">tom</div><div class="note">away · muted</div></div></li>
+    </ul>
+
+    <div class="side-h"><span>App</span></div>
+    <ul class="apps">
+      <li><a href="#" onclick="setCTab('web');return false"><span class="dot live"></span>web</a><code>localhost:5173</code></li>
+      <li><a href="#" onclick="return false"><span class="dot live"></span>api</a><code>localhost:8000</code></li>
+    </ul>
+
+    <div class="callbar">
+      <button class="settings-btn" onclick="openSettings()"><span>Settings</span><span>⚙</span></button>
+      <div class="row">
+        <button class="btn" id="micBtn" onclick="toggleMute()"><span class="ink" data-ink>mic</span></button>
+        <button class="btn quiet" onclick="setCTab('screen')">share</button>
+        <button class="btn leave" onclick="go('signin')">leave</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="gutter" title="drag to resize"></div>
+
+  <!-- ── centre: workspace ── -->
+  <main class="col col-center">
+    <nav class="tabs">
+      <button class="tab on" data-ct="changes" onclick="setCTab('changes')">Changes</button>
+      <button class="tab" data-ct="web" onclick="setCTab('web')">▶ web</button>
+      <button class="tab" data-ct="screen" onclick="setCTab('screen')"><span class="dot live"></span>gil’s screen</button>
+    </nav>
+
+    <div class="pane" id="pane-changes">
+      <div class="changes-head">
+        <div class="branch"><code>feat/sandbox</code><span class="vs">against</span><code>main</code></div>
+        <div class="stats tnum"><span class="plus">+2179</span> <span class="minus">−33</span> · 35 files</div>
+        <div class="actions"><button class="btn quiet">commit</button><button class="btn">open PR</button></div>
+      </div>
+      <div class="changes-body" id="changesBody" data-view="list">
+        <ul class="filelist" id="fileList"></ul>
+        <figure class="figure" id="figure"></figure>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-web">
+      <div class="browser">
+        <div class="bar"><span class="lights"><i></i><i></i><i></i></span><span class="url">http://localhost:5173/settings</span><span>web · vite</span></div>
+        <div class="body"><p class="ph"><b>Live preview</b> of the running app in an iframe.<br>Marvin restarts it when <code>web/src</code> changes.</p></div>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-screen">
+      <div class="browser screen">
+        <div class="bar"><span class="dot live"></span><span>gil is sharing a screen</span><span class="url">Cursor — worker/marvin/github.py</span><span class="tnum">1728×1117</span></div>
+        <div class="body"><p class="ph">Shared screen · <b>gil</b><br>Marvin sees this too when you say “look at my screen”.</p></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="gutter" title="drag to resize"></div>
+
+  <!-- ── right: the live document ── -->
+  <aside class="col col-right">
+    <nav class="tabs">
+      <button class="tab on" data-rt="marvin" onclick="setRTab('marvin')">Marvin</button>
+      <button class="tab" data-rt="transcript" onclick="setRTab('transcript')">Transcript</button>
+      <span class="spacer"></span>
+    </nav>
+
+    <!-- Marvin pane -->
+    <div class="pane" id="pane-marvin">
+      <div class="doc">
+        <div class="agent-head">
+          <div class="row">
+            <span class="who">Marvin</span>
+            <span class="state agent-state-text" id="agentStateText">working</span>
+            <div class="controls">
+              <button class="btn accent sm stop" onclick="setAgent('listening')">stop</button>
+              <button class="bolt" id="boltBtn" title="always allow (admin)" onclick="toggleBolt()" aria-label="always allow tool calls">
+                <svg width="12" height="14" viewBox="0 0 12 14" fill="currentColor"><path d="M7 0 1 8h4l-1 6 7-8H7z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="chips"><span class="chip">harness <b>Claude Code</b></span><span class="chip">model <b>Sonnet 4.5</b></span></div>
+          <div class="agent-rule" data-state="working"></div>
+        </div>
+
+        <!-- turn 1 -->
+        <article class="turn done">
+          <div class="margin"><time>11:02</time><span class="st">done</span></div>
+          <div class="body">
+            <p class="prose"><span class="spk">gil</span>Marvin, move the GitHub client id into Settings.</p>
+            <ul class="tools">
+              <li class="tool read"><span class="fam">Read</span><span class="arg">worker/marvin/token_server.py</span><span class="res">184 lines</span></li>
+              <li class="tool read"><span class="fam">Grep</span><span class="arg">MARVIN_GITHUB_CLIENT_ID</span><span class="res">3 files</span></li>
+              <li class="tool read"><span class="fam">Read</span><span class="arg">worker/marvin/github.py</span><span class="res">296 lines</span></li>
+              <li class="tool write"><span class="fam">Edit</span><span class="arg">worker/marvin/github.py</span><span class="res">+31 −4</span></li>
+              <li class="tool write"><span class="fam">Edit</span><span class="arg">worker/marvin/admin.py</span><span class="res">+44</span></li>
+              <li class="tool write"><span class="fam">Edit</span><span class="arg">web/src/GitHubConnect.tsx</span><span class="res">+152 −9</span></li>
+              <li class="tool write"><span class="fam">Write</span><span class="arg">worker/tests/test_github.py</span><span class="res">202 lines</span></li>
+              <li class="tool exec"><span class="fam">Bash</span><span class="arg">pytest worker/tests -q</span><span class="res">exit 0 · 4.2s</span>
+                <details><summary>output · 6 lines</summary><pre>............................................................. [100%]
+61 passed in 4.21s
+
+worker/tests/test_github.py::test_client_id_env_wins PASSED
+worker/tests/test_github.py::test_client_id_stored PASSED
+worker/tests/test_github.py::test_masked_client_id PASSED</pre></details>
+              </li>
+            </ul>
+            <p class="prose marvin"><span class="spk">Marvin</span>Done. The client id now lives in <code>github.json</code> next to the token store, saved from Settings → GitHub by an admin. <code>MARVIN_GITHUB_CLIENT_ID</code> still wins when it is set, so your deploy scripts keep working, and the page says where the value came from. I added a rule file so the next person does the same.</p>
+            <p class="meta">done · 42.3s · 8 tool calls</p>
+          </div>
+        </article>
+
+        <!-- turn 2 (live) -->
+        <article class="turn working" id="turn2">
+          <div class="margin"><time>11:06</time><span class="st" id="turn2St">working</span></div>
+          <div class="body">
+            <p class="prose"><span class="spk">gil</span>Marvin, run the worker tests and then push the branch.</p>
+            <ul class="tools">
+              <li class="tool exec"><span class="fam">Bash</span><span class="arg">pytest worker/tests -q</span><span class="res">exit 0 · 4.1s</span>
+                <details><summary>output · 2 lines</summary><pre>............................................................. [100%]
+61 passed in 4.09s</pre></details>
+              </li>
+              <li class="tool exec" id="pushTool"><span class="fam">Bash</span><span class="arg">git push origin feat/sandbox</span><span class="res run" id="pushRes"><i></i>running</span></li>
+            </ul>
+            <p class="prose marvin" id="turn2Answer" hidden><span class="spk">Marvin</span>Tests pass, 61 in 4.1 seconds. Pushed <code>feat/sandbox</code> as @gillmoreno.</p>
+            <p class="meta" id="turn2Meta">working · <span class="tnum" id="elapsed">8.0</span>s</p>
+          </div>
+        </article>
+
+        <div class="approval" role="alert">
+          <div class="lead">Marvin wants to run</div>
+          <div class="what"><code>Bash</code> git push origin feat/sandbox</div>
+          <div class="acts">
+            <button class="btn primary" onclick="approve('allow')">Allow</button>
+            <button class="btn" onclick="approve('always')">Always</button>
+            <button class="btn accent" onclick="approve('deny')">Deny</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div class="attach"><span class="chip">📎 <b>screenshot.png</b> from gil <button aria-label="remove">×</button></span></div>
+        <div class="row">
+          <input placeholder="Ask Marvin…" aria-label="Ask Marvin">
+          <button class="btn sm">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transcript pane -->
+    <div class="pane" id="pane-transcript">
+      <div class="doc">
+        <div class="transcript">
+          <div class="line"><span></span><div class="day">Saturday 12 September · #dev · 4 people</div></div>
+          <div class="line"><time>11:02</time><div class="t"><span class="spk">gil</span>Marvin, move the GitHub client id into settings so nobody needs a .env</div></div>
+          <div class="line marvin"><time>11:02</time><div class="t"><span class="spk">Marvin</span>On it. I’ll read the token server first.</div></div>
+          <div class="line marvin"><time>11:03</time><div class="t"><span class="spk">Marvin</span>The client id is read from <code>MARVIN_GITHUB_CLIENT_ID</code> in three places. I’ll keep the variable as an override and put a stored setting behind it.</div></div>
+          <div class="line"><time>11:04</time><div class="t"><span class="spk">maria</span>can we also mask it in the UI?</div></div>
+          <div class="line marvin"><time>11:04</time><div class="t"><span class="spk">Marvin</span>Yes. It stays plain on disk, it’s a public identifier, but the page will show only the first four and last four characters.</div></div>
+          <div class="line sys"><time>11:05</time><div class="t">tom joined, muted</div></div>
+          <div class="line"><time>11:06</time><div class="t"><span class="spk">gil</span>Marvin, run the worker tests and then push the branch</div></div>
+          <div class="line marvin"><time>11:06</time><div class="t"><span class="spk">Marvin</span>Tests pass, 61 in four seconds. Pushing needs your approval.</div></div>
+          <div class="line interim speaking"><time>11:07</time><div class="t"><span class="spk"><span class="ink" data-ink>gil</span></span><span class="txt">and open a PR against main with the summary from the</span></div></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- mobile bottom bar -->
+  <div class="mbottom">
+    <button class="talk" id="talkBtn" onclick="toggleMute()">
+      <span class="ink big" data-ink>gil</span>
+      <span class="hint" id="talkHint">you’re live · tap to mute</span>
+    </button>
+    <button class="btn leave" onclick="go('signin')">leave</button>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════ 3 · SETTINGS ═══════════════════════════ -->
+<div class="sheet" id="settings" onclick="if(event.target===this)closeSettings()">
+  <div class="page" role="dialog" aria-label="Settings">
+    <div class="head"><h2>Settings</h2><button class="close" onclick="closeSettings()">close ×</button></div>
+
+    <section class="sect">
+      <h3>This room<small>dev</small></h3>
+      <div class="kv">
+        <p>Works in <code>/Users/gil/Projects/marvin</code></p>
+        <p>The agent runs in container <code>marvin-dev</code>, image <code>marvin-sandbox</code>. <span class="src">Restart the room to leave the container.</span></p>
+        <div><span class="k">Linked repositories</span>
+          <div class="checks">
+            <label><input type="checkbox" checked> <code>abf-optimizer-frontend</code></label>
+            <label><input type="checkbox"> <code>rw_srt_opt</code></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sect notes">
+      <h3>Machine notes<small>read by Marvin at the start of every turn</small></h3>
+      <div class="kv">
+        <textarea spellcheck="false"># marvin.local
+
+- Python lives in `.venv`, activate with `make shell`.
+- Ports: web 5173, api 8000, LiveKit 7880. Nothing else is open.
+- Docker Desktop must be running before `make sandbox`.
+- Never push to `main` from this machine; open a PR.</textarea>
+        <div><button class="btn sm">save notes</button> <span class="src">saved 09:41</span></div>
+      </div>
+    </section>
+
+    <section class="sect">
+      <h3>Account</h3>
+      <div class="kv">
+        <p><b class="serif" style="font-size:17px">gil</b> · signed in with the room password</p>
+        <p><span class="k">Roles</span>admin, participant</p>
+        <div><a href="#" class="link" onclick="go('signin');closeSettings();return false">log out</a></div>
+      </div>
+    </section>
+
+    <section class="sect">
+      <h3>GitHub</h3>
+      <div class="kv">
+        <div><span class="k">OAuth App client id</span>
+          <div class="gh-id"><code>Ov23••••••••8o36</code><span class="src">set here</span><a href="#" class="link" onclick="return false">change</a></div>
+        </div>
+        <div><span class="k">Connected as</span>
+          <div class="ghuser"><b>@gillmoreno</b><span style="color:var(--ink-3)">gmc.luu@gmail.com</span></div>
+        </div>
+        <p class="quote">When you (gil) ask Marvin to commit, push or open a PR, it happens as @gillmoreno.</p>
+        <div><a href="#" class="link" onclick="return false">disconnect</a></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+</div><!-- /stage -->
+
+<!-- ═══════════════════════════ prototype toolbar (not part of the product) ═══════════════════════════ -->
+<div class="proto" aria-label="prototype controls">
+  <span class="lbl">PROTO</span>
+  <button data-scr="signin" onclick="go('signin')" class="on">Sign in</button>
+  <button data-scr="room" onclick="go('room')">Room</button>
+  <button data-scr="settings" onclick="go('room');openSettings()">Settings</button>
+  <span class="sep"></span>
+  <button id="phoneBtn" onclick="togglePhone()">Phone</button>
+  <span class="sep"></span>
+  <button id="stateBtn" onclick="cycleAgent()" title="cycle Marvin's state">state: working</button>
+</div>
+
+<script>
+/* ───────────────────────── data ───────────────────────── */
+const FILES = [
+  ['A','.cursor/rules/configuration-in-the-ui.mdc',28,0],
+  ['M','.env.example',9,3],
+  ['M','Makefile',16,2],
+  ['M','README.md',24,0],
+  ['M','docs_and_changelog/decisions-log.md',31,0],
+  ['A','docs_and_changelog/github.md',198,0],
+  ['M','web/src/GitHubConnect.tsx',152,9],
+  ['M','web/src/Settings.tsx',64,11],
+  ['M','web/src/api.ts',18,2],
+  ['M','worker/marvin/admin.py',71,4],
+  ['A','worker/marvin/github.py',340,0],
+  ['A','worker/marvin/sandbox.py',350,0],
+  ['M','worker/marvin/token_server.py',22,6],
+  ['A','worker/tests/test_github.py',202,0],
+  ['A','worker/tests/test_sandbox.py',188,0],
+];
+
+const DIFFS = {
+'worker/marvin/github.py': `@@ -0,0 +1,34 @@
++"""GitHub OAuth device flow and the per-user token store."""
++from __future__ import annotations
++
++import os
++from dataclasses import dataclass
++from pathlib import Path
++
++from cryptography.fernet import Fernet
++
++SETTINGS_FILE = "github.json"
++
++
++@dataclass(frozen=True)
++class Identity:
++    login: str
++    email: str | None
++
++
++class TokenStore:
++    """Tokens encrypted at rest, keyed by Marvin identity."""
++
++    def __init__(self, state_dir: Path, secret: bytes) -> None:
++        self.path = state_dir / SETTINGS_FILE
++        self._fernet = Fernet(_derive_key(secret))
++        self._data = self._load()
++
++    def get_setting(self, key: str) -> str | None:
++        # Public identifiers are stored plain; only tokens are encrypted.
++        return self._data.get("settings", {}).get(key)
++
++    def put_setting(self, key: str, value: str) -> None:
++        self._data.setdefault("settings", {})[key] = value
++        self._save()
++
+@@ -118,0 +153,17 @@ class GitHubConnect:
++    @property
++    def client_id(self) -> str | None:
++        # The environment wins so automation can seed it; the UI is the default.
++        return os.environ.get("MARVIN_GITHUB_CLIENT_ID") or self.store.get_setting("client_id")
++
++    @property
++    def client_id_source(self) -> str | None:
++        if os.environ.get("MARVIN_GITHUB_CLIENT_ID"):
++            return "env"
++        return "stored" if self.store.get_setting("client_id") else None
++
++    def masked_client_id(self) -> str | None:
++        cid = self.client_id
++        if not cid:
++            return None
++        return f"{cid[:4]}{'•' * 8}{cid[-4:]}"
++`,
+
+'web/src/GitHubConnect.tsx': `@@ -12,6 +12,7 @@ import { useIsAdmin } from "./auth";
+ import { api } from "./api";
+ import { Field } from "./Field";
++import { ClientIdSetup } from "./ClientIdSetup";
+ 
+ type Config = {
+-  clientId: string | null;
++  clientId: { value: string | null; source: "env" | "stored" | null };
+   connectedAs?: { login: string; email?: string };
+ };
+@@ -41,9 +42,21 @@ export function GitHubConnect() {
+   const isAdmin = useIsAdmin();
+   const [config, setConfig] = useState<Config | null>(null);
+ 
+-  if (!config?.clientId) {
+-    return <p className="muted">Set MARVIN_GITHUB_CLIENT_ID to enable GitHub.</p>;
++  if (!config?.clientId.value) {
++    return isAdmin ? (
++      <ClientIdSetup onSaved={(clientId) => setConfig({ ...config!, clientId })} />
++    ) : (
++      <p className="muted">
++        An admin still needs to add the GitHub OAuth App client id in Settings.
++      </p>
++    );
+   }
++
++  const source =
++    config.clientId.source === "env" ? "from the environment" : "set here";
+`,
+
+'Makefile': `@@ -3,8 +3,22 @@ PY ?= .venv/bin/python
+ WEB ?= web
+ 
+-dev:
+-	$(PY) -m marvin.worker dev
++.PHONY: dev sandbox sandbox-image sandbox-shell test
++
++dev: ## run the worker against a folder on this machine
++	$(PY) -m marvin.worker dev
++
++sandbox-image: ## build the marvin-sandbox container image
++	docker build -t marvin-sandbox -f worker/Dockerfile.sandbox .
++
++sandbox: sandbox-image ## run the worker with the agent inside a container
++	MARVIN_SANDBOX=1 $(PY) -m marvin.worker dev
++
++sandbox-shell: ## open a shell in the running sandbox container
++	docker exec -it marvin-dev /bin/bash
++
++test:
++	$(PY) -m pytest worker/tests -q
+`,
+
+'worker/marvin/token_server.py': `@@ -18,12 +18,28 @@ from .auth import verify_session
+ 
+ ADMIN_ONLY_PREFIXES = (
+     "/admin/",
+     "/rooms/create",
++    "/github/config",
+ )
+ 
+-def _roles_header(user: User) -> str:
+-    return ",".join(user.roles)
++def _roles_header(user: User) -> str:
++    # The worker trusts this header only because it arrives over the internal
++    # network; the token server is the sole writer.
++    return ",".join(sorted(user.roles))
++
++
++def _is_admin_only(path: str) -> bool:
++    return any(path.startswith(p) for p in ADMIN_ONLY_PREFIXES)
+ 
+ 
+ @app.middleware("http")
+ async def guard(request: Request, call_next):
+     user = verify_session(request)
+-    if request.url.path.startswith(ADMIN_ONLY_PREFIXES) and "admin" not in user.roles:
++    if _is_admin_only(request.url.path) and "admin" not in user.roles:
+         return JSONResponse({"error": "admin only"}, status_code=403)
+`,
+
+'worker/marvin/admin.py': `@@ -64,6 +64,28 @@ async def put_notes(request: Request) -> JSONResponse:
+     return JSONResponse({"ok": True})
+ 
+ 
++CLIENT_ID_RE = re.compile(r"^(Ov23[A-Za-z0-9]{16}|Iv1\\.[a-f0-9]{16}|[a-f0-9]{20})$")
++
++
++@router.put("/github/config")
++async def put_github_config(request: Request) -> JSONResponse:
++    require_role(request, "admin")
++    body = await request.json()
++    client_id = str(body.get("client_id", "")).strip()
++    if not CLIENT_ID_RE.match(client_id):
++        return JSONResponse(
++            {"error": "That does not look like a GitHub OAuth App client id "
++                      "(expected something like Ov23liXXXXXXXXXXXXXX)."},
++            status_code=422,
++        )
++    github.store.put_setting("client_id", client_id)
++    return JSONResponse({
++        "client_id": {"value": github.masked_client_id(), "source": github.client_id_source},
++    })
++
++
+ @router.get("/github/config")
+`,
+
+'worker/tests/test_github.py': `@@ -0,0 +1,26 @@
++import pytest
++
++from marvin.github import GitHubConnect, TokenStore
++
++
++@pytest.fixture
++def connect(tmp_path, monkeypatch):
++    monkeypatch.delenv("MARVIN_GITHUB_CLIENT_ID", raising=False)
++    return GitHubConnect(TokenStore(tmp_path, b"0" * 32))
++
++
++def test_client_id_env_wins(connect, monkeypatch):
++    connect.store.put_setting("client_id", "Ov23stored0000000000")
++    monkeypatch.setenv("MARVIN_GITHUB_CLIENT_ID", "Ov23fromenv000000000")
++    assert connect.client_id == "Ov23fromenv000000000"
++    assert connect.client_id_source == "env"
++
++
++def test_client_id_stored(connect):
++    connect.store.put_setting("client_id", "Ov23stored0000000000")
++    assert connect.client_id_source == "stored"
++
++
++def test_masked_client_id(connect):
++    connect.store.put_setting("client_id", "Ov23li7Qm2ZpXk4v8o36")
++    assert connect.masked_client_id() == "Ov23••••••••8o36"
+`,
+
+'worker/marvin/sandbox.py': `@@ -0,0 +1,24 @@
++"""Run the harness inside a disposable container instead of on the host."""
++from __future__ import annotations
++
++import shlex
++import subprocess
++from pathlib import Path
++
++IMAGE = "marvin-sandbox"
++
++
++class Sandbox:
++    def __init__(self, room: str, workdir: Path) -> None:
++        self.name = f"marvin-{room}"
++        self.workdir = workdir
++
++    def ensure(self) -> None:
++        if self._running():
++            return
++        subprocess.run(
++            ["docker", "run", "-d", "--rm", "--name", self.name,
++             "-v", f"{self.workdir}:/work", "-w", "/work",
++             "--network", "marvin", IMAGE, "sleep", "infinity"],
++            check=True,
++        )
+`,
+
+'.cursor/rules/configuration-in-the-ui.mdc': `@@ -0,0 +1,12 @@
++# Configuration lives in the UI
++
++Whatever can safely be configured from the front end is configured from the
++front end. Do not add a new environment variable as the *only* way to set
++something unless it must exist before the UI can (LiveKit keys, MARVIN_AUTH,
++MARVIN_SESSION_SECRET, bind addresses).
++
++When adding a setting:
++
++- Put it in **Settings**, admin-only if it affects other people.
++- Persist it in the worker's state dir, never in the repo or in .env.
++- Keep the environment variable as an override, documented as optional.
+`,
+
+'README.md': `@@ -41,6 +41,16 @@ make dev
+ Open http://localhost:5173 and join the room.
+ 
++## GitHub
++
++Marvin commits, pushes and opens pull requests **as the person who asked**.
++An admin adds the OAuth App client id once, in Settings → GitHub; each
++participant then connects their own account from the same page.
++
++\`MARVIN_GITHUB_CLIENT_ID\` is still honoured as an override for automated
++deployments, and Settings says where the current value came from.
++
+ ## Sandbox
+`,
+
+'.env.example': `@@ -9,6 +9,12 @@ MARVIN_SESSION_SECRET=change-me
+ 
+-# GitHub OAuth App (required for commits and PRs)
+-MARVIN_GITHUB_CLIENT_ID=
++# GitHub OAuth App client id — OPTIONAL.
++# Prefer setting it in the UI (Settings → GitHub). When this variable is set it
++# overrides the stored value and the UI says "from the environment".
++# MARVIN_GITHUB_CLIENT_ID=
++
++# Run the harness inside a container (see docs_and_changelog/sandbox.md)
++# MARVIN_SANDBOX=1
+`,
+
+'web/src/Settings.tsx': `@@ -88,11 +88,18 @@ export function Settings({ onClose }: Props) {
+       <Section title="Account">
+         <Account />
+       </Section>
+-      {isAdmin && (
+-        <Section title="GitHub">
+-          <GitHubConnect />
+-        </Section>
+-      )}
++      <Section
++        title="GitHub"
++        hint={
++          config?.clientId.source === "env"
++            ? "Client id from the environment"
++            : "Client id set here"
++        }
++      >
++        <GitHubConnect />
++      </Section>
+`,
+
+'docs_and_changelog/decisions-log.md': `@@ -71,3 +71,14 @@
+ ## 2026-09-11 — Harness is pluggable
+ 
+ Claude Code is the default; Codex is one flag away. Neither is imported at module load.
++
++## 2026-09-12 — Design principle: configuration happens in the browser
++
++If a value can be set safely after the app is up, it is set from Settings and
++persisted in the worker's state dir. Environment variables remain as overrides
++for automation and the UI says where the live value came from.
++
++Reason: the first non-developer to set up Marvin spent forty minutes on a
++\`.env\` file. Nobody should need a terminal to paste a client id.
++
++First instance: the GitHub OAuth App client id (\`PUT /github/config\`).
+`,
+
+'docs_and_changelog/github.md': `@@ -0,0 +1,18 @@
++# GitHub
++
++Marvin acts on GitHub **as the person who asked**. Each participant connects
++their own account; the room never shares one token.
++
++## One-time setup (admin)
++
++1. Open <https://github.com/settings/developers> → *OAuth Apps* → *New OAuth App*.
++2. Name it after the room host, e.g. \`marvin.local\`. Any homepage URL is fine.
++3. Tick *Enable Device Flow*. No callback URL is needed.
++4. Copy the **Client ID** (it looks like \`Ov23li…\`) and paste it into
++   *Settings → GitHub* in Marvin. The page validates the shape and saves it.
++
++## Where it lives
++
++\`<state dir>/github.json\` → \`settings.client_id\` (plain, it is public) and
++\`tokens.<identity>\` (Fernet-encrypted with the session secret).
+`,
+
+'worker/tests/test_sandbox.py': `@@ -0,0 +1,22 @@
++from pathlib import Path
++from unittest import mock
++
++from marvin.sandbox import Sandbox
++
++
++def test_ensure_starts_container_once(tmp_path: Path):
++    sb = Sandbox("dev", tmp_path)
++    with mock.patch("subprocess.run") as run, mock.patch.object(sb, "_running", side_effect=[False, True]):
++        sb.ensure()
++        sb.ensure()
++    assert run.call_count == 1
++    argv = run.call_args.args[0]
++    assert argv[:3] == ["docker", "run", "-d"]
++    assert "--name" in argv and argv[argv.index("--name") + 1] == "marvin-dev"
++
++
++def test_exec_runs_in_workdir(tmp_path: Path):
++    sb = Sandbox("dev", tmp_path)
++    with mock.patch("subprocess.run") as run:
++        sb.exec(["pytest", "-q"])
++    assert run.call_args.args[0][:4] == ["docker", "exec", "-w", "/work"]
+`,
+
+'web/src/api.ts': `@@ -30,6 +30,18 @@ export const api = {
+   notes: {
+     get: () => req<{ markdown: string }>("/notes"),
+     put: (markdown: string) => req("/notes", { method: "PUT", body: { markdown } }),
+   },
++  github: {
++    config: () => req<GitHubConfig>("/github/config"),
++    setClientId: (client_id: string) =>
++      req<GitHubConfig>("/github/config", { method: "PUT", body: { client_id } }),
++    disconnect: () => req("/github/token", { method: "DELETE" }),
++  },
+`,
+};
+const FALLBACK = (p, a, d) => `@@ -1,3 +1,${3 + a} @@
+ ${p.endsWith('.md') ? '# ' + p.split('/').pop().replace(/\\.md$/, '') : '# ' + p}
++
++(${a} lines added${d ? ', ' + d + ' removed' : ''} — full text in the branch)
+`;
+
+/* ───────────────────────── state ───────────────────────── */
+const S = { screen:'signin', phone:false, agent:'working', file:'worker/marvin/github.py', muted:false, bolt:false, t0:performance.now() };
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const roomEl = $('#roomEl');
+
+function go(screen){
+  S.screen = screen;
+  $$('.screen').forEach(s => s.classList.toggle('active', s.id === screen));
+  $$('.proto [data-scr]').forEach(b => b.classList.toggle('on', b.dataset.scr === screen));
+  closeSettings(false);
+  // re-trigger the staggered rise
+  $$('#' + screen + ' .rise').forEach(el => { el.style.animation='none'; void el.offsetWidth; el.style.animation=''; });
+}
+function togglePhone(){
+  S.phone = !S.phone;
+  document.body.classList.toggle('phone', S.phone);
+  $('#phoneBtn').classList.toggle('on', S.phone);
+  $('#phoneBtn').textContent = S.phone ? 'Desktop' : 'Phone';
+}
+function openSettings(){ $('#settings').classList.add('open'); $$('.proto [data-scr]').forEach(b => b.classList.toggle('on', b.dataset.scr === 'settings')); }
+function closeSettings(restore=true){ $('#settings').classList.remove('open'); if(restore) $$('.proto [data-scr]').forEach(b => b.classList.toggle('on', b.dataset.scr === S.screen)); }
+
+function setCTab(t){ roomEl.dataset.ctab = t; $$('.tab[data-ct]').forEach(b => b.classList.toggle('on', b.dataset.ct === t)); setMPane(t, true); }
+function setRTab(t){ roomEl.dataset.rtab = t; $$('.tab[data-rt]').forEach(b => b.classList.toggle('on', b.dataset.rt === t)); setMPane(t, true); }
+function setMPane(p, quiet){ roomEl.dataset.mpane = p; $$('.mseg [data-mp]').forEach(b => b.classList.toggle('on', b.dataset.mp === p)); if(p==='changes' && !quiet) $('#changesBody').dataset.view='list'; }
+
+/* agent state */
+const STATE_LABEL = { listening:'listening', working:'working', waiting:'waiting for approval', away:'not in the room' };
+const ORDER = ['listening','working','waiting'];
+function setAgent(s){
+  S.agent = s;
+  roomEl.dataset.agent = s;
+  $$('.agent-state-text').forEach(el => { el.textContent = STATE_LABEL[s]; el.className = el.className.replace(/\b(listening|working|waiting|away)\b/g,'').trim() + ' ' + s; });
+  $$('.agent-rule').forEach(r => r.dataset.state = s);
+  $('#stateBtn').textContent = 'state: ' + s;
+  const t2 = $('#turn2'), res = $('#pushRes'), ans = $('#turn2Answer'), meta = $('#turn2Meta');
+  t2.className = 'turn ' + (s === 'listening' ? 'done' : s);
+  $('#turn2St').textContent = s === 'listening' ? (S.denied ? 'stopped' : 'done') : s === 'waiting' ? 'waiting' : 'working';
+  if (s === 'working'){ res.className='res run'; res.innerHTML='<i></i>running'; ans.hidden = true; meta.innerHTML='working · <span class="tnum" id="elapsed">8.0</span>s'; S.t0 = performance.now() - 8000; }
+  if (s === 'waiting'){ res.className='res wait'; res.textContent='awaiting approval'; ans.hidden = true; meta.textContent='paused · waiting for gil'; }
+  if (s === 'listening' && !S.denied){ res.className='res'; res.textContent='exit 0 · 1.8s'; ans.hidden = false; meta.textContent='done · 12.8s · 2 tool calls'; }
+  if (s === 'listening' && S.denied){ res.className='res deny'; res.textContent='denied'; ans.hidden = true; meta.textContent='stopped · gil declined the push'; }
+}
+function cycleAgent(){ S.denied = false; setAgent(ORDER[(ORDER.indexOf(S.agent) + 1) % ORDER.length]); }
+function approve(kind){
+  if (kind === 'deny'){ S.denied = true; setAgent('listening'); return; }
+  if (kind === 'always'){ S.bolt = true; $('#boltBtn').classList.add('on'); }
+  S.denied = false;
+  setAgent('working');
+  setTimeout(() => { if (S.agent === 'working') setAgent('listening'); }, 1800);
+}
+function toggleBolt(){ S.bolt = !S.bolt; $('#boltBtn').classList.toggle('on', S.bolt); }
+
+/* mic */
+function toggleMute(){
+  S.muted = !S.muted;
+  $('#micBtn').classList.toggle('muted', S.muted);
+  $('#pGil').classList.toggle('speaking', !S.muted);
+  $('#pGil .note').textContent = S.muted ? 'muted' : 'speaking';
+  $('#talkBtn').classList.toggle('muted', S.muted);
+  $('#talkHint').textContent = S.muted ? 'muted · tap to talk' : 'you’re live · tap to mute';
+  $$('.line.interim').forEach(l => l.classList.toggle('speaking', !S.muted));
+}
+
+/* ───────────────────────── changes ───────────────────────── */
+function renderFiles(){
+  const ul = $('#fileList');
+  ul.innerHTML = FILES.map(([st,p,a,d]) => `<li data-p="${p}" class="${p===S.file?'on':''}" onclick="selectFile('${p}')">
+    <span class="st ${st}">${st}</span><span class="path">${p.replace(/\//g,'/<wbr>')}</span>
+    <span class="nums"><span class="a">+${a}</span>${d?`<span class="d">−${d}</span>`:''}</span></li>`).join('')
+    + `<li class="more">and 20 more files · +${2179 - FILES.reduce((s,f)=>s+f[2],0)} in docs, tests and lockfiles</li>`;
+}
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderDiff(){
+  const f = FILES.find(x => x[1] === S.file); const [st,p,a,d] = f;
+  const raw = DIFFS[p] || FALLBACK(p,a,d);
+  let o=0, n=0, rows=[];
+  for (const line of raw.split('\n')){
+    if (line === '' ) continue;
+    if (line.startsWith('@@')){
+      const m = /@@ -(\d+)(?:,\d+)? \+(\d+)/.exec(line); o = +m[1]; n = +m[2];
+      rows.push(`<div class="dl hunk"><span class="ln"></span><span class="ln"></span><span class="sg"></span><code>${esc(line)}</code></div>`); continue;
+    }
+    const c = line[0], body = line.slice(1);
+    if (c === '+'){ rows.push(`<div class="dl add"><span class="ln"></span><span class="ln">${n++}</span><span class="sg">+</span><code>${esc(body)}</code></div>`); }
+    else if (c === '-'){ rows.push(`<div class="dl del"><span class="ln">${o++}</span><span class="ln"></span><span class="sg">−</span><code>${esc(body)}</code></div>`); }
+    else { rows.push(`<div class="dl"><span class="ln">${o++}</span><span class="ln">${n++}</span><span class="sg"></span><code>${esc(body)}</code></div>`); }
+  }
+  const idx = FILES.indexOf(f) + 1;
+  $('#figure').innerHTML = `
+    <a class="mback" href="#" onclick="document.getElementById('changesBody').dataset.view='list';return false">← all files</a>
+    <figcaption><span class="fig">Fig. ${idx}<b>${p}</b></span><span class="nums"><span class="a">+${a}</span>${d?`<span class="d">−${d}</span>`:''} · ${st==='A'?'added':st==='D'?'deleted':'modified'}</span></figcaption>
+    <div class="diff">${rows.join('')}</div>
+    <p class="fignote">${st==='A' ? 'New file; the first hunks are shown.' : 'Two hunks shown; expand in the editor for the whole file.'} Written by Marvin in turn 1.</p>`;
+}
+function selectFile(p){ S.file = p; $$('#fileList li').forEach(li => li.classList.toggle('on', li.dataset.p === p)); renderDiff(); $('#changesBody').dataset.view = 'diff'; }
+
+/* ───────────────────────── ink: fake live voice ───────────────────────── */
+(function inkLoop(){
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  $$('[data-ink]').forEach(el => { if(!el.querySelector('svg')) el.insertAdjacentHTML('beforeend','<svg viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><path d="M0 4 L100 4"/></svg>'); });
+  const paths = $$('[data-ink] svg path');
+  let noise = 0;
+  function frame(now){
+    const t = now / 1000;
+    noise += (Math.random() - .5) * .35; noise *= .82;
+    // a slow envelope for phrases, a faster one for syllables
+    const phrase = Math.max(0, Math.sin(t * .9) * .6 + .55);
+    const syll = .55 + .45 * Math.sin(t * 6.2) * Math.sin(t * 2.7 + 1);
+    const v = S.muted ? 0 : Math.min(1, Math.max(0, phrase * syll + noise * .5));
+    const pts = [];
+    for (let i = 0; i <= 10; i++){
+      const x = i * 10;
+      const y = 4 + Math.sin(i * 1.9 + t * 9) * v * 1.8 + Math.sin(i * .7 - t * 4) * v * .8;
+      pts.push(`${i ? 'L' : 'M'}${x} ${y.toFixed(2)}`);
+    }
+    const d = pts.join(' '), w = (0.9 + v * 2.6).toFixed(2), op = (0.55 + v * .45).toFixed(2);
+    for (const p of paths){ p.setAttribute('d', d); p.style.strokeWidth = w + 'px'; p.style.opacity = p.closest('.speaking, .ink.on') || p.closest('#micBtn, #talkBtn') ? op : 0; }
+    if (S.agent === 'working'){ const e = $('#elapsed'); if (e) e.textContent = ((now - S.t0) / 1000).toFixed(1); }
+    if (!reduce) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  if (reduce){ for (const p of paths){ p.style.opacity = 1; } }
+})();
+
+renderFiles(); renderDiff(); setAgent('working');
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Marvin · design explorations</title>
+<style>
+  :root { --bg: #111; --fg: #ececec; --dim: #8a8a8a; --line: #2a2a2a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 ui-sans-serif, sans-serif; }
+  main { max-width: 960px; margin: 8vh auto; padding: 0 24px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p.lead { color: var(--dim); margin: 0 0 32px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  a.card { display: block; text-decoration: none; color: inherit; border: 1px solid var(--line); border-radius: 12px; padding: 20px; transition: border-color .15s; }
+  a.card:hover { border-color: #666; }
+  a.card h2 { margin: 0 0 6px; font-size: 17px; }
+  a.card .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+  a.card p { margin: 0; color: var(--dim); font-size: 14px; }
+  .swatches { display: flex; gap: 6px; margin-top: 14px; }
+  .swatches span { width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(255,255,255,.08); }
+  footer { color: var(--dim); font-size: 13px; margin-top: 40px; }
+  kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Marvin · three design directions</h1>
+  <p class="lead">Clickable HTML prototypes. Each one covers sign-in / room picker, the room (desktop), settings, and a trimmed mobile version. Use the small toolbar inside each prototype to switch screens, toggle the phone frame and cycle Marvin's state.</p>
+  <div class="grid">
+    <a class="card" href="a-control-room.html">
+      <span class="tag">A · dark · instrument</span>
+      <h2>Control Room</h2>
+      <p>Mission-control precision: monospace readouts, hairline rules, an oscilloscope line as the room's heartbeat. One hot accent for what is live.</p>
+      <div class="swatches"><span style="background:#0B0C0E"></span><span style="background:#1B1F24"></span><span style="background:#E8EBEF"></span><span style="background:#FFB224"></span><span style="background:#5CD387"></span></div>
+    </a>
+    <a class="card" href="b-editorial.html">
+      <span class="tag">B · light · typographic</span>
+      <h2>Editorial</h2>
+      <p>The room as a live, well-typeset document: transcript and turns read like prose, timestamps in the margin, voice rendered as ink.</p>
+      <div class="swatches"><span style="background:#F5F0E6"></span><span style="background:#1B1712"></span><span style="background:#D6CDBD"></span><span style="background:#7A1E2B"></span><span style="background:#3F7A4C"></span></div>
+    </a>
+    <a class="card" href="c-signal.html">
+      <span class="tag">C · mid-dark · luminous</span>
+      <h2>Signal</h2>
+      <p>The voice is the interface: one living signal element that breathes, works and waits, passing its light to whoever speaks. Soft glass, fine grain.</p>
+      <div class="swatches"><span style="background:#1f2429"></span><span style="background:#262c32"></span><span style="background:#ece7de"></span><span style="background:#8ff0d2"></span><span style="background:#f0b35c"></span></div>
+    </a>
+  </div>
+  <footer>Open any file directly in a browser; no server needed. Fonts load from Google Fonts. Narrow the window under ~720px (or use the <kbd>Phone</kbd> toggle) to see the mobile layout.</footer>
+</main>
+</body>
+</html>
