@@ -41,16 +41,27 @@ code, pre, .mono { font-family: var(--font-mono); }
 .gutter:hover, .gutter:focus-visible, body.resizing .gutter { background: var(--accent); }
 body.resizing { cursor: col-resize; user-select: none; }
 body.resizing iframe { pointer-events: none; }
-.left, .right { background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow: auto; min-height: 0; box-shadow: var(--shadow); }
+.left, .right { background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 0; box-shadow: var(--shadow); }
+.left { overflow: hidden; } /* the footer stays pinned; .left-body scrolls */
 .center { display: flex; min-width: 0; min-height: 0; overflow: hidden; }
 .left-head { flex: none; }
 .left-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
 .left-sect { margin: 0; color: var(--dim); }
-.left-foot { display: flex; align-items: center; gap: 6px; flex: none; }
+/* chrome: four icon controls in one row (settings · mic · share · leave). Themes may recolour these; they must not wrap, resize or hide them. */
+.left-foot { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; flex: none; }
 .left-foot .sp { flex: 1; min-width: 4px; }
-.left-foot .lk-control-bar { margin: 0; padding: 0; border: 0; background: transparent; }
+.left-foot .lk-control-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; margin: 0; padding: 0; border: 0; background: transparent; }
+.left-foot .lk-button-group-menu { display: none; } /* device picker: four squares, not a chevron */
+html .left-foot .settings-btn,
+html .left-foot .lk-control-bar .lk-button,
+html .left-foot .lk-disconnect-button {
+  width: 34px; height: 30px; padding: 0; flex: none; font-size: 0; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--fg-2); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.left-foot .settings-btn svg, .left-foot .lk-button svg, .left-foot .lk-disconnect-button svg { width: 15px; height: 15px; }
 .left .grow { flex: 1; }
-.right { padding: 0; gap: 0; }
+.right { padding: 0; gap: 0; overflow: auto; }
 
 /* people */
 .people { list-style: none; margin: 0; padding: 0; } .people li { padding: 6px 8px; border-radius: var(--radius); display: flex; align-items: center; gap: 8px; }
@@ -214,15 +225,20 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .repo-tabs button { background: transparent; color: var(--dim); border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; padding: 5px 10px; font-weight: 500; font-size: 12px; }
 .repo-tabs button.on { color: var(--fg); background: var(--bg); border-color: var(--line); }
 
-/* -- settings modal ---------------------------------------------------------------------------------------------------- */
-.modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 10; }
-.modal { width: min(640px, 92vw); max-height: 88vh; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
-.modal header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
-.modal header .lbl, .modal header .sp { display: none; }
+/* -- settings: a full-page screen in every theme (not a centered dialog). Themes recolour; they must not set a max-width. */
+.modal-back.settings-screen { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: flex; align-items: stretch; justify-content: stretch; }
+.modal { width: 100%; max-width: none; height: 100%; max-height: none; overflow: auto; background: var(--bg); border: 0; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; }
+.modal header { display: flex; align-items: center; justify-content: flex-start; gap: 14px; height: 48px; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; flex: none; }
+.modal header .lbl { display: inline; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.modal header .sp { display: block; flex: 1; }
 .modal header h2 { font-size: 15px; margin: 0; text-transform: none; letter-spacing: 0; color: var(--fg); font-family: var(--font-display); }
-.sgrid { display: flex; flex-direction: column; }
+.sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+.sgrid > section { background: var(--bg); padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 10px; border-top: 0; }
+.sgrid > section + section { border-top: 0; }
+.appearance { grid-column: 1 / -1; }
+.sgrid > section:nth-child(odd):has(+ .appearance) { grid-column: 1 / -1; }
+@media (max-width: 720px) { .sgrid { grid-template-columns: 1fr; } }
 .modal section { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
-.modal section + section { border-top: 1px solid var(--line); }
 .modal h3 { font-size: 14px; margin: 0; font-family: var(--font-display); }
 .modal .small { font-size: 12px; margin: 0; }
 .modal .status { margin: 0; padding: 8px 10px; border-radius: var(--radius); font-size: 13px; }
@@ -315,7 +331,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .m-bar .m-talk svg { width: 22px; height: 22px; }
 .m-bar .m-leave { width: 44px; height: 44px; border-radius: 50%; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--bad); border: 1px solid var(--line); }
 .m-bar .m-leave svg { width: 18px; height: 18px; }
-.layout[data-mobile] .modal { width: 100vw; max-height: 100dvh; height: 100dvh; border-radius: 0; }
 .layout[data-mobile] .modal .repo-rows li { flex-wrap: wrap; }
 
 @media (prefers-reduced-motion: reduce) {

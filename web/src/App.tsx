@@ -201,7 +201,7 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
         {deviceError && <p className="error devhint">{deviceError}</p>}
         <StartAudio label="Click to hear the room" />
         <div className="left-foot">
-          <button type="button" className="iconbtn settings-btn" onClick={() => setShowSettings(true)} aria-label="settings" title="settings"><SlidersIcon /></button>
+          <button type="button" className="settings-btn" onClick={() => setShowSettings(true)} aria-label="settings" title="settings"><SlidersIcon /></button>
           <span className="sp" />
           <ControlBar
             variation="minimal"

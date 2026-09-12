@@ -11,9 +11,11 @@ This directory holds custom themes for Marvin's web UI. Each theme is one folder
     theme.css               optional: extra CSS, automatically scoped to this theme
 ```
 
-A theme is **data and CSS, never JavaScript**. The app owns the markup and the behaviour; a theme recolours,
-re-types and re-arranges it. Themes cannot break the app: a theme that fails validation is listed in Settings
-with the reason and cannot be activated, and the app falls back to the default theme if the active one fails to load.
+A theme is **data and CSS, never JavaScript**. The app owns the markup, the behaviour and the chrome (Settings is
+a full-page screen, the left footer is four icon buttons in a row, the phone is one pane). A theme recolours,
+retypes and picks a presence drawing; it does not invent a different layout. Themes cannot break the app: a theme
+that fails validation is listed in Settings with the reason and cannot be activated, and the app falls back to the
+default theme if the active one fails to load.
 
 Three themes are built into the app and are not in this directory: `control-room` (dark, monospace, an oscilloscope
 as the room's heartbeat; the default), `editorial` (light, warm paper, serif, voice rendered as ink), `signal`
@@ -24,7 +26,7 @@ served at `/assets/` of the web app and is also summarised at the end of this fi
 
 1. Pick an id: `^[a-z0-9][a-z0-9-]{1,39}$`, not one of the built-in ids. Create `<id>/` here.
 2. Write `theme.json` (schema below). Start from the example at the end of this file.
-3. Optionally write `theme.css` for anything tokens cannot express (layout tweaks, animations, textures).
+3. Optionally write `theme.css` for anything tokens cannot express (type details, textures, motion). Not a new layout.
 4. Tell the person: the theme appears in **Settings → Appearance** as soon as your turn ends (the UI re-reads this
    directory after every turn). They click it to try it; an admin can make it the machine default there. Nothing
    needs a restart.
@@ -142,7 +144,7 @@ html[data-theme="<id>"][data-scheme="dark|light"]
     .m-pane[data-pane="marvin|transcript|changes|app|screen"]     contains the same .marvin / .transcript / .changes / .preview / .screenshare as above
     .m-tabs button(.on)(.live)
     .m-bar                      .m-speaker .presence .who small  .m-talk(.muted)  .m-leave
-  .lk-control-bar .lk-button    LiveKit's mic / share / leave buttons in the left column (light touch only)
+  .lk-control-bar .lk-button    LiveKit's mic / share / leave in the left footer — recolour only; do not resize or wrap
   body.resizing                 set while someone drags a .gutter
   .modal-back.settings-screen .modal   header .lbl h2 .room .sp button  |  .sgrid > section(.appearance) h3 p(.dim)(.small) code textarea .btns .status(.ok|.bad)
   .theme-cards .theme-card(.on)(.invalid) .swatches                 the Appearance section of Settings
@@ -157,11 +159,15 @@ if the theme were the only stylesheet (`.left { ... }`, `:root { --bg: ... }`). 
 
 - Because of that prefix your rules outrank the base stylesheet's, even a bare `button { padding: ... }` beats the
   base's `.iconbtn`. When you restyle an element type (`button`, `input`, `p`), re-state the small variants you did
-  not mean to change: `.iconbtn { padding: 0; width: 28px; height: 28px; }`, `.m-tabs button`, `.dot`.
+  not mean to change: `.iconbtn { padding: 0; width: 28px; height: 28px; }`, `.left-foot .lk-button`, `.m-tabs button`, `.dot`.
 - No `@import`. `url(...)` only with `data:` or `https://fonts.googleapis.com/` / `https://fonts.gstatic.com/`.
 - No `expression(`, `javascript:`, `behavior:`, `-moz-binding`, or `<` anywhere. Maximum 200 KB.
-- Keep `.settings-btn`, `.m-tabs`, `.lk-control-bar` and the approval buttons visible and reachable: people must
-  always be able to switch theme, mute, leave and answer an approval. Keep body text at WCAG AA contrast.
+- The chrome is fixed. Recolour and retype; do not rearrange:
+  - Settings is a **full-page screen** (`.settings-screen .modal`). Do not set a max-width, center it, or turn it
+    back into a dialog.
+  - The left footer is **four icon buttons in one row** (settings, mic, share, leave). Do not wrap `.left-foot` or
+    `.lk-control-bar`, do not change those buttons' width/height, do not unhide `.lk-button-group-menu`.
+  - Keep `.settings-btn`, `.m-tabs` and the approval buttons visible. Keep body text at WCAG AA contrast.
 - Prefer tokens over selectors; prefer motion that carries meaning (speaking, working, waiting) over decoration,
   and wrap it in `@media (prefers-reduced-motion: no-preference)`.
 - Do not change what elements mean: the `.ins` colour stays "added", `.warn` stays "needs attention".

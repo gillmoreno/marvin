@@ -2,6 +2,13 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-12 — Themes paint; the chrome stays put
+
+### Changed
+- Settings is a full-page screen and the left footer is four icon buttons in every theme, not just Control Room.
+  That structure lives in `web/src/styles.css`. Themes recolour it; the skill and the theme contract say not to
+  turn Settings back into a dialog or wrap the footer.
+
 ## 2026-09-12 — Control Room matches the prototype
 
 ### Changed

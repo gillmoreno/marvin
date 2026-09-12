@@ -17,11 +17,20 @@ A theme is **data and CSS, never code**:
   `@keyframes`, `@supports`, `@container` are walked), so a theme cannot leak into another and is written as if it were
   the only stylesheet.
 
-The app owns the markup and the behaviour. The base stylesheet (`web/src/styles.css`) is structure plus neutral
-defaults, everything through tokens; a theme only sets what it changes. The presence drawings (`web/src/theme/Presence.tsx`)
-are React components fed by the agent state and the real audio level: `dot`, `scope` (oscilloscope), `bars` (VU),
-`ink` (an underline that thickens), `orb` (radial ticks), `ring`. The theme picks one and colours it; `--level`
-(0..1) is kept live on the element so theme CSS can react to it too.
+The app owns the markup, the behaviour and the **chrome**. A theme recolours and retypes; it does not invent a
+different Settings screen or a different left-column footer. That is how Editorial, Signal and a theme Marvin
+writes in the room stay usable, including on the phone: same components, different paint.
+
+Fixed chrome (in `web/src/styles.css`, not in a theme):
+
+- Settings is a **full-page screen** (`.settings-screen`), a two-column card grid on desktop, one column on the phone.
+- The left footer is **four icon buttons in one row**: settings, mic, share, leave. The LiveKit device-menu chevron
+  stays hidden.
+- Under 720px the room is one pane at a time (`web/src/Mobile.tsx`).
+
+The base stylesheet is structure plus neutral defaults, everything through tokens. The presence drawings
+(`web/src/theme/Presence.tsx`) are React components fed by the agent state and the real audio level: `dot`, `scope`,
+`bars`, `ink`, `orb`, `ring`. The theme picks one and colours it; `--level` (0..1) is kept live on the element.
 
 Why this shape: it is what makes themes "vibe codable" *and* safe. An agent can write JSON and CSS reliably; it
 cannot break the app with them, because there is no JavaScript, the DOM contract is fixed, the worker validates the
@@ -82,8 +91,8 @@ listed classes.
 
 ## Limits
 
-- Control Room is a close port of `design-explorations/a-control-room.html` (full-page Settings, the status rail,
-  the left-column footer, the transcript grid). Editorial and Signal keep their own layouts on the same hooks.
+- Control Room is a close port of `design-explorations/a-control-room.html`. Editorial and Signal use the same
+  chrome (full-page Settings, four footer buttons) and only change colour, type and presence.
 - Only one theme is active at a time; `@keyframes` names are not namespaced (the loader replaces the whole sheet).
 - Google Fonts are fetched from the browser; an air-gapped deployment should leave `fonts.google` out and rely on
   system fonts (the tokens still apply).

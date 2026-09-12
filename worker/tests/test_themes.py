@@ -110,9 +110,13 @@ def test_docs_and_skill_are_installed(tmp_path: Path):
     store.install_docs()
     readme = tmp_path / "themes" / "README.md"
     assert readme.exists() and "theme.json" in readme.read_text() and "--accent" in readme.read_text()
+    text = readme.read_text()
+    assert "full-page" in text and "four icon buttons" in text
     skill = ThemeStore.install_skill(tmp_path / "home")
     assert skill == tmp_path / "home" / ".claude" / "skills" / "marvin-theme" / "SKILL.md"
-    assert "MARVIN_THEMES_DIR" in skill.read_text()
+    skill_text = skill.read_text()
+    assert "MARVIN_THEMES_DIR" in skill_text
+    assert "rearrange the chrome" in skill_text
     assert store.agent_env() == {"MARVIN_THEMES_DIR": str(tmp_path / "themes")}
     assert ThemeStore(None).agent_env() == {} and not ThemeStore(None).enabled
 

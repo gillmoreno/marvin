@@ -36,10 +36,10 @@ code { background: var(--glass); border-radius: 5px; }
 .applinks a:hover { background: var(--glass); color: var(--fg); }
 .applinks .url { font-size: 12px; }
 .left-foot { padding-top: 10px; }
-.settings-btn { border-radius: 10px; }
-.lk-control-bar { padding: 0; gap: 6px; border: 0; background: transparent; }
-.lk-control-bar .lk-button { background: var(--glass); border: 1px solid var(--line); border-radius: 12px; color: var(--fg); font-family: var(--font-ui); font-weight: 600; font-size: 12px; box-shadow: inset 0 1px 0 var(--hi); }
-.lk-control-bar .lk-button:hover { background: var(--glass-2); }
+.left-foot .settings-btn,
+.left-foot .lk-button,
+.left-foot .lk-disconnect-button { background: var(--glass); border: 1px solid var(--line); border-radius: 10px; color: var(--fg); box-shadow: inset 0 1px 0 var(--hi); }
+.left-foot .lk-button:hover, .left-foot .settings-btn:hover { background: var(--glass-2); }
 
 /* the signal: a breathing halo at rest, a lit core, tighter ticks while working; the ring is the speaker's light */
 .presence[data-variant="orb"] svg line { stroke-width: 1.5; opacity: .85; }
@@ -143,10 +143,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .room-list li b { font-size: 15px; font-weight: 700; } .room-list .repo { font-size: 12.5px; }
 .newroom { border: 0; border-radius: 14px; background: rgba(255,255,255,.04); padding: 12px 14px; }
 
-/* settings: a glass sheet, theme cards as tiles */
-.modal-back { background: rgba(18,21,24,.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.modal { border: 0; border-radius: 20px; background: rgba(38,44,50,.94); box-shadow: inset 0 1px 0 var(--hi), 0 40px 100px -20px rgba(0,0,0,.7); }
-.modal header { padding: 16px 20px; } .modal header h2 { font-size: 17px; font-weight: 800; }
+/* settings: same full-page chrome, glass instead of a floating sheet */
+.modal { background: var(--panel); }
+.modal header { background: var(--panel); }
+.modal header h2 { font-size: 17px; font-weight: 800; }
 .modal h3 { font-weight: 800; font-size: 13px; }
 .modal pre, .modal textarea { background: var(--well); border-radius: 10px; }
 .modal .status { border-radius: 10px; font-weight: 600; }

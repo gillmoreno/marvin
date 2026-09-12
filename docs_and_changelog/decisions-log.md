@@ -79,3 +79,8 @@ this file is the "why we did it this way" layer on top.
   default per machine from Settings (admin), `MARVIN_THEME` as the env override. Rejected: tokens-only themes (could
   not carry the three prototypes' character), JS/React themes (unbounded blast radius), themes inside the project
   repo (pollutes the customer's code). Write-up: `theming.md`.
+- **Themes paint; they do not rearrange the chrome.** Settings as a centered dialog and a wrapping left-footer
+  (LiveKit's extra device-menu chevron) showed up in Editorial/Signal because those themes restyled layout, not just
+  colour. Decision: the room chrome lives in `web/src/styles.css` (full-page Settings, four icon buttons in one row,
+  phone one-pane). A theme recolours and retypes that skeleton. Enforcement is the contract + the skill ("do not set
+  a max-width on `.modal`, do not wrap `.left-foot`"), not a CSS linter — theming is not a core product surface.

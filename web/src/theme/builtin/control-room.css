@@ -56,20 +56,16 @@ h1, h2, h3, .rail-room, .m-title { font-family: var(--font-mono); }
 .applinks a { display: flex; justify-content: space-between; padding: 6px 14px; font-size: 12px; color: var(--fg-2); border-radius: 0; }
 .applinks a:hover { background: var(--panel); color: var(--fg); }
 .applinks .url { font-size: 12px; }
-.left-foot { border-top: 1px solid var(--line); padding: 10px 12px; gap: 6px; }
+.left-foot { border-top: 1px solid var(--line); padding: 10px 12px; }
 .left-foot .settings-btn,
 .left-foot .lk-button,
 .left-foot .lk-disconnect-button {
-  width: 34px; height: 30px; padding: 0; border: 1px solid var(--line-2); border-radius: 3px;
-  background: transparent; color: var(--fg-2); box-shadow: none; font-size: 0; overflow: hidden;
+  border: 1px solid var(--line-2); border-radius: 3px;
+  background: transparent; color: var(--fg-2); box-shadow: none;
 }
-.left-foot .settings-btn svg, .left-foot .lk-button svg, .left-foot .lk-disconnect-button svg { width: 15px; height: 15px; }
 .left-foot .settings-btn:hover, .left-foot .lk-button:hover { background: var(--sel); color: var(--fg); border-color: #3B434D; }
-.left-foot .lk-button-group { height: 30px; }
-.left-foot .lk-button-group-menu { display: none; }
 .left-foot .lk-button-group > .lk-button:first-child { border-radius: 3px; }
 .left-foot .lk-disconnect-button:hover { color: var(--bad); border-color: rgba(242,113,107,.4); }
-.left-foot .lk-control-bar { gap: 6px; }
 .lk-start-audio-button { margin: 8px 12px; height: 28px; font-size: 12px; }
 .fresh-theme { margin: 8px 14px; border-radius: 2px; }
 
@@ -210,28 +206,16 @@ input, select, textarea { border-radius: 3px; background: var(--bg); border-colo
 .join button[type="submit"] { align-self: flex-end; height: 34px; padding: 0 16px; }
 .newroom, .repo-adder, .repo-pick, .repo-rows li { border-radius: 3px; }
 
-/* -- settings: a full-page screen, two-column cards (the prototype #s-settings) ---------------------------------- */
-.modal-back.settings-screen { background: var(--bg); align-items: stretch; justify-content: stretch; }
-.modal { width: 100%; max-width: none; height: 100%; max-height: none; border: 0; border-radius: 0; background: var(--bg); box-shadow: none; display: flex; flex-direction: column; }
-.modal header {
-  display: flex; align-items: center; justify-content: flex-start; gap: 14px;
-  height: 48px; padding: 0 20px; background: var(--panel); position: sticky; top: 0; z-index: 2; flex: none;
-}
-.modal header .lbl { display: inline; }
-.modal header .sp { display: block; flex: 1; }
+/* -- settings: same full-page chrome, instrument type ----------------------------------------------------------- */
+.modal { background: var(--bg); }
+.modal header { background: var(--panel); }
 .modal header h2 { font: 600 13px var(--font-mono); letter-spacing: .06em; text-transform: none; }
 .modal header h2 .room { color: var(--dim); font-weight: 400; }
-.sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
-.sgrid > section { background: var(--bg); padding: 20px 22px 24px; border-top: 0; }
-.sgrid > section + section { border-top: 0; }
 .modal h3 { font: 600 13px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px; }
-.appearance { grid-column: 1 / -1; }
-.sgrid > section:nth-child(odd):has(+ .appearance) { grid-column: 1 / -1; } /* don't leave a hole when Account is hidden */
 .theme-card { border-radius: 2px; background: var(--panel); }
 .theme-card .swatches span { border-radius: 1px; }
 .theme-card.on { box-shadow: inset 2px 0 var(--accent); border-color: var(--line); }
 @media (max-width: 720px) {
-  .sgrid { grid-template-columns: 1fr; }
   .transcript p { grid-template-columns: 38px 1fr; gap: 4px 10px; }
   .transcript p b { grid-column: 2; text-align: left; font-size: 11px; }
   .transcript .txt { grid-column: 2; }

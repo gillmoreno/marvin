@@ -56,7 +56,7 @@ export function ThemeSection() {
       {admin && th.defaultSource === "env" && <p className="dim small">The machine default comes from <code>MARVIN_THEME</code> in the environment; unset it to choose here.</p>}
       {admin && th.defaultSource === "settings" && <p className="dim small">Default set here · <a href="#" onClick={(e) => { e.preventDefault(); void run(() => th.setDefault(null), "Back to the app default."); }}>reset</a></p>}
       <p className="dim small">
-        Want another look? Ask in the room: <i>"{agent.name}, make me a theme: light, warm, serif, with a green accent."</i> {agent.name} writes it{th.dir ? <> to <code>{th.dir}</code></> : null} and it shows up here when the turn ends. Themes are colours, fonts and CSS only; a broken one is listed with the reason and cannot be turned on.
+        Want another look? Ask in the room: <i>"{agent.name}, make me a theme: light, warm, serif, with a green accent."</i> {agent.name} writes it{th.dir ? <> to <code>{th.dir}</code></> : null} and it shows up here when the turn ends. Themes recolour and retype this same screen; they do not invent a different layout. A broken one is listed with the reason and cannot be turned on.
       </p>
       {th.error && <p className="error small">{th.error}</p>}
       {msg && <p className={`status ${msg.startsWith("error") ? "bad" : "ok"}`}>{msg}</p>}
