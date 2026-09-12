@@ -1,0 +1,38 @@
+# Marvin behind Caddy, password mode (MARVIN_AUTH=password in the web container).
+# Caddy is the only way in: TLS, /api -> token server, /rtc -> LiveKit signaling, everything else -> the built UI.
+# Env: MARVIN_SITE_ADDRESS (a hostname for automatic HTTPS, or ":443" for a self-signed cert on a LAN/VM),
+#      MARVIN_TLS ("internal" = self-signed, or your e-mail for Let's Encrypt when the hostname is public).
+
+{$MARVIN_SITE_ADDRESS::443} {
+	tls {$MARVIN_TLS:internal}
+	encode zstd gzip
+
+	# A client must never be able to assert its own identity: these are set only by an identity-aware proxy
+	# (Caddyfile.oidc). Stripped here before anything else runs.
+	request_header -X-Forwarded-User
+	request_header -X-Forwarded-Email
+	request_header -X-Forwarded-Preferred-Username
+	request_header -X-Forwarded-Groups
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		# The room needs the microphone (and screen share) on this origin only.
+		Permissions-Policy "microphone=(self), camera=(self), display-capture=(self), geolocation=()"
+		# 'unsafe-inline' for styles: React sets inline style attributes. frame-src *: the App panel embeds previews of
+		# whatever the agent is running. blob: for LiveKit audio workers and dropped images.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: ws:; worker-src 'self' blob:; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; frame-src *; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+
+	# LiveKit signaling websocket. The LiveKit JWT (minted by /api/token after login) is the credential here.
+	handle /rtc* {
+		reverse_proxy livekit:7880
+	}
+
+	# Token server: /api/*, /healthz and the built UI.
+	handle {
+		reverse_proxy web:8080
+	}
+}

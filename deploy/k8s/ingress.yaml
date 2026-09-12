@@ -14,9 +14,20 @@ metadata:
     # with no prompt. Marvin needs the mic (and screen share) on this host only.
     nginx.ingress.kubernetes.io/configuration-snippet: |
       more_set_headers "Permissions-Policy: microphone=(self), camera=(self), display-capture=(self), geolocation=()";
-    # Put SSO in front if you have one, e.g. with an auth-url / oauth2-proxy annotation set:
-    # nginx.ingress.kubernetes.io/auth-url: https://sso.example.com/validate
-    # nginx.ingress.kubernetes.io/auth-response-headers: X-USER-ID
+    # Authentication. The web container runs MARVIN_AUTH=header (statefulset.yaml) and trusts identity headers set
+    # by the ingress. With oauth2-proxy deployed in the cluster (Deployment + Service `oauth2-proxy`, --set-xauthrequest,
+    # --reverse-proxy, --upstream=static://202), uncomment the three annotations and the header mapping. The /rtc path
+    # can stay open: the LiveKit JWT minted by /api/token after sign-in is the credential there.
+    # nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.oauth2-proxy.svc.cluster.local/oauth2/auth"
+    # nginx.ingress.kubernetes.io/auth-signin: "https://marvin.example.com/oauth2/start?rd=$escaped_request_uri"
+    # nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-User, X-Auth-Request-Email, X-Auth-Request-Preferred-Username, X-Auth-Request-Groups"
+    # and, appended to the configuration-snippet above, rename them to what marvin/auth.py reads:
+    #   proxy_set_header X-Forwarded-User $http_x_auth_request_user;
+    #   proxy_set_header X-Forwarded-Email $http_x_auth_request_email;
+    #   proxy_set_header X-Forwarded-Preferred-Username $http_x_auth_request_preferred_username;
+    #   proxy_set_header X-Forwarded-Groups $http_x_auth_request_groups;
+    # Also expose /oauth2 on this host to the oauth2-proxy Service (a second Ingress or an extra path below), and set
+    # MARVIN_TRUSTED_PROXIES in statefulset.yaml to the ingress controller's pod CIDR.
 spec:
   ingressClassName: nginx
   rules:

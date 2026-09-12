@@ -1,0 +1,58 @@
+# Marvin behind Caddy with single sign-on: oauth2-proxy authenticates against your OIDC provider (Google, GitHub,
+# Okta, Entra, Keycloak, ...) and Caddy forwards the verified identity to the token server as X-Forwarded-* headers
+# (MARVIN_AUTH=header in the web container). Select with MARVIN_CADDYFILE=./deploy/edge/Caddyfile.oidc and the
+# compose profile `oidc` (make edge-oidc-up). A public hostname in MARVIN_SITE_ADDRESS is required: the provider
+# redirects the browser back to https://<hostname>/oauth2/callback.
+
+{$MARVIN_SITE_ADDRESS} {
+	tls {$MARVIN_TLS:internal}
+	encode zstd gzip
+
+	# Whatever the browser sends under these names is dropped; only oauth2-proxy's answer (copied below) survives.
+	request_header -X-Forwarded-User
+	request_header -X-Forwarded-Email
+	request_header -X-Forwarded-Preferred-Username
+	request_header -X-Forwarded-Groups
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "microphone=(self), camera=(self), display-capture=(self), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: ws:; worker-src 'self' blob:; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; frame-src *; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+
+	# The login flow itself (start, callback, sign_in, sign_out, userinfo).
+	handle /oauth2/* {
+		reverse_proxy oauth2-proxy:4180 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# LiveKit signaling: not behind forward_auth on purpose. The browser only gets a LiveKit JWT from /api/token once
+	# it is signed in, and that JWT (identity, name, roles) is what LiveKit and the worker trust.
+	handle /rtc* {
+		reverse_proxy livekit:7880
+	}
+
+	handle {
+		# Every other request asks oauth2-proxy "who is this?" (202 = signed in, 401 = not). On 202 the identity
+		# headers are copied onto the request under the names marvin/auth.py expects.
+		forward_auth oauth2-proxy:4180 {
+			uri /oauth2/auth
+			header_up X-Real-IP {remote_host}
+			copy_headers {
+				X-Auth-Request-User>X-Forwarded-User
+				X-Auth-Request-Email>X-Forwarded-Email
+				X-Auth-Request-Preferred-Username>X-Forwarded-Preferred-Username
+				X-Auth-Request-Groups>X-Forwarded-Groups
+			}
+			@unauthorized status 401
+			handle_response @unauthorized {
+				redir * /oauth2/start?rd={scheme}://{host}{uri} 302
+			}
+		}
+		reverse_proxy web:8080
+	}
+}

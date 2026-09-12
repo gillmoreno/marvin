@@ -2,6 +2,33 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-12 — Edge authentication and roles
+
+Design and operations: `authentication.md`. Closes findings 1–3 of `security-and-compliance.md` §3.
+
+### Added
+- `worker/marvin/auth.py`: identity + roles (`participant`, `admin`) in three modes: `header` (trusted-proxy
+  `X-Forwarded-User/-Email/-Preferred-Username/-Groups`, admins by group or user list), `password` (Marvin's own login,
+  HMAC-signed HttpOnly cookie, constant-time compares, 0.5 s penalty and 10 failures/min/IP), `none` (loopback dev only).
+- `GET /api/me`, `POST /api/login`, `POST /api/logout`. `GET /api/token` takes identity from the session and signs
+  `{"roles": [...]}` into the LiveKit token metadata; the `name` query parameter is gone (except in `none` mode).
+- The `/api/*` proxy requires a session; non-GET methods and the machine notes require `admin`; `X-Marvin-User` /
+  `X-Marvin-Roles` are forwarded to the admin API. `--admin-host` / `MARVIN_ADMIN_HOST` for the worker.
+- Worker: `roles_of(participant)` reads roles from server-signed metadata; `auto_approve` by a non-admin is refused
+  and the room sees a `denied` event.
+- UI: password login on the join screen, "signed in as" in header mode, admin-only controls hidden for participants
+  (always-allow, new/delete room, harness and model pickers, linked repos, machine notes), role badge in People,
+  log out in Settings.
+- Edge stack: `deploy/edge/Caddyfile` (TLS, security headers, CSP, strips client-sent identity headers, `/rtc` →
+  LiveKit, rest → token server), `deploy/edge/Caddyfile.oidc` (oauth2-proxy via `forward_auth`, header mapping),
+  `deploy/edge/rooms.yaml`, `docker-compose.edge.yml` (livekit, web, worker, caddy; profile `oidc`), Makefile
+  `edge-up` / `edge-oidc-up` / `edge-down` / `edge-logs` / `edge-ps`. Only Caddy and LiveKit media ports are published.
+- k8s: `MARVIN_AUTH=header` in the web container with the oauth2-proxy ingress annotations and header renames documented.
+
+### Changed
+- `.env.example` documents `MARVIN_AUTH*`, the edge stack and `OAUTH2_PROXY_*`; local dev defaults to `MARVIN_AUTH=none`.
+- The token server exits at startup when `MARVIN_AUTH` is unset and no room password is configured.
+
 ## 2026-09-11 — Live model list and picker polish
 
 - The model picker lists the models a running ACP agent reports about itself: `GET /models?room=<name>` prefers the

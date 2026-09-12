@@ -33,18 +33,25 @@ Found in the code as of the spin-out. All must be fixed before the repo is publi
 
 1. `GET /api/token?room=X&name=Y` mints a LiveKit token for any name: identity is self-asserted. Anyone can be anyone;
    `Requested-by:` trailers are unverifiable.
+   **Status: addressed on `feat/edge-auth`** (identity from session cookie or trusted proxy headers, signed into the
+   LiveKit token; see `authentication.md`). Password mode still lets two people pick the same name; header mode fixes that.
 2. All `/api/*` routes proxy unauthenticated to the worker admin API: create/delete rooms, clone any git URL with the
    server's `GITHUB_TOKEN`, edit machine notes (`~/.claude/CLAUDE.md`, a prompt-injection point into every session).
+   **Status: addressed on `feat/edge-auth`** (session required everywhere; `admin` for writes and for the notes).
 3. Any participant can send `auto_approve`: arbitrary code execution in the pod for everyone in the room.
+   **Status: addressed on `feat/edge-auth`** (`admin` role required, read from server-signed participant metadata).
 4. The pod runs a **privileged Docker-in-Docker sidecar** with a GitHub token and a model-provider credential mounted.
-5. "Never commit on main" lives only in the system prompt. It must be enforced by branch protection / git hooks too.
+   Open; the compose edge stack mounts the host Docker socket instead (VM = blast radius), k8s still uses DinD.
+5. "Never commit on main" lives only in the system prompt. It must be enforced by branch protection / git hooks too. Open.
 
 Fix order:
 
 1. Identity at the edge (OIDC via oauth2-proxy/Caddy/ingress). The token endpoint takes the user from the
    authenticated header, never from the query string. Free tier: single shared password or basic OIDC; EE: full SSO.
+   **Done** (`deploy/edge/`, password and header modes).
 2. Roles on the wire: `viewer`, `participant`, `approver`, `admin`. Only approvers resolve write-tool permissions;
    `auto_approve` is admin-only (or removed); admin API requires `admin`.
+   **Done for `participant`/`admin`**; `viewer`/`approver` remain EE.
 3. Per-user git identity: GitHub App installation tokens or per-user device-flow login. Commits are authored by the
    requester. Removes the shared PAT.
 4. Audit log: who asked, who approved, what tool ran with which arguments, what changed. Append-only, timestamped.

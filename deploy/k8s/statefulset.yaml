@@ -116,6 +116,13 @@ spec:
             # "true" only when clients can reach LiveKit solely through the TURN hostname (see services.yaml / livekit.yaml)
             - { name: MARVIN_ICE_RELAY_ONLY, value: "false" }
             - { name: MARVIN_CONFIG, value: /etc/marvin/rooms.yaml }
+            # Identity comes from the ingress: oauth2-proxy (or your SSO) must set X-Forwarded-User/-Email/
+            # -Preferred-Username/-Groups on every request (see ingress.yaml). Only trusted from MARVIN_TRUSTED_PROXIES;
+            # the marvin-web Service must not be reachable except through the ingress (NetworkPolicy recommended).
+            # Alternative without SSO: MARVIN_AUTH=password with MARVIN_ROOM_PASSWORD/MARVIN_ADMIN_PASSWORD in the Secret.
+            - { name: MARVIN_AUTH, value: header }
+            # - { name: MARVIN_TRUSTED_PROXIES, value: "10.0.0.0/8" }   # your ingress controller's pod CIDR
+            # - { name: MARVIN_ADMIN_GROUPS, value: "platform" }
           envFrom:
             - secretRef: { name: marvin-secrets }
           ports:

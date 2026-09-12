@@ -28,12 +28,31 @@ make worker               # terminal 3, Marvin joins room "dev"
 make web                  # terminal 4, http://localhost:5173
 ```
 
-Open the page, enter your name and room `dev`, allow the mic.
+This loop runs with `MARVIN_AUTH=none` (the `.env.example` default): everything binds to localhost, the name you type
+is your identity, and you are admin. Open the page, pick room `dev`, allow the mic.
 
 Then say: *"Marvin, what does this repo do?"* You can also type to Marvin in the box at the bottom; that goes through
 the same path as a spoken wake word.
 
+## Run it for other people
+
+Anything reachable from another machine goes through Caddy, which terminates TLS and is the only way in:
+
+```sh
+# .env: NODE_IP, LIVEKIT_API_KEY, LIVEKIT_API_SECRET (32+ chars), MARVIN_ROOM_PASSWORD, MARVIN_ADMIN_PASSWORD,
+#       MARVIN_SESSION_SECRET, and MARVIN_DOMAIN + MARVIN_TLS=<your e-mail> for a real certificate
+make edge-up              # livekit + worker + web + caddy in containers; https://<host>/
+make edge-oidc-up         # same, with single sign-on through oauth2-proxy (OAUTH2_PROXY_* in .env)
+```
+
+People sign in with the room password (or their SSO account), admins with the admin password (or by group). Only
+admins can create rooms, switch harness or model, edit machine notes, or turn on "always allow". Details, the role
+matrix and the Kubernetes variant: [`docs_and_changelog/authentication.md`](docs_and_changelog/authentication.md).
+
 ## Authentication
+
+Who may join is covered above and in `docs_and_changelog/authentication.md`. This section is about the agent's own
+credentials.
 
 The Claude Code adapter uses the Claude Agent SDK, which reads the usual Anthropic credentials from the environment:
 set `ANTHROPIC_API_KEY` (or Bedrock / Vertex credentials, as documented by the SDK) for the worker process, in `.env`

@@ -1,0 +1,8 @@
+# Static rooms for the compose edge stack (mounted at /etc/marvin/rooms.yaml; MARVIN_ROOMS_FILE overrides the path).
+# Repos live on the `marvin_work` volume under /work/repos. Rooms created from the UI (admins only) are persisted in
+# /work/state/rooms.json and do not need to be listed here.
+# Per room, optional: git_url (cloned on first start), branch, harness (see docs_and_changelog/harnesses.md), model,
+# language (pin STT language, e.g. en), linked (other repos the agent may edit), app_links.
+rooms:
+  - name: sandbox
+    repo: /work/repos/sandbox

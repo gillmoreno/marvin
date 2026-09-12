@@ -23,6 +23,24 @@ test:
 install:
 	cd worker && uv sync && cd ../web && pnpm install
 
+# ---------- Edge stack: everything in containers behind Caddy (TLS + auth), for a machine other people reach.
+EDGE := docker compose -f docker-compose.edge.yml
+
+edge-up:       ## build + start livekit, worker, web and Caddy; password login (MARVIN_ROOM_PASSWORD)
+	$(EDGE) up -d --build
+
+edge-oidc-up:  ## same, with single sign-on through oauth2-proxy (MARVIN_AUTH=header, OAUTH2_PROXY_* in .env)
+	MARVIN_AUTH=header MARVIN_CADDYFILE=./deploy/edge/Caddyfile.oidc $(EDGE) --profile oidc up -d --build
+
+edge-down:
+	$(EDGE) --profile oidc down
+
+edge-logs:     ## follow all edge containers
+	$(EDGE) --profile oidc logs -f --tail=100
+
+edge-ps:
+	$(EDGE) --profile oidc ps
+
 # ---------- Images (see deploy/k8s/README.md)
 # Override REGISTRY with your own: `make image REGISTRY=ghcr.io/<owner>`. CI pushes the same names with GITHUB_TOKEN.
 REGISTRY ?= ghcr.io/$(shell git config --get remote.origin.url 2>/dev/null | sed -E 's#.*[:/]([^/]+)/[^/]+$$#\1#' | tr 'A-Z' 'a-z' | grep . || echo owner)
