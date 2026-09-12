@@ -64,8 +64,9 @@ this file is the "why we did it this way" layer on top.
   automation and for the handful of things that must exist before the UI does (LiveKit keys, the auth mode, the
   session secret). Guided steps beat instructions: when Marvin needs something from an external service, Settings
   links to the exact page, says what to click, and takes the paste. First applied to the GitHub OAuth client id
-  (set from Settings → GitHub); next candidates: harness API keys, `GITHUB_TOKEN`/machine identity, sandbox options,
-  admin users. Rationale: Gil's own experience as the first user — copy-pasting into a form is less friction than
+  (set from Settings → GitHub). Harness credentials followed the same day (Settings → Coding agents: API key
+  paste for every vendor, plus Grok device-flow subscription login). Still open: `GITHUB_TOKEN`/machine identity,
+  sandbox options, admin users. Rationale: Gil's own experience as the first user — copy-pasting into a form is less friction than
   editing a file and restarting, and a hosted or appliance install has no `.env` to hand.
 - **Themes are data + CSS, never code; Marvin writes them.** Of the three design prototypes (`design-explorations/`)
   Control Room is the default and the other two ship as choices. To make new themes "vibe codable" without letting
@@ -84,3 +85,8 @@ this file is the "why we did it this way" layer on top.
   colour. Decision: the room chrome lives in `web/src/styles.css` (full-page Settings, four icon buttons in one row,
   phone one-pane). A theme recolours and retypes that skeleton. Enforcement is the contract + the skill ("do not set
   a max-width on `.modal`, do not wrap `.left-foot`"), not a CSS linter — theming is not a core product surface.
+- **The room tells the truth about the agent.** First live Grok session: STT and “listening” / “working” stayed
+  up while the harness was missing, unsigned-in, or on a dead network. Native `alert()` for `AcpError`. Decision:
+  if the agent cannot answer, the pane says so in a sentence and points at the next click (Settings). No
+  interactive CLI login from a headless room (device flow belongs in Settings). No browser `alert()` for room
+  operations. A room that looks live with a dead turn queue is a bug, not a timeout.

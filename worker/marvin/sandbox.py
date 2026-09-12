@@ -49,6 +49,7 @@ DEFAULT_FORWARD_ENV: tuple[str, ...] = (
     "MARVIN_GIT_NAME", "MARVIN_GIT_EMAIL", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
     "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_AGENT_SDK_VERSION", "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING", "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
     "GIT_CONFIG_GLOBAL", "GH_CONFIG_DIR",  # the per-turn git/gh identity files (marvin.github), under the room HOME
+    "GROK_HOME",  # Grok subscription session (~/.grok/auth.json) written by Settings → Coding agents
     "MARVIN_THEMES_DIR",  # where the agent writes UI themes (marvin.themes); mounted at the same path
     "TERM", "LANG", "LC_ALL",
 )
@@ -295,7 +296,10 @@ exec {shlex.quote(self.cfg.docker)} exec -i -w "$PWD" -e HOME={shlex.quote(str(s
                     if rc != 0:
                         raise SandboxError(f"cannot start {name}: {out.strip()[-300:]}")
                     log.info("sandbox %s: started", name)
-                return name
+                if not await self._network_stale(name):
+                    return name
+                log.info("sandbox %s: shared network namespace is stale, recreating", name)
+                await self._docker("rm", "-f", name)
             log.info("sandbox %s: configuration changed, recreating", name)
             await self._docker("rm", "-f", name)
         argv = self.run_argv(cfg)
@@ -307,6 +311,18 @@ exec {shlex.quote(self.cfg.docker)} exec -i -w "$PWD" -e HOME={shlex.quote(str(s
         if rc != 0:
             log.warning("sandbox %s: marvin-sandbox-init failed (%s); git identity/credentials inside may be unset", name, out.strip()[-200:])
         return name
+
+    async def _network_stale(self, name: str) -> bool:
+        """`docker restart` of a `container:<peer>` target keeps the sandbox running in the old netns.
+        DNS and model APIs then fail inside the room (`Temporary failure in name resolution`)."""
+        if not self.cfg.network.startswith("container:"):
+            return False
+        peer = self.cfg.network.split(":", 1)[1]
+        rc1, a = await self._docker("exec", name, "readlink", "/proc/1/ns/net")
+        rc2, b = await self._docker("exec", peer, "readlink", "/proc/1/ns/net")
+        if rc1 != 0 or rc2 != 0:
+            return False
+        return a.strip() != b.strip()
 
     async def remove(self, room: str) -> None:
         name = self.container_name(room)

@@ -14,3 +14,6 @@ deploy/k8s/secrets.env
 *.tsbuildinfo
 *.aiff
 .DS_Store
+# ONNX Runtime telemetry droppings (a timestamp + UUID). Also set ORT_DISABLE_TELEMETRY=1 on the worker.
+:memory:.ses
+**/:memory:.ses

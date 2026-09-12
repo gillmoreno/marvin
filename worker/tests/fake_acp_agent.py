@@ -81,7 +81,7 @@ class Agent:
                 caps: dict[str, Any] = {"loadSession": bool(ENV.get("FAKE_ACP_LOAD")), "promptCapabilities": {"image": False, "audio": False, "embeddedContext": False}}
                 if ENV.get("FAKE_ACP_RESUME_CAP"):
                     caps["sessionCapabilities"] = {"resume": {}}
-                auth = [{"id": ENV["FAKE_ACP_AUTH"], "name": "API key from the environment"}] if ENV.get("FAKE_ACP_AUTH") else []
+                auth = [{"id": ENV["FAKE_ACP_AUTH"], "name": ENV["FAKE_ACP_AUTH"]}] if ENV.get("FAKE_ACP_AUTH") else []
                 await self.reply(rid, {"protocolVersion": 1, "agentCapabilities": caps, "agentInfo": {"name": "fake-acp", "version": "0.0.1"}, "authMethods": auth})
             elif method == "authenticate":
                 if params.get("methodId") != ENV.get("FAKE_ACP_AUTH"):

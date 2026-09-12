@@ -46,7 +46,13 @@ class Conductor:
 
     # -- lifecycle --------------------------------------------------------------
     async def start(self) -> None:
-        await self.harness.start()
+        try:
+            await self.harness.start()
+        except Exception as e:
+            # STT / LiveKit are already up by the time we get here. If the agent is not ready (Grok still
+            # signing in, timeout, missing binary), keep the turn runner so a later message retries.
+            log.exception("harness failed to start")
+            await self.publish({"kind": "error", "message": f"{type(e).__name__}: {e or 'harness failed to start'}"})
         self._runner = asyncio.create_task(self._run_turns())
         await self._set_state("idle")
         if self.app_links:

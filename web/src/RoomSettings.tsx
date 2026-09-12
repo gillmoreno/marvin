@@ -40,8 +40,15 @@ async function patchRoom(room: string, body: Record<string, unknown>) {
   if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
 }
 
+function friendlyPatchError(e: unknown): string {
+  const m = String(e instanceof Error ? e.message : e).replace(/^AcpError:\s*/, "");
+  if (/rc=127|not installed/.test(m)) return "That agent is not in the room container. An admin needs to rebuild the sandbox image with this harness.";
+  if (/TimeoutError|did not finish starting/i.test(m)) return "The agent did not start. Check Settings → Coding agents.";
+  return m;
+}
+
 /** Which coding agent runs this room (Claude Code, Codex, OpenCode, ...). Switching starts a fresh conversation. */
-export function HarnessPicker({ room, info, reload }: { room: string; info: RoomInfo | null; reload: () => void }) {
+export function HarnessPicker({ room, info, reload, onError }: { room: string; info: RoomInfo | null; reload: () => void; onError?: (m: string | null) => void }) {
   const admin = useIsAdmin(); // non-admins see the chip read-only (PATCH /api/rooms is admin-only)
   const { harnesses, default: def } = useHarnesses();
   const [busy, setBusy] = useState(false);
@@ -51,11 +58,12 @@ export function HarnessPicker({ room, info, reload }: { room: string; info: Room
   const defaultLabel = harnesses.find((h) => h.id === def)?.label ?? def;
   async function change(id: string) {
     setBusy(true);
+    onError?.(null);
     try {
       await patchRoom(room, { harness: id });
       reload();
     } catch (e) {
-      alert(String(e instanceof Error ? e.message : e));
+      onError?.(friendlyPatchError(e));
     } finally {
       setBusy(false);
     }
@@ -86,7 +94,7 @@ export function useRoomInfo(room: string, refreshKey: number) {
 }
 
 /** Compact model picker for the conversation header: what the room runs on, changeable on the spot. */
-export function ModelPicker({ room, info, reload }: { room: string; info: RoomInfo | null; reload: () => void }) {
+export function ModelPicker({ room, info, reload, onError }: { room: string; info: RoomInfo | null; reload: () => void; onError?: (m: string | null) => void }) {
   const admin = useIsAdmin();
   const { models, default: def, live } = useModels(room, info?.harness, info?.model);
   const [busy, setBusy] = useState(false);
@@ -94,11 +102,12 @@ export function ModelPicker({ room, info, reload }: { room: string; info: RoomIn
   const label = models.find((m) => m.id === current)?.label ?? (current || "harness default");
   async function change(id: string) {
     setBusy(true);
+    onError?.(null);
     try {
       await patchRoom(room, { model: id });
       reload();
     } catch (e) {
-      alert(String(e instanceof Error ? e.message : e));
+      onError?.(friendlyPatchError(e));
     } finally {
       setBusy(false);
     }

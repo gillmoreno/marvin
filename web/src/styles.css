@@ -280,6 +280,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .github-setup ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
 .github-setup .row { display: flex; gap: 8px; align-items: center; }
 .github-setup input { flex: 1; min-width: 0; }
+.sgrid > section.coding-agents { grid-column: 1 / -1; }
+.providers { display: flex; flex-direction: column; gap: 4px; }
+.provider { padding: 12px 0 4px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.provider:first-child { border-top: 0; padding-top: 0; }
+.coding-agents select { margin-left: 8px; }
 
 /* Project repos: the list editor (join screen + Settings) and the picker */
 .repo-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }

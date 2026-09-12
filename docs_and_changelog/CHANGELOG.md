@@ -2,6 +2,25 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-12 — Coding agents from Settings
+
+### Added
+- Settings → **Coding agents**: connect Anthropic, xAI/Grok, OpenAI, Gemini, Cursor and Copilot from the
+  browser. API keys are encrypted in the worker state dir; the environment is only an override. Grok also
+  has **Sign in with Grok** (device-code flow, your grok.com subscription). Default harness is a select on
+  the same panel. Docs: `harness-credentials.md`.
+
+### Fixed
+- Grok device login now mounts the `marvin_work` volume (the host Docker daemon cannot see the worker's
+  `/work/state/...` path). Without that, xAI signed in and Marvin never stored the session.
+- A harness that fails to start (Grok waiting for sign-in, 90s timeout) no longer leaves the room
+  listening with a dead turn queue. Signing in with Grok restarts rooms that are on Grok.
+- Restarting the worker no longer leaves room sandboxes on a dead network namespace (Grok DNS
+  retries of `cli-chat-proxy.grok.com`).
+- The room no longer hangs 90s on Grok’s interactive login, nor pops a browser `alert()` when a
+  harness fails to start. Failures show in the pane (“Sign in with Grok”, “not installed”, “still
+  waiting”).
+
 ## 2026-09-12 — Themes paint; the chrome stays put
 
 ### Changed

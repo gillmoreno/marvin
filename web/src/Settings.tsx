@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { agent } from "./agent";
 import { AccountSection } from "./RoomSettings";
 import { GitHubSection } from "./GitHubConnect";
+import { HarnessSection } from "./HarnessConnect";
 import { ThemeSection } from "./theme/ThemeSection";
 
 /** Sleep the whole machine (scale to zero). Only meaningful on the cluster, where /power is served by the gate. */
@@ -40,6 +41,7 @@ export function SettingsPanel({ onClose, extra, room }: { onClose: () => void; e
         <div className="sgrid">
           {extra}
           <AccountSection />
+          <HarnessSection />
           <GitHubSection />
           <ThemeSection />
           <PowerSection />

@@ -64,6 +64,8 @@ GitHub App token per human) is a later item; today the agent still commits as th
   On Docker Desktop (macOS/Windows) host networking must be enabled in Settings → Resources → Network (4.34+).
 - `container:<name>`: share a specific container's namespace. The compose edge stack uses `container:marvin-worker`
   so the agent's ports land in the worker container, where the port scanner and the apps proxy already look.
+  Restarting that peer (`docker restart marvin-worker`) leaves the sandbox in the **old** netns: DNS dies and
+  Grok/Claude cannot reach their APIs. `ensure()` compares `/proc/1/ns/net` and recreates when they diverge.
 - `bridge`: own namespace; ports listed in `MARVIN_SANDBOX_PORTS` (e.g. `3000-3010,5173,8000-8010`) are published
   on `127.0.0.1`. The worker also reads `/proc/net/tcp` inside each container so app links still appear. Strongest
   isolation; two rooms cannot both publish the same port.

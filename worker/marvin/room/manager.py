@@ -124,7 +124,7 @@ class RoomManager:
         results = await asyncio.gather(*(self.start_room(name) for name in self.configs()), return_exceptions=True)
         for name, r in zip(self.configs(), results):
             if isinstance(r, Exception):
-                log.error("room %s failed to start: %s", name, r)
+                log.error("room %s failed to start: %s: %s", name, type(r).__name__, r or repr(r))
         self._watcher = asyncio.create_task(self._watch_ports())
 
     async def start_room(self, name: str) -> RoomSession:
@@ -140,6 +140,16 @@ class RoomManager:
     async def stop_room(self, name: str) -> None:
         if s := self.sessions.pop(name, None):
             await s.close()
+
+    async def reload_harness(self, hid: str) -> None:
+        """Restart every live room that is pinned to `hid` (e.g. after Grok signs in)."""
+        for name, s in list(self.sessions.items()):
+            if s.harness_id(s.cfg) != hid:
+                continue
+            try:
+                await s.reconfigure(s.cfg)
+            except Exception:
+                log.exception("reload harness %s in room %s", hid, name)
 
     async def close(self) -> None:
         if self._watcher:

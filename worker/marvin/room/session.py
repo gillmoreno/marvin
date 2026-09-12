@@ -18,6 +18,7 @@ from marvin.adapters.registry import create_harness
 from marvin.bridge import Timeline
 from marvin.config import RoomConfig
 from marvin.github import GitIdentity
+from marvin.harness_creds import HarnessCreds
 from marvin.sandbox import Sandbox
 from marvin.stt import SegmenterFactory
 from marvin.themes import ThemeStore
@@ -85,6 +86,7 @@ class RoomSession:
         sandbox: Sandbox | None = None,
         git_identity: GitIdentity | None = None,
         themes: ThemeStore | None = None,
+        harness_creds: HarnessCreds | None = None,
     ) -> None:
         self.cfg = cfg
         self.url, self.api_key, self.api_secret = url, api_key, api_secret
@@ -93,6 +95,7 @@ class RoomSession:
         self.sandbox = sandbox if sandbox and sandbox.cfg.enabled else None
         self.git_identity = git_identity
         self.themes = themes
+        self.harness_creds = harness_creds
         self.state_file = Path(state_dir) / f"{cfg.name}.json" if state_dir else None
         self.room = rtc.Room()
         self.consumers: dict[str, asyncio.Task] = {}
@@ -116,7 +119,15 @@ class RoomSession:
         return cfg.harness or registry.default_id()
 
     def _make_harness(self, cfg: RoomConfig, resume: str | None) -> Harness:
-        env = {**(self.git_identity.env(cfg.name) if self.git_identity else {}), **(self.themes.agent_env() if self.themes else {})}
+        env = {
+            **(self.harness_creds.env() if self.harness_creds else {}),
+            **(self.git_identity.env(cfg.name) if self.git_identity else {}),
+            **(self.themes.agent_env() if self.themes else {}),
+        }
+        if self.harness_creds:
+            home = self.sandbox.home_dir(cfg.name) if self.sandbox else Path.home()
+            self.harness_creds.install_home(home)
+            env.setdefault("GROK_HOME", str(home / ".grok"))
         return create_harness(
             self.harness_id(cfg), cfg.repo, agent_name=self.agent_name, room=cfg.name, model=cfg.model, resume=resume, add_dirs=list(cfg.linked), permissions=None,
             sandbox=self.sandbox.for_room(cfg) if self.sandbox else None,

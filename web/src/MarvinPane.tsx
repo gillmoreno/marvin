@@ -10,6 +10,7 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
   const admin = useIsAdmin(); // "always allow" is admin-only (the worker enforces it; hiding it just avoids a refusal)
   const { state, turns, permissions, attachments, autoApprove, notice, send, sendImage } = marvin;
   const [typed, setTyped] = useState("");
+  const [patchError, setPatchError] = useState<string | null>(null);
   const [dropping, setDropping] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -67,8 +68,8 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
           )}
         </div>
         <div className="marvin-r2">
-          <HarnessPicker room={room} info={roomInfo.info} reload={roomInfo.reload} />
-          <ModelPicker room={room} info={roomInfo.info} reload={roomInfo.reload} />
+          <HarnessPicker room={room} info={roomInfo.info} reload={roomInfo.reload} onError={setPatchError} />
+          <ModelPicker room={room} info={roomInfo.info} reload={roomInfo.reload} onError={setPatchError} />
           {admin ? (
             <button
               type="button"
@@ -85,7 +86,7 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
           )}
         </div>
       </header>
-      {notice && <p className="notice">{notice}</p>}
+      {(notice || patchError) && <p className="notice">{notice ?? patchError}</p>}
       <div className="turns">
         {turns.length === 0 && <p className="hint">Nobody has said "{agent.name}" yet. Try: "{agent.name}, what does this repo do?"</p>}
         {turns.map((t) => (
@@ -101,7 +102,7 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
                 ))}
               </ul>
             )}
-            <div className="a">{t.text || (t.result ? "" : "…")}</div>
+            <div className="a">{t.text || (t.result ? "" : <WaitingHint />)}</div>
             {t.result && (
               <div className="meta">
                 {t.result.is_error ? "failed" : "done"} · {t.result.duration_ms != null ? `${(t.result.duration_ms / 1000).toFixed(1)}s` : ""}
@@ -155,6 +156,15 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
 
 function label(s: string) {
   return { offline: "not in the room", idle: "listening", thinking: "working", waiting_approval: "waiting for approval" }[s] ?? s;
+}
+
+function WaitingHint() {
+  const [long, setLong] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setLong(true), 8000);
+    return () => window.clearTimeout(t);
+  }, []);
+  return <>{long ? "Still waiting on the agent…" : "…"}</>;
 }
 
 // Colour tool names by what they do to the box: run, look, change.

@@ -87,14 +87,15 @@ export function useMarvin() {
         setTurns((ts) => patchLast(ts, (t) => ({ ...t, result: ev })));
         break;
       case "error":
-        setTurns((ts) => patchLast(ts, (t) => ({ ...t, text: t.text + `\n\n⚠ ${ev.message}` })));
+        setNotice(ev.message);
+        setTurns((ts) => (ts.length === 0 ? ts : patchLast(ts, (t) => ({ ...t, text: t.text + (t.text ? "\n\n" : "") + `⚠ ${ev.message}` }))));
         break;
     }
   }, []);
   useDataChannel(TOPIC_EVENTS, onMessage);
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(null), 6000);
+    const t = setTimeout(() => setNotice(null), 20000);
     return () => clearTimeout(t);
   }, [notice]);
 

@@ -30,9 +30,16 @@ CLIENT_CAPABILITIES = {"fs": {"readTextFile": False, "writeTextFile": False}, "t
 OK_STOP_REASONS = ("end_turn", "max_tokens", "cancelled")
 # Tool kinds that never bother the room (same spirit as the Claude adapter's pre-approved Read/Glob/Grep/WebFetch/WebSearch).
 QUIET_TOOL_KINDS = frozenset({"read", "search", "fetch", "think"})
-AUTH_METHOD_HINT = re.compile(r"api[-_ ]?key|env|token|cached|login|oauth|account", re.I)
+# Only methods that can succeed without a human in a browser. `login` / `oauth` / `grok.com` hang the room.
+NONINTERACTIVE_AUTH = re.compile(r"api[-_ ]?key|env|token|cached", re.I)
 START_TIMEOUT_S = 90.0
 _DONE = object()
+
+
+def _auth_needed_message(name: str) -> str:
+    if name == "grok":
+        return "Grok is not signed in. An admin should open Settings → Coding agents and click Sign in with Grok."
+    return f"{name} needs a key or a sign-in. An admin can connect it in Settings → Coding agents."
 
 
 class AcpError(Exception):
@@ -106,6 +113,9 @@ class AcpHarness:
         await self._spawn()
         try:
             await asyncio.wait_for(self._handshake(), timeout=START_TIMEOUT_S)
+        except TimeoutError:
+            await self.close()
+            raise AcpError(f"{self.name} did not finish starting in {int(START_TIMEOUT_S)}s") from None
         except BaseException:
             await self.close()
             raise
@@ -245,7 +255,10 @@ class AcpHarness:
         self._dead = True
         rc = proc.returncode
         tail = " | ".join(list(self.stderr_tail)[-5:])
-        msg = f"agent exited (rc={rc}){': ' + tail if tail else ''}"
+        if rc == 127:
+            msg = f"{self.name} is not installed in this room's container. Rebuild the sandbox image including this harness."
+        else:
+            msg = f"agent exited (rc={rc}){': ' + tail if tail else ''}"
         log.warning("%s: %s", self.name, msg)
         self._fail_pending(AcpError(msg))
 
@@ -466,9 +479,9 @@ class AcpHarness:
     async def _authenticate(self, methods: list[dict[str, Any]]) -> None:
         usable = [m for m in methods if m.get("type", "agent") != "terminal"]
         ids = [str(m.get("id")) for m in usable]
-        if not usable:
-            raise AcpError(f"{self.name} needs authentication and offers no non-interactive method (advertised: {[m.get('id') for m in methods]}); authenticate the CLI on this machine first")
-        chosen = next((m for m in usable if AUTH_METHOD_HINT.search(f"{m.get('id', '')} {m.get('name', '')}")), usable[0])
+        chosen = next((m for m in usable if NONINTERACTIVE_AUTH.search(f"{m.get('id', '')} {m.get('name', '')}")), None)
+        if chosen is None:
+            raise AcpError(_auth_needed_message(self.name))
         log.info("%s: authenticating with %r (offered: %s)", self.name, chosen.get("id"), ids)
         try:
             await self._request("authenticate", {"methodId": chosen.get("id")})

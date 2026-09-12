@@ -81,7 +81,7 @@ services:
       MARVIN_WHISPER: ${MARVIN_WHISPER:-small}
       MARVIN_LANGUAGE: ${MARVIN_LANGUAGE:-}
       MARVIN_STT_URL: ${MARVIN_STT_URL:-}
-      MARVIN_HARNESS: ${MARVIN_HARNESS:-claude-code}
+      MARVIN_HARNESS: ${MARVIN_HARNESS:-}   # empty = Settings → Coding agents (or claude-code). Env wins only when set.
       # Harness credentials (only the ones you use). Anthropic: API key or commercial credentials, never a personal
       # Pro/Max OAuth token on a shared server.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -97,6 +97,7 @@ services:
       # with MARVIN_SESSION_SECRET under the state dir.
       MARVIN_GITHUB_CLIENT_ID: ${MARVIN_GITHUB_CLIENT_ID:-}
       MARVIN_SESSION_SECRET: ${MARVIN_SESSION_SECRET:-}
+      ORT_DISABLE_TELEMETRY: "1"   # otherwise ONNX Runtime writes worker/:memory:.ses
     volumes:
       - marvin_work:/work
       - ${MARVIN_ROOMS_FILE:-./deploy/edge/rooms.yaml}:/etc/marvin/rooms.yaml:ro

@@ -43,7 +43,7 @@ where noted. No model provider was called and no credentials were involved.
 | `cursor` | acp | `agent acp` | `CURSOR_API_KEY` or `agent login`; advertises auth method `cursor_login` | registry ships a binary tarball (`cursor-agent acp`); [cursor.com/docs/cli/acp](https://cursor.com/docs/cli/acp) documents `agent acp`. Not run locally. |
 | `gemini` | acp | `gemini --acp` | `GEMINI_API_KEY` (or `GOOGLE_API_KEY` / Vertex ADC) | registry: `npx @google/gemini-cli@0.59.0 --acp`; bin `gemini`. Not run locally. Older releases used `--experimental-acp`. |
 | `opencode` | acp | `opencode acp` | `opencode auth login` or provider keys | registry: binary release `opencode acp`; npm `opencode-ai` bin `opencode`; **live handshake OK** (`configOptions` with a `model` selector, `loadSession`, `resume`) |
-| `grok` | acp | `grok agent stdio` | `XAI_API_KEY` or `grok login` | registry: `npx @xai-official/grok@1.0.29 agent stdio` (npm latest is 1.0.25); `grok agent stdio --help` run locally. **`--no-auto-update` does not exist** in 1.0.25 (clap would abort on it), so it is not in the command; pin the npm version instead. |
+| `grok` | acp | `grok agent stdio` | Settings → Coding agents: **Sign in with Grok** (`grok login --device-auth`) or an `XAI_API_KEY` | registry: `npx @xai-official/grok@1.0.29 agent stdio` (npm latest is 1.0.25); `grok agent stdio --help` run locally. **`--no-auto-update` does not exist** in 1.0.25 (clap would abort on it), so it is not in the command; pin the npm version instead. See `harness-credentials.md`. |
 | `copilot` | acp | `copilot --acp` | `COPILOT_GITHUB_TOKEN` / `GH_TOKEN` of an account with Copilot, or `copilot login` | registry: `npx @github/copilot@1.0.83 --acp`; bin `copilot`. Not run locally. |
 
 Notes:

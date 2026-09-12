@@ -43,7 +43,9 @@ elif cmd == "start":
 elif cmd == "rm":
     state.pop(args[-1], None); save()
 elif cmd == "exec":
-    if "cat" in args:
+    if "readlink" in args:
+        print("net:[" + args[1] + "]")  # inode differs per container: stale shared-netns detection
+    elif "cat" in args:
         print("  sl  local_address rem_address   st\n   0: 00000000:1F90 00000000:0000 0A\n   1: 0100007F:0BB8 00000000:0000 01")
     else:
         print("ok")
@@ -215,6 +217,14 @@ async def test_ensure_starts_a_stopped_container(fake_docker, tmp_path, room):
     Path(os.environ["FAKE_DOCKER_STATE"]).write_text(json.dumps(state))
     await sbx.ensure(room)
     assert [c[0] for c in fake_docker.calls()][-2:] == ["inspect", "start"]
+
+
+async def test_ensure_recreates_stale_shared_netns(fake_docker, tmp_path, room):
+    sbx = make(fake_docker, tmp_path, network="container:marvin-worker")
+    await sbx.ensure(room)
+    await sbx.ensure(room)
+    kinds = [c[0] for c in fake_docker.calls()]
+    assert kinds[-3:] == ["rm", "run", "exec"]
 
 
 async def test_remove(fake_docker, tmp_path, room):

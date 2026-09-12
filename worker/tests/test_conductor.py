@@ -116,6 +116,37 @@ def test_auto_approve_is_admin_only():
     assert {"kind": "auto_approve", "on": True, "by": "Root"} in events
 
 
+def test_harness_start_failure_still_runs_turns():
+    """A dead agent must not swallow typed/spoken turns (Grok hung on authenticate used to do this)."""
+    class LateHarness(FakeHarness):
+        async def start(self):
+            raise RuntimeError("not signed in")
+
+    async def run():
+        events = []
+
+        async def publish(ev):
+            events.append(ev)
+            if ev["kind"] == "permission_request":
+                asyncio.create_task(c.on_control("Gil", {"action": "deny", "id": ev["id"]}))
+
+        h = LateHarness()
+        c = Conductor(h, publish, timeline=Timeline(t0=0.0))
+        h.permissions = c.permissions
+        await c.start()
+        await c.on_control("Gil", {"action": "ask", "text": "hello"})
+        for _ in range(200):
+            await asyncio.sleep(0.01)
+            if any(e["kind"] == "result" for e in events):
+                break
+        await c.close()
+        return events
+
+    events = asyncio.run(run())
+    assert any(e["kind"] == "error" and "not signed in" in e["message"] for e in events)
+    assert any(e["kind"] == "result" for e in events)
+
+
 def test_announce_includes_app_links():
     async def run():
         events = []

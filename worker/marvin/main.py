@@ -10,6 +10,7 @@ from marvin.adapters import registry
 from marvin.admin import serve_admin
 from marvin.config import Config, RoomConfig, load_config
 from marvin.github import GitHubConnect, GitIdentity, TokenStore
+from marvin.harness_creds import HarnessCreds
 from marvin.ports import AppsRouting
 from marvin.room.manager import RoomManager
 from marvin.sandbox import Sandbox, SandboxConfig, SandboxError
@@ -43,20 +44,27 @@ async def run(args: argparse.Namespace) -> None:
     except (SandboxError, ValueError) as e:
         raise SystemExit(f"sandbox: {e}") from None
     # GitHub: per-user tokens (device flow, Settings -> Account) encrypted with the session secret; the per-turn git identity.
-    github = GitHubConnect(TokenStore(args.state_dir, secret=os.environ.get("MARVIN_SESSION_SECRET") or args.api_secret))
+    secret = os.environ.get("MARVIN_SESSION_SECRET") or args.api_secret
+    github = GitHubConnect(TokenStore(args.state_dir, secret=secret))
     if not github.configured:
         log.info("github: MARVIN_GITHUB_CLIENT_ID not set; 'Connect GitHub' is off, rooms use GITHUB_TOKEN / the system's git helpers")
+    harness_creds = HarnessCreds(args.state_dir, secret=secret)
+    st = harness_creds.status()
+    log.info("harness creds: default=%s (%s); keys from settings: %s",
+             st["default_harness"], st["default_source"],
+             ",".join(p["id"] for p in st["providers"] if p["key_source"] == "settings" or p.get("subscription_set")) or "none")
     stt = make_stt(stt_url=args.stt_url, whisper_model=args.whisper_model)
     mgr = RoomManager(
         config,
         repos_dir=args.repos_dir,
         state_dir=args.state_dir,
         routing=AppsRouting.from_env(),
-        session_kwargs=dict(url=args.url, api_key=args.api_key, api_secret=args.api_secret, stt=stt, agent_name=args.name, state_dir=args.state_dir, sandbox=sandbox, git_identity=GitIdentity(args.state_dir, github), themes=themes),
+        session_kwargs=dict(url=args.url, api_key=args.api_key, api_secret=args.api_secret, stt=stt, agent_name=args.name, state_dir=args.state_dir, sandbox=sandbox, git_identity=GitIdentity(args.state_dir, github), themes=themes, harness_creds=harness_creds),
     )
     await mgr.start_all()
+    harness_creds.on_grok_session = lambda: asyncio.create_task(mgr.reload_harness("grok"))
     log.info("serving %d room(s): %s", len(mgr.sessions), ", ".join(sorted(mgr.sessions)) or "(none yet; create one from the UI)")
-    runner = await serve_admin(mgr, host=args.admin_host, port=args.admin_port, github=github, themes=themes) if args.admin_port else None
+    runner = await serve_admin(mgr, host=args.admin_host, port=args.admin_port, github=github, themes=themes, harness_creds=harness_creds) if args.admin_port else None
     try:
         await asyncio.Event().wait()
     finally:

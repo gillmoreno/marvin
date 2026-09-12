@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from marvin.adapters.acp import AcpHarness
+from marvin.adapters.acp import AcpError, AcpHarness
 from marvin.adapters.permissions import PermissionBroker
 
 FAKE = str(Path(__file__).with_name("fake_acp_agent.py"))
@@ -234,6 +234,14 @@ async def test_model_selection_through_config_options(tmp_path):
         assert h.model == "smart" and not any(c["method"] == "session/set_config_option" for c in calls(logf))
     finally:
         await h.close()
+
+
+async def test_interactive_auth_fails_fast(tmp_path):
+    h, logf = make(tmp_path, env={"FAKE_ACP_AUTH": "grok.com"})
+    h.name = "grok"
+    with pytest.raises(AcpError, match="Sign in with Grok"):
+        await h.start()
+    assert "authenticate" not in [c.get("method") for c in calls(logf)]
 
 
 async def test_bad_command_raises_on_start(tmp_path):

@@ -9,6 +9,7 @@ from aiohttp import web
 from marvin.adapters import registry
 from marvin.changes import changes as repo_changes, file_diff
 from marvin.github import GitHubConnect
+from marvin.harness_creds import HarnessCreds
 from marvin.room.manager import RoomManager
 from marvin import notes as notes_mod
 from marvin.themes import ThemeStore
@@ -23,7 +24,7 @@ def who(req: web.Request) -> str:
     return f"{user} [{roles}]" if roles else user
 
 
-def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes: ThemeStore | None = None) -> web.Application:
+def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None) -> web.Application:
     app = web.Application()
     themes = themes or ThemeStore(None)
 
@@ -108,6 +109,97 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
     app.router.add_delete("/github/me", github_disconnect)
     app.router.add_post("/github/connect", github_connect)
     app.router.add_get("/github/connect/{flow}", github_flow)
+
+    # -- Coding-agent credentials (admin-only: machine-wide keys / Grok subscription) ----------------
+    def _creds() -> HarnessCreds | None:
+        return harness_creds
+
+    async def harness_status(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        if _creds() is None:
+            return web.json_response({"error": "harness credentials are not available"}, status=501)
+        return web.json_response(_creds().status())
+
+    async def harness_put_key(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        if _creds() is None:
+            return web.json_response({"error": "harness credentials are not available"}, status=501)
+        body = await req.json()
+        try:
+            _creds().put_key(req.match_info["id"], str(body.get("key", "")))
+        except KeyError as e:
+            return web.json_response({"error": str(e)}, status=404)
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        log.info("%s sets the %s harness key", who(req), req.match_info["id"])
+        return web.json_response(_creds().status())
+
+    async def harness_forget_key(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        if _creds() is None:
+            return web.json_response({"error": "harness credentials are not available"}, status=501)
+        try:
+            _creds().forget_key(req.match_info["id"])
+        except KeyError as e:
+            return web.json_response({"error": str(e)}, status=404)
+        log.info("%s clears the %s harness key", who(req), req.match_info["id"])
+        return web.json_response(_creds().status())
+
+    async def harness_default(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        if _creds() is None:
+            return web.json_response({"error": "harness credentials are not available"}, status=501)
+        body = await req.json()
+        try:
+            hid = body.get("harness")
+            _creds().set_default_harness(str(hid) if hid else None)
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        log.info("%s sets the default harness to %s", who(req), body.get("harness") or "(builtin)")
+        return web.json_response(_creds().status())
+
+    async def grok_login(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        if _creds() is None:
+            return web.json_response({"error": "harness credentials are not available"}, status=501)
+        try:
+            flow = await _creds().start_grok_login()
+        except RuntimeError as e:
+            return web.json_response({"error": str(e)}, status=503)
+        log.info("%s starts a Grok device login", who(req))
+        return web.json_response(flow.public(), status=201)
+
+    async def grok_flow(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        if _creds() is None:
+            return web.json_response({"error": "harness credentials are not available"}, status=501)
+        flow = _creds().get_flow(req.match_info["flow"])
+        if not flow:
+            return web.json_response({"error": "no such flow"}, status=404)
+        return web.json_response(flow.public())
+
+    async def grok_logout(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        if _creds() is None:
+            return web.json_response({"error": "harness credentials are not available"}, status=501)
+        _creds().forget_grok_session()
+        log.info("%s disconnects the Grok subscription", who(req))
+        return web.json_response(_creds().status())
+
+    app.router.add_get("/harness-creds", harness_status)
+    app.router.add_put("/harness-creds/default", harness_default)
+    app.router.add_post("/harness-creds/grok/login", grok_login)
+    app.router.add_get("/harness-creds/grok/login/{flow}", grok_flow)
+    app.router.add_delete("/harness-creds/grok/login", grok_logout)
+    app.router.add_put("/harness-creds/{id}", harness_put_key)
+    app.router.add_delete("/harness-creds/{id}", harness_forget_key)
 
     async def rooms(req: web.Request) -> web.Response:
         return web.json_response({"rooms": mgr.describe()})
@@ -285,8 +377,8 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
     return app
 
 
-async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090, github: GitHubConnect | None = None, themes: ThemeStore | None = None) -> web.AppRunner:
-    runner = web.AppRunner(make_admin_app(mgr, github, themes))
+async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None) -> web.AppRunner:
+    runner = web.AppRunner(make_admin_app(mgr, github, themes, harness_creds))
     await runner.setup()
     await web.TCPSite(runner, host, port).start()
     log.info("admin api on http://%s:%d", host, port)

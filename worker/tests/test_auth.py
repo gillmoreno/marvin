@@ -206,11 +206,13 @@ async def test_proxy_roles(upstream):
         assert (await c.delete("/api/rooms/dev", headers=p)).status == 403
         assert (await c.post("/api/repos/clone", headers=p, json={"url": "u"})).status == 403
         assert (await c.get("/api/notes", headers=p)).status == 403
+        assert (await c.get("/api/harness-creds", headers=p)).status == 403
         assert (await c.put("/api/notes", headers=p, json={"text": "x"})).status == 403
         assert (await c.post("/api/rooms", headers=a, json={"name": "x"})).status == 200
         assert (await c.patch("/api/rooms/dev", headers=a, json={"model": "m"})).status == 200
         assert (await c.delete("/api/rooms/dev", headers=a)).status == 200
         assert (await c.get("/api/notes", headers=a)).status == 200
+        assert (await c.get("/api/harness-creds", headers=a)).status == 200
         assert (await c.put("/api/notes", headers=a, json={"text": "x"})).status == 200
         # GitHub: connecting one's own account is self-service, the machine's client id is admin-only
         assert (await c.post("/api/github/connect", headers=p)).status == 200
