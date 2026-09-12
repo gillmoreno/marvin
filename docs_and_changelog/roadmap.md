@@ -70,5 +70,13 @@ screen share, transcript clock, Docker room sandbox (`sandbox.md`).
 5. **Blueprints.** "New project" from a template (admin-only, like clone); first one is the nginx monolith.
 6. Two-origin preview: make the iframe preview handle SPA-on-one-port + API-on-another as well as it handles the
    single-origin shape (what Rails/Django teams will show up with). Small; can slot in anywhere.
+7. **Connect GitHub from the browser** (decided 2026-09-12, `decisions-log.md`). No `.env`, no terminal:
+   - Per user: "Connect GitHub" in Settings runs GitHub's device flow (show a code, confirm on github.com). The worker
+     stores the user token encrypted and serves it to git/gh through a credential helper keyed by room + current
+     requester, so commits and PRs are authored by the human who asked. Falls back to the machine identity.
+   - Per machine: a GitHub App created through the manifest flow (one click creates it, a second installs it on the
+     org with repo selection) replaces the PAT; installation tokens are minted per hour, scoped to selected repos.
+   - Clone-by-URL on the join screen becomes a repo picker listing what the connected account/installation can see.
+   Prerequisite for the multi-repo work (item 2 needs many repos per project) and the audit log (who did what).
 
 Open decisions: core license (Apache 2.0 vs AGPL); trademark check on "Marvin".
