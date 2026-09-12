@@ -1,0 +1,21 @@
+#!/bin/sh
+# Run once by the worker after it creates a room's sandbox container (marvin/sandbox.py, Sandbox.ensure), inside the
+# container with the room's HOME and the forwarded environment. Idempotent: prepares HOME the way the worker's own
+# entrypoint prepares /work/home, so git and gh behave the same inside and outside the sandbox.
+set -e
+mkdir -p "$HOME/.claude" "$HOME/.config" "$HOME/.local/bin"
+
+git config --global user.name  "${MARVIN_GIT_NAME:-Marvin}"
+git config --global user.email "${MARVIN_GIT_EMAIL:-marvin@example.com}"
+git config --global init.defaultBranch main
+git config --global --add safe.directory '*'
+
+# GitHub over HTTPS with the token the worker forwards per exec; the token itself is never written to disk.
+git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN:-$GH_TOKEN}"; }; f'
+git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+# Claude Code: skip first-run onboarding; the API key arrives as ANTHROPIC_API_KEY on every exec.
+if [ ! -f "$HOME/.claude.json" ]; then
+  printf '{"hasCompletedOnboarding": true}\n' > "$HOME/.claude.json"
+fi
+echo "sandbox home ready: $HOME"

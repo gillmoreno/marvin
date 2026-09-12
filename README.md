@@ -157,6 +157,21 @@ The room is three columns: people, app links and controls on the left; a tabbed 
   with per-file diffs and "commit" / "open PR" buttons that hand the request to Marvin. Backed by `/api/changes`.
 - **App previews**: every app link (declared in `rooms.yaml`, or a detected listening port) opens as an embedded
   preview with reload and open-in-new-tab. On a cluster, app hostnames allow framing from the Marvin host only.
+- **Shared screens**: a tab per screen someone shares, only while they share it.
+
+## Where the agent runs
+
+By default the agent is a child process of the worker, working directly in the repo directory. With
+`MARVIN_SANDBOX=docker` each room's agent runs in its own container instead: the repo, the linked repos and a
+per-room HOME are mounted at the same paths, credentials are passed per exec, and a bad tool call can reach the
+repo and the container, not the machine or the other rooms.
+
+```sh
+make sandbox-image                 # marvin-sandbox:local, with the harness CLIs
+MARVIN_SANDBOX=docker make worker  # or set it in .env; the edge stack has it on by default
+```
+
+Details, networking choices and limits: [`docs_and_changelog/sandbox.md`](docs_and_changelog/sandbox.md).
 
 ## Model, linked repos, machine notes
 

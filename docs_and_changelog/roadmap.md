@@ -56,10 +56,11 @@ build time (N images per room; cache and rebuild-only-what-changed from day one)
 ## Order of work
 
 Done: ACP adapter (one adapter, eight harness profiles), live model list, edge authentication and roles with Caddy,
-screen share, transcript clock.
+screen share, transcript clock, Docker room sandbox (`sandbox.md`).
 
-1. **Docker room sandbox.** The agent for a room runs in a container with the repo(s) mounted; host Docker socket or
-   rootless nested daemon per deployment choice. Substrate for everything below and the next thing enterprises ask.
+1. ~~**Docker room sandbox.**~~ Shipped 2026-09-12: one container per room, same-path mounts, credentials per exec,
+   `host`/`container:`/`bridge` networks, limits; image in `deploy/sandbox`. Left for EE: egress allow-list,
+   gVisor/Kata, rootless nested Docker for the agent, per-room image from the manifest.
 2. **Project model.** `linked` repos become project repos with role, branch and their own Changes tab; the manifest
    exists and is editable, hand-written at first. Mostly a refactor of `linked` in `room/manager.py`, `RoomConfig`
    and the UI. Can be done without deciding anything about 3 and 4.

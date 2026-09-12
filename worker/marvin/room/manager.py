@@ -13,7 +13,7 @@ from typing import Any
 
 from marvin.adapters import registry
 from marvin.config import AppLink, Config, RoomConfig
-from marvin.ports import AppsRouting, listening_ports
+from marvin.ports import OWN_PORTS, AppsRouting, listening_ports
 
 from .session import RoomSession
 
@@ -27,6 +27,8 @@ class RoomManager:
         self.repos_dir = Path(repos_dir)
         self.state_file = Path(state_dir) / "rooms.json" if state_dir else None
         self.session_kwargs = session_kwargs
+        sbx = session_kwargs.get("sandbox")
+        self.sandbox = sbx if sbx is not None and sbx.cfg.enabled else None
         self.routing = routing or AppsRouting()
         self.overrides: dict[str, dict] = {}  # per-room model/linked changes made from the UI (also for static rooms)
         self.dynamic: dict[str, RoomConfig] = self._load_dynamic()
@@ -81,6 +83,7 @@ class RoomManager:
                 "model": (getattr(h, "model", None) or cfg.model), "model_pinned": cfg.model, "linked": list(cfg.linked),
                 "harness": (getattr(h, "name", None) if h is not None else None) or cfg.harness or registry.default_id(), "harness_pinned": cfg.harness,
                 "app_links": (s.conductor.app_links if s and s.conductor else [l.to_wire() for l in cfg.app_links]),
+                "sandbox": ({"image": self.sandbox.cfg.image, "container": self.sandbox.container_name(name), "network": self.sandbox.cfg.network} if self.sandbox else None),
             })
         return out
 
@@ -190,6 +193,8 @@ class RoomManager:
         await self.stop_room(name)
         self.dynamic.pop(name)
         self._save_dynamic()
+        if self.sandbox:
+            await self.sandbox.remove(name)
 
     async def clone_repo(self, url: str, name: str | None = None, branch: str | None = None) -> dict:
         name = name or _repo_name(url)
@@ -219,10 +224,21 @@ class RoomManager:
         links = [l.to_wire() for l in session.cfg.app_links] + [self.routing.link(p) for p in sorted(self._ports)]
         await session.conductor.set_app_links(links)
 
+    async def _scan_ports(self) -> set[int]:
+        """Listeners in the worker's network namespace, plus those inside bridge-mode sandboxes (host-mode sandboxes
+        already show up in the former)."""
+        now = listening_ports()
+        if self.sandbox:
+            for name in list(self.sessions):
+                inside = await self.sandbox.listening_ports(name)
+                if inside:
+                    now |= {p for p in inside if p not in OWN_PORTS and p < 30000}
+        return now
+
     async def _watch_ports(self, interval: float = 4.0) -> None:
         while True:
             try:
-                now = listening_ports()
+                now = await self._scan_ports()
                 if now != self._ports:
                     log.info("listening ports: %s", sorted(now))
                     self._ports = now

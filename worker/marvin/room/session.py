@@ -17,6 +17,7 @@ from marvin.adapters.base import Harness
 from marvin.adapters.registry import create_harness
 from marvin.bridge import Timeline
 from marvin.config import RoomConfig
+from marvin.sandbox import Sandbox
 from marvin.stt import SegmenterFactory
 
 from .conductor import Conductor
@@ -75,11 +76,13 @@ class RoomSession:
         stt: SegmenterFactory,
         agent_name: str = "Marvin",
         state_dir: str | None = None,
+        sandbox: Sandbox | None = None,
     ) -> None:
         self.cfg = cfg
         self.url, self.api_key, self.api_secret = url, api_key, api_secret
         self.stt = stt
         self.agent_name = agent_name
+        self.sandbox = sandbox if sandbox and sandbox.cfg.enabled else None
         self.state_file = Path(state_dir) / f"{cfg.name}.json" if state_dir else None
         self.room = rtc.Room()
         self.consumers: dict[str, asyncio.Task] = {}
@@ -103,7 +106,15 @@ class RoomSession:
         return cfg.harness or registry.default_id()
 
     def _make_harness(self, cfg: RoomConfig, resume: str | None) -> Harness:
-        return create_harness(self.harness_id(cfg), cfg.repo, agent_name=self.agent_name, room=cfg.name, model=cfg.model, resume=resume, add_dirs=list(cfg.linked), permissions=None)
+        return create_harness(
+            self.harness_id(cfg), cfg.repo, agent_name=self.agent_name, room=cfg.name, model=cfg.model, resume=resume, add_dirs=list(cfg.linked), permissions=None,
+            sandbox=self.sandbox.for_room(cfg) if self.sandbox else None,
+        )
+
+    async def _ensure_sandbox(self, cfg: RoomConfig) -> None:
+        """The room's container exists and matches cfg (repo, linked repos) before any harness process is spawned."""
+        if self.sandbox:
+            await self.sandbox.ensure(cfg)
 
     @property
     def harness(self):
@@ -119,6 +130,7 @@ class RoomSession:
             log.info("room %s: harness %s -> %s, dropping session %s", cfg.name, self.harness_id(self.cfg), self.harness_id(cfg), (resume or "")[:8])
             resume = None
             self._save_state(session_id=None)
+        await self._ensure_sandbox(cfg)  # linked repos changed: the container is recreated with the new mounts
         new = self._make_harness(cfg, resume)
         new.permissions = self.conductor.permissions
         try:
@@ -143,6 +155,7 @@ class RoomSession:
     async def start(self) -> None:
         cfg = self.cfg
         await asyncio.to_thread(ensure_repo, cfg)
+        await self._ensure_sandbox(cfg)
         resume = self._load_state().get("session_id")
 
         async def publish(event: dict) -> None:

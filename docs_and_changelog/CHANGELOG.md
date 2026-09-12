@@ -2,6 +2,31 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-12 — Room sandbox
+
+Design and operations: `sandbox.md`. Roadmap item 1; addresses the agent-isolation half of finding 4 in
+`security-and-compliance.md`.
+
+### Added
+- `worker/marvin/sandbox.py`: with `MARVIN_SANDBOX=docker` each room's agent runs in its own container
+  (`marvin-sbx-<room>`, from `MARVIN_SANDBOX_IMAGE`). Repo, linked repos and a per-room HOME are mounted at the same
+  absolute paths as on the worker; the machine notes are mounted read-only. Harness processes are `docker exec`s:
+  ACP commands are prefixed, the Claude Agent SDK gets a `cli_path` wrapper. Credentials go in as environment on
+  each exec (`DEFAULT_FORWARD_ENV` + `MARVIN_SANDBOX_ENV`), never onto the container's disk.
+- Containers are recreated when image / mounts / network / limits change (label `marvin.sig`), restarted when
+  stopped, removed with the room. `--memory`, `--cpus`, `--pids-limit`, `--init`, `no-new-privileges`,
+  `MARVIN_SANDBOX_USER`, `MARVIN_SANDBOX_RUN_ARGS`. Networks: `host` (default), `container:<name>`, `bridge` with
+  `MARVIN_SANDBOX_PORTS` published on loopback (the port watcher also reads `/proc/net/tcp` inside), `none`.
+  `MARVIN_SANDBOX_DOCKER_SOCKET=1` opts the agent into the host daemon, with a warning.
+- The worker checks daemon and image at start (`--sandbox`, `MARVIN_SANDBOX`) and pulls images that name a registry.
+- `deploy/sandbox/Dockerfile` (Node 22, Python + uv, git, gh, ripgrep, Docker CLI, the eight harness CLIs selectable
+  with `HARNESSES=`) and `marvin-sandbox-init`; `make sandbox-image` / `sandbox-ps` / `sandbox-clean`.
+- Compose edge stack runs sandboxed by default (`container_name: marvin-worker`, volume `marvin_work`,
+  `MARVIN_SANDBOX_MOUNTS=marvin_work:/work`, `MARVIN_SANDBOX_NETWORK=container:marvin-worker`); k8s worker env set
+  for sandboxes inside the dind sidecar.
+- `GET /api/rooms` reports `sandbox` per room; Settings → This room says where the agent runs.
+- `ClaudeCodeHarness(cli_path=)`, `create_harness(sandbox=)`.
+
 ## 2026-09-12 — Shared screens in the middle column
 
 ### Fixed

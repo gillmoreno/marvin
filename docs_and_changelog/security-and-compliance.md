@@ -41,7 +41,10 @@ Found in the code as of the spin-out. All must be fixed before the repo is publi
 3. Any participant can send `auto_approve`: arbitrary code execution in the pod for everyone in the room.
    **Status: addressed on `feat/edge-auth`** (`admin` role required, read from server-signed participant metadata).
 4. The pod runs a **privileged Docker-in-Docker sidecar** with a GitHub token and a model-provider credential mounted.
-   Open; the compose edge stack mounts the host Docker socket instead (VM = blast radius), k8s still uses DinD.
+   **Status: partly addressed on `feat/sandbox`** (`sandbox.md`): the agent no longer runs in the worker's process
+   tree but in a per-room container with only its repos mounted and credentials forwarded per exec; the Docker
+   daemon is not handed to the agent unless `MARVIN_SANDBOX_DOCKER_SOCKET=1`. Still open: the worker itself holds
+   the daemon (compose: host socket; k8s: privileged dind), and the GitHub token is still the machine's, not the user's.
 5. "Never commit on main" lives only in the system prompt. It must be enforced by branch protection / git hooks too. Open.
 
 Fix order:
@@ -56,6 +59,8 @@ Fix order:
    requester. Removes the shared PAT.
 4. Audit log: who asked, who approved, what tool ran with which arguments, what changed. Append-only, timestamped.
 5. Agent isolation: per-room sandbox instead of the shared worker process (see section 6).
+   **Done (core) on `feat/sandbox`**: `MARVIN_SANDBOX=docker`, one container per room, same-path mounts, credentials
+   per exec, resource limits. Egress policy, gVisor/Kata runtime and per-room images remain EE (`sandbox.md`).
 
 ## 4. SOC 2 mapping (what a customer's auditor will ask)
 
@@ -105,8 +110,9 @@ Marvin's owner and early customers are in the EU. Transcripts are personal data;
   - Kata / gVisor sandboxed pods, or
   - no Docker daemon: builds via rootless BuildKit, runtime via ephemeral pods/Jobs created through a scoped
     ServiceAccount. Changes the developer experience; document the trade-off.
-- **Per-room sandbox (EE, multi-team).** Each room runs its agent in its own unprivileged container/VM with its own
-  Docker (sysbox/Firecracker), its own credentials and its own volume. The worker pod only orchestrates.
+- **Per-room sandbox.** Core (shipped): each room's agent in its own container with its repos, its HOME and
+  forwarded credentials only; the worker orchestrates (`sandbox.md`). EE: its own Docker (sysbox/Firecracker,
+  rootless nested daemon) instead of the host socket, gVisor/Kata runtime, egress allow-list, per-room image.
 - **Secrets** live in the platform's secret store (Kubernetes Secrets from Vault/ESO, cloud secret manager on a VM),
   never plaintext env files in the repo. Rotation documented.
 - **Pod Security Standards.** Target `restricted` for all Marvin containers except the sandbox runtime.

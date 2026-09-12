@@ -23,13 +23,26 @@ test:
 install:
 	cd worker && uv sync && cd ../web && pnpm install
 
+# ---------- Sandbox: the image each room's agent runs in when MARVIN_SANDBOX=docker (docs_and_changelog/sandbox.md).
+SANDBOX_IMAGE ?= marvin-sandbox:local
+SANDBOX_HARNESSES ?= claude-code claude-acp codex gemini opencode grok copilot cursor
+
+sandbox-image: ## build $(SANDBOX_IMAGE); SANDBOX_HARNESSES="claude-code grok" for a smaller one
+	docker build --build-arg HARNESSES="$(SANDBOX_HARNESSES)" -t $(SANDBOX_IMAGE) deploy/sandbox
+
+sandbox-ps:    ## the room containers
+	docker ps -a --filter label=marvin.room --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+
+sandbox-clean: ## remove every room container (they are recreated on the next worker start)
+	docker ps -aq --filter label=marvin.room | xargs -r docker rm -f
+
 # ---------- Edge stack: everything in containers behind Caddy (TLS + auth), for a machine other people reach.
 EDGE := docker compose -f docker-compose.edge.yml
 
-edge-up:       ## build + start livekit, worker, web and Caddy; password login (MARVIN_ROOM_PASSWORD)
+edge-up: sandbox-image ## build + start livekit, worker, web and Caddy; password login (MARVIN_ROOM_PASSWORD)
 	$(EDGE) up -d --build
 
-edge-oidc-up:  ## same, with single sign-on through oauth2-proxy (MARVIN_AUTH=header, OAUTH2_PROXY_* in .env)
+edge-oidc-up: sandbox-image ## same, with single sign-on through oauth2-proxy (MARVIN_AUTH=header, OAUTH2_PROXY_* in .env)
 	MARVIN_AUTH=header MARVIN_CADDYFILE=./deploy/edge/Caddyfile.oidc $(EDGE) --profile oidc up -d --build
 
 edge-down:

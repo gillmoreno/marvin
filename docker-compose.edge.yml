@@ -58,8 +58,20 @@ services:
 
   worker:
     <<: *marvin-image
+    container_name: marvin-worker   # fixed: room sandboxes join this container's network namespace (see MARVIN_SANDBOX_NETWORK)
     command: python -m marvin.main
     environment:
+      # Each room's agent runs in its own container (docs_and_changelog/sandbox.md). The worker creates them through
+      # the host's Docker socket (below); /work is the same named volume in both, so paths agree; the sandboxes share
+      # this container's network namespace, so ports the agent opens show up as app links exactly as before.
+      MARVIN_SANDBOX: ${MARVIN_SANDBOX:-docker}
+      MARVIN_SANDBOX_IMAGE: ${MARVIN_SANDBOX_IMAGE:-marvin-sandbox:local}
+      MARVIN_SANDBOX_MOUNTS: marvin_work:/work
+      MARVIN_SANDBOX_NETWORK: container:marvin-worker
+      MARVIN_SANDBOX_USER: ${MARVIN_SANDBOX_USER:-0:0}   # the worker runs as root in its container; match it so /work stays writable
+      MARVIN_SANDBOX_MEMORY: ${MARVIN_SANDBOX_MEMORY:-4g}
+      MARVIN_SANDBOX_CPUS: ${MARVIN_SANDBOX_CPUS:-2}
+      MARVIN_SANDBOX_DOCKER_SOCKET: ${MARVIN_SANDBOX_DOCKER_SOCKET:-0}   # 1 = the agent can run docker/compose (root-equivalent on this VM)
       LIVEKIT_URL: ws://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
@@ -84,8 +96,9 @@ services:
     volumes:
       - marvin_work:/work
       - ${MARVIN_ROOMS_FILE:-./deploy/edge/rooms.yaml}:/etc/marvin/rooms.yaml:ro
-      # The agent gets this machine's Docker daemon (build images, run compose stacks of the repos it works on).
-      # That is root-equivalent on this host: the VM is the blast radius. See security-and-compliance.md section 6.
+      # The worker uses this machine's Docker daemon to create the room sandboxes (and, with
+      # MARVIN_SANDBOX_DOCKER_SOCKET=1, hands it to the agents too). Root-equivalent on this host: the VM is the blast
+      # radius. See security-and-compliance.md section 6.
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on: [livekit]
     restart: unless-stopped
@@ -109,15 +122,17 @@ services:
 
   oauth2-proxy:
     profiles: [oidc]
+    # Compose interpolates this block even when the profile is off, so nothing here is `:?`-required; oauth2-proxy
+    # itself refuses to start without issuer, client id/secret and a cookie secret (openssl rand -base64 32 | tr -- '+/' '-_').
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.8.1
     environment:
       OAUTH2_PROXY_PROVIDER: ${OAUTH2_PROXY_PROVIDER:-oidc}
-      OAUTH2_PROXY_OIDC_ISSUER_URL: ${OAUTH2_PROXY_OIDC_ISSUER_URL:?}
-      OAUTH2_PROXY_CLIENT_ID: ${OAUTH2_PROXY_CLIENT_ID:?}
-      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET:?}
-      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:?openssl rand -base64 32 | tr -- '+/' '-_'}
-      OAUTH2_PROXY_REDIRECT_URL: https://${MARVIN_DOMAIN:?OIDC needs a public hostname in MARVIN_DOMAIN}/oauth2/callback
-      OAUTH2_PROXY_WHITELIST_DOMAINS: ${MARVIN_DOMAIN}
+      OAUTH2_PROXY_OIDC_ISSUER_URL: ${OAUTH2_PROXY_OIDC_ISSUER_URL:-}
+      OAUTH2_PROXY_CLIENT_ID: ${OAUTH2_PROXY_CLIENT_ID:-}
+      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET:-}
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:-}
+      OAUTH2_PROXY_REDIRECT_URL: https://${MARVIN_DOMAIN:-localhost}/oauth2/callback
+      OAUTH2_PROXY_WHITELIST_DOMAINS: ${MARVIN_DOMAIN:-}
       OAUTH2_PROXY_EMAIL_DOMAINS: ${OAUTH2_PROXY_EMAIL_DOMAINS:-*}
       OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
       OAUTH2_PROXY_REVERSE_PROXY: "true"
@@ -130,5 +145,6 @@ services:
 
 volumes:
   marvin_work:
+    name: marvin_work   # fixed name: room sandboxes mount it too (MARVIN_SANDBOX_MOUNTS)
   caddy_data:
   caddy_config:

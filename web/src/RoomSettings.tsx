@@ -5,7 +5,10 @@ import { useIsAdmin, useMe, logout } from "./auth";
 
 type Model = { id: string; label: string; note: string };
 type Harness = { id: string; label: string; kind: string; auth: string; note: string };
-type RoomInfo = { name: string; repo: string; model: string | null; model_pinned: string | null; harness: string; harness_pinned: string | null; linked: string[] };
+type RoomInfo = {
+  name: string; repo: string; model: string | null; model_pinned: string | null; harness: string; harness_pinned: string | null; linked: string[];
+  sandbox: { image: string; container: string; network: string } | null;
+};
 type RepoInfo = { name: string; path: string };
 
 /** Models this room can pick: what its running agent reports about itself (ACP harnesses), else the profile's static
@@ -146,6 +149,11 @@ export function RoomAndMachine({ room, info, reload }: { room: string; info: Roo
       <section>
         <h3>This room · {room}</h3>
         <p className="dim small">Works in <code>{info?.repo ?? "…"}</code>. Linked repos are readable and editable too, e.g. a backend next to a frontend.</p>
+        <p className="dim small">
+          {info?.sandbox
+            ? <>The agent runs in its own container <code>{info.sandbox.container}</code> (image <code>{info.sandbox.image}</code>); only this repo and the linked repos are mounted into it.</>
+            : <>The agent runs directly on this machine (no sandbox; set <code>MARVIN_SANDBOX=docker</code> to contain it).</>}
+        </p>
         <div className="linklist">
           {repos.filter((r) => r.path !== info?.repo).map((r) => (
             <label key={r.path}><input type="checkbox" checked={linked.has(r.path)} disabled={!admin} onChange={() => void toggle(r.path)} /> {r.name}</label>

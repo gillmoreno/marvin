@@ -83,6 +83,13 @@ spec:
           command: ["marvin-entrypoint", "python", "-m", "marvin.main"]
           env:
             - { name: DOCKER_HOST, value: "tcp://localhost:2375" }
+            # Room sandboxes (docs_and_changelog/sandbox.md) are containers inside the dind sidecar. /work is the same
+            # PVC at the same path in worker and dind, so the repo bind mounts resolve without MARVIN_SANDBOX_MOUNTS;
+            # `host` network inside dind is the Pod's namespace, so app ports show up as before. The image must be
+            # pullable by dind: publish deploy/sandbox to your registry (the worker pulls it when it names one).
+            - { name: MARVIN_SANDBOX, value: docker }
+            - { name: MARVIN_SANDBOX_IMAGE, value: "ghcr.io/example/marvin-sandbox:latest" }
+            - { name: MARVIN_SANDBOX_USER, value: "0:0" }
             - { name: LIVEKIT_URL, value: "ws://127.0.0.1:7880" }
             - { name: MARVIN_WHISPER, value: "small" }   # fallback when MARVIN_STT_URL is unset
             - { name: MARVIN_STT_URL, value: "ws://marvin-stt:8765/v1/stream" }   # streaming STT (deploy/k8s/stt.yaml)

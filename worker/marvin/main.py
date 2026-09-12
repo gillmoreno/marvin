@@ -11,6 +11,7 @@ from marvin.admin import serve_admin
 from marvin.config import Config, RoomConfig, load_config
 from marvin.ports import AppsRouting
 from marvin.room.manager import RoomManager
+from marvin.sandbox import Sandbox, SandboxConfig, SandboxError
 from marvin.stt import make_stt
 
 log = logging.getLogger("marvin")
@@ -27,13 +28,20 @@ async def run(args: argparse.Namespace) -> None:
         config = Config(rooms=(RoomConfig(name=args.room, repo=args.repo, model=args.model, language=args.language),))
     else:
         config = Config(rooms=())
+    if args.sandbox:
+        os.environ["MARVIN_SANDBOX"] = args.sandbox
+    try:
+        sandbox = Sandbox(SandboxConfig.from_env(), state_dir=args.state_dir)
+        await sandbox.check()  # daemon reachable, image present; a clear message instead of every room failing later
+    except (SandboxError, ValueError) as e:
+        raise SystemExit(f"sandbox: {e}") from None
     stt = make_stt(stt_url=args.stt_url, whisper_model=args.whisper_model)
     mgr = RoomManager(
         config,
         repos_dir=args.repos_dir,
         state_dir=args.state_dir,
         routing=AppsRouting.from_env(),
-        session_kwargs=dict(url=args.url, api_key=args.api_key, api_secret=args.api_secret, stt=stt, agent_name=args.name, state_dir=args.state_dir),
+        session_kwargs=dict(url=args.url, api_key=args.api_key, api_secret=args.api_secret, stt=stt, agent_name=args.name, state_dir=args.state_dir, sandbox=sandbox),
     )
     await mgr.start_all()
     log.info("serving %d room(s): %s", len(mgr.sessions), ", ".join(sorted(mgr.sessions)) or "(none yet; create one from the UI)")
@@ -64,6 +72,7 @@ def main() -> None:
     p.add_argument("--state-dir", default=os.environ.get("MARVIN_STATE_DIR"), help="per-room state + dynamic rooms; unset = nothing persists")
     p.add_argument("--admin-port", type=int, default=int(os.environ.get("MARVIN_ADMIN_PORT", "8090")), help="0 disables the admin API")
     p.add_argument("--admin-host", default=os.environ.get("MARVIN_ADMIN_HOST", "127.0.0.1"), help="bind address of the admin API; it has no auth of its own (the token server enforces roles), so only 127.0.0.1 or a private container network")
+    p.add_argument("--sandbox", choices=["off", "docker"], default=None, help="run each room's agent in its own Docker container (MARVIN_SANDBOX; see MARVIN_SANDBOX_* for image, network, limits)")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")

@@ -139,18 +139,27 @@ def create_harness(
     resume: str | None = None,
     add_dirs: list[str] | None = None,
     permissions: PermissionBroker | None = None,
+    sandbox: Any | None = None,
 ):
-    """Build the adapter for a profile. `permissions` may be None: RoomSession assigns the broker after construction."""
+    """Build the adapter for a profile. `permissions` may be None: RoomSession assigns the broker after construction.
+    `sandbox` (marvin.sandbox.RoomSandbox) makes the agent process run inside the room's container: ACP commands are
+    prefixed with `docker exec`, the Claude SDK is pointed at a wrapper that does the same for its `claude` binary."""
     p = get(profile) if isinstance(profile, str) else profile
     if p.kind == "claude-sdk":
         from .claude_code import ClaudeCodeHarness  # heavy import (SDK), only when used
 
-        return ClaudeCodeHarness(cwd, permissions=permissions, agent_name=agent_name, room=room, model=model, resume=resume, add_dirs=list(add_dirs or []))  # type: ignore[arg-type]
+        return ClaudeCodeHarness(
+            cwd, permissions=permissions, agent_name=agent_name, room=room, model=model, resume=resume, add_dirs=list(add_dirs or []),  # type: ignore[arg-type]
+            cli_path=sandbox.cli_path("claude") if sandbox else None,
+        )
     if p.kind == "acp":
         from .acp import AcpHarness
 
+        command = effective_command(p)
+        if sandbox:
+            command = sandbox.wrap(command, env=dict(p.env))
         return AcpHarness(
-            cwd, permissions, agent_name=agent_name, room=room, command=effective_command(p), env=dict(p.env), model=model, resume=resume,
+            cwd, permissions, agent_name=agent_name, room=room, command=command, env=dict(p.env), model=model, resume=resume,
             add_dirs=list(add_dirs or []), name=p.id, system_prompt=ROOM_SYSTEM_PROMPT,
         )
     raise ValueError(f"harness {p.id!r} has unknown kind {p.kind!r}")
