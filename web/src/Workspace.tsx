@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChangesPane } from "./ChangesPane";
+import { ScreenShareView, screenShareKey, screenShareLabel, useScreenShares } from "./ScreenShare";
 import type { ControlMessage } from "./protocol";
 
 type Link = { label: string; url: string };
 
-/** The centre of the room: the running app(s) and what changed, in tabs. Files come next. */
+/** The centre of the room: the running app(s), shared screens and what changed, in tabs. Files come next. */
 export function Workspace({ room, appLinks, refreshKey, send, wanted, onShown }: { room: string; appLinks: Link[]; refreshKey: number; send: (m: ControlMessage) => void; wanted: string | null; onShown: () => void }) {
   const apps = appLinks.filter((l) => l.url);
+  const screens = useScreenShares();
   const [active, setActive] = useState<string>("changes");
   const [reload, setReload] = useState(0);
 
@@ -18,12 +20,30 @@ export function Workspace({ room, appLinks, refreshKey, send, wanted, onShown }:
   useEffect(() => {
     if (active.startsWith("app:") && !apps.some((a) => `app:${a.url}` === active)) setActive("changes");
   }, [apps, active]);
+  // A screen that starts being shared takes the middle; when it stops, go back to Changes.
+  const seenScreens = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const keys = screens.map(screenShareKey);
+    const fresh = keys.find((k) => !seenScreens.current.has(k));
+    seenScreens.current = new Set(keys);
+    if (fresh) setActive(`screen:${fresh}`);
+    else if (active.startsWith("screen:") && !keys.includes(active.slice("screen:".length))) setActive("changes");
+  }, [screens, active]);
 
   const current = apps.find((a) => `app:${a.url}` === active);
+  const screen = screens.find((t) => `screen:${screenShareKey(t)}` === active);
   return (
     <div className="workspace">
       <div className="ws-tabs">
         <button className={active === "changes" ? "on" : ""} onClick={() => setActive("changes")}>Changes</button>
+        {screens.map((t) => {
+          const key = `screen:${screenShareKey(t)}`;
+          return (
+            <button key={key} className={`${active === key ? "on" : ""} live`.trim()} onClick={() => setActive(key)}>
+              <span className="dot rec" /> {screenShareLabel(t)}
+            </button>
+          );
+        })}
         {apps.map((a) => (
           <button key={a.url} className={active === `app:${a.url}` ? "on" : ""} onClick={() => setActive(`app:${a.url}`)} title={a.url}>▶ {a.label}</button>
         ))}
@@ -37,6 +57,7 @@ export function Workspace({ room, appLinks, refreshKey, send, wanted, onShown }:
       </div>
       <div className="ws-body">
         {active === "changes" && <ChangesPane room={room} refreshKey={refreshKey} send={send} />}
+        {screen && <ScreenShareView track={screen} />}
         {current && (
           <iframe key={`${current.url}#${reload}`} className="preview" src={current.url} title={current.label} sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" />
         )}

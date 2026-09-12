@@ -97,6 +97,12 @@ button.danger { background: var(--bad); color: #fff; } button.ghost { background
 .ws-actions .btn { color: var(--dim); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; }
 .ws-body { flex: 1; min-height: 0; display: flex; }
 .preview { flex: 1; border: 0; background: #fff; }
+/* Shared screens: the tab appears only while someone shares; the video is letterboxed to the middle column. */
+.ws-tabs .dot { width: 7px; height: 7px; vertical-align: middle; }
+.dot.rec { background: var(--warn); animation: pulse 1.2s infinite; }
+.screenshare { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; position: relative; }
+.screenshare-video { width: 100%; height: 100%; object-fit: contain; }
+.screenshare-cap { position: absolute; left: 12px; bottom: 8px; margin: 0; font-size: 12px; background: rgba(0,0,0,.6); padding: 2px 8px; border-radius: 6px; }
 .ws-foot { margin: 0; padding: 6px 12px; font-size: 12px; border-top: 1px solid var(--line); }
 .dim { color: var(--dim); }
 .applink-dead { display: block; color: var(--dim); padding: 4px 8px; font-size: 12px; }

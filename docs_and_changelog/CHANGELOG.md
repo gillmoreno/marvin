@@ -2,6 +2,13 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-12 — Shared screens in the middle column
+
+### Fixed
+- Screen share published fine (ControlBar) but nothing rendered it on either side. `web/src/ScreenShare.tsx` subscribes
+  to `Track.Source.ScreenShare` tracks; the Workspace shows one tab per shared screen (yours included, as a preview),
+  switches to a share when it starts and back to Changes when it stops.
+
 ## 2026-09-12 — Edge authentication and roles
 
 Design and operations: `authentication.md`. Closes findings 1–3 of `security-and-compliance.md` §3.
