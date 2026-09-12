@@ -2,6 +2,24 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-12 — Connect GitHub from the browser
+
+Design, operator setup and limits: `github.md`. Roadmap item 7, per-user half.
+
+### Added
+- Settings → **GitHub** → **Connect GitHub**: GitHub's device flow from the UI (`web/src/GitHubConnect.tsx`). The
+  worker requests a device code, the panel shows it and opens github.com/login/device, the worker polls until
+  approved and stores the token encrypted (Fernet, key from `MARVIN_SESSION_SECRET`) in `<state_dir>/github.json`.
+  Status, verify-on-open and Disconnect. Needs `MARVIN_GITHUB_CLIENT_ID` (an OAuth App with device flow enabled).
+- `worker/marvin/github.py`: `TokenStore`, `GitHubConnect` (flows, polling, `/user` lookup, revocation check) and
+  `GitIdentity`: per-room `gitconfig`, `token` and `gh/hosts.yml` under the room HOME, rewritten at every turn start
+  with the identity of the person who asked (their connected account → machine `GITHUB_TOKEN` → none). Harnesses get
+  `GIT_CONFIG_GLOBAL` / `GH_CONFIG_DIR` pointing at them; both are forwarded into the sandbox.
+- Admin API `/github/me` (GET/DELETE), `/github/connect` (POST), `/github/connect/{flow}` (GET), keyed by
+  `X-Marvin-User`; the token server proxies `/api/github/*` as self-service (every signed-in user, own record only).
+- `Conductor(on_turn_begin=…)`; `create_harness(env=…)`; `ClaudeCodeHarness(env=…)`.
+- Direct dependencies `httpx`, `cryptography` (were transitive). Tests: `tests/test_github.py`.
+
 ## 2026-09-12 — Room sandbox
 
 Design and operations: `sandbox.md`. Roadmap item 1; addresses the agent-isolation half of finding 4 in

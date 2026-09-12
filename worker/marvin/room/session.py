@@ -17,6 +17,7 @@ from marvin.adapters.base import Harness
 from marvin.adapters.registry import create_harness
 from marvin.bridge import Timeline
 from marvin.config import RoomConfig
+from marvin.github import GitIdentity
 from marvin.sandbox import Sandbox
 from marvin.stt import SegmenterFactory
 
@@ -77,12 +78,14 @@ class RoomSession:
         agent_name: str = "Marvin",
         state_dir: str | None = None,
         sandbox: Sandbox | None = None,
+        git_identity: GitIdentity | None = None,
     ) -> None:
         self.cfg = cfg
         self.url, self.api_key, self.api_secret = url, api_key, api_secret
         self.stt = stt
         self.agent_name = agent_name
         self.sandbox = sandbox if sandbox and sandbox.cfg.enabled else None
+        self.git_identity = git_identity
         self.state_file = Path(state_dir) / f"{cfg.name}.json" if state_dir else None
         self.room = rtc.Room()
         self.consumers: dict[str, asyncio.Task] = {}
@@ -109,7 +112,22 @@ class RoomSession:
         return create_harness(
             self.harness_id(cfg), cfg.repo, agent_name=self.agent_name, room=cfg.name, model=cfg.model, resume=resume, add_dirs=list(cfg.linked), permissions=None,
             sandbox=self.sandbox.for_room(cfg) if self.sandbox else None,
+            env=self.git_identity.env(cfg.name) if self.git_identity else None,
         )
+
+    def identity_of(self, name: str) -> str | None:
+        """Marvin identity id of the participant the room knows as `name` (participant.name, or identity when unnamed)."""
+        for p in self.room.remote_participants.values():
+            if (p.name or p.identity) == name:
+                return p.identity
+        return None
+
+    async def _on_turn_begin(self, asked_by: str) -> None:
+        """The person who asked becomes the git/gh identity for this turn (their connected GitHub, or the machine's)."""
+        if not self.git_identity:
+            return
+        who = await asyncio.to_thread(self.git_identity.apply, self.cfg.name, self.identity_of(asked_by))
+        log.info("room %s: turn by %s, git identity: %s", self.cfg.name, asked_by, who)
 
     async def _ensure_sandbox(self, cfg: RoomConfig) -> None:
         """The room's container exists and matches cfg (repo, linked repos) before any harness process is spawned."""
@@ -163,8 +181,13 @@ class RoomSession:
                 self._save_state(session_id=event["session_id"])
             await self.room.local_participant.publish_data(encode(event), reliable=True, topic=TOPIC_EVENTS)
 
+        if self.git_identity:
+            await asyncio.to_thread(self.git_identity.apply, cfg.name, None)  # machine identity until someone asks
         harness = self._make_harness(cfg, resume)
-        self.conductor = Conductor(harness, publish, agent_name=self.agent_name, timeline=Timeline(t0=time.monotonic()), app_links=[l.to_wire() for l in cfg.app_links])
+        self.conductor = Conductor(
+            harness, publish, agent_name=self.agent_name, timeline=Timeline(t0=time.monotonic()), app_links=[l.to_wire() for l in cfg.app_links],
+            on_turn_begin=self._on_turn_begin if self.git_identity else None,
+        )
         harness.permissions = self.conductor.permissions
         conductor = self.conductor
 

@@ -10,7 +10,9 @@ git config --global user.email "${MARVIN_GIT_EMAIL:-marvin@example.com}"
 git config --global init.defaultBranch main
 git config --global --add safe.directory '*'
 
-# GitHub over HTTPS with the token the worker forwards per exec; the token itself is never written to disk.
+# GitHub over HTTPS with the token the worker forwards per exec. This is the fallback only: when the worker has a
+# state dir it points GIT_CONFIG_GLOBAL / GH_CONFIG_DIR at per-room files it rewrites at every turn with the
+# identity of the person who asked (their connected GitHub account, see docs_and_changelog/github.md).
 git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=${GITHUB_TOKEN:-$GH_TOKEN}"; }; f'
 git config --global url."https://github.com/".insteadOf "git@github.com:"
 

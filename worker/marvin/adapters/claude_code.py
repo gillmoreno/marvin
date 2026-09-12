@@ -47,6 +47,7 @@ class ClaudeCodeHarness:
         max_turns: int = 40,
         add_dirs: list[str] | None = None,
         cli_path: str | None = None,
+        env: dict[str, str] | None = None,
     ) -> None:
         self.cwd = cwd
         self.permissions = permissions
@@ -55,10 +56,12 @@ class ClaudeCodeHarness:
         self.model: str | None = model  # effective model, filled from the session init message
         self.add_dirs = list(add_dirs or [])
         self.cli_path = cli_path  # None: the SDK's bundled `claude`; set by the sandbox to a `docker exec` wrapper
+        self.env = dict(env or {})
         self._client: ClaudeSDKClient | None = None
         self._options = ClaudeAgentOptions(
             cwd=cwd,
             cli_path=cli_path,
+            env=self.env,
             model=model,
             resume=resume,
             max_turns=max_turns,

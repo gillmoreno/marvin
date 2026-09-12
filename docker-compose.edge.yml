@@ -93,6 +93,10 @@ services:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       MARVIN_GIT_NAME: ${MARVIN_GIT_NAME:-Marvin}
       MARVIN_GIT_EMAIL: ${MARVIN_GIT_EMAIL:-marvin@example.com}
+      # "Connect GitHub" in Settings (device flow, docs_and_changelog/github.md). Per-user tokens are stored encrypted
+      # with MARVIN_SESSION_SECRET under the state dir.
+      MARVIN_GITHUB_CLIENT_ID: ${MARVIN_GITHUB_CLIENT_ID:-}
+      MARVIN_SESSION_SECRET: ${MARVIN_SESSION_SECRET:-}
     volumes:
       - marvin_work:/work
       - ${MARVIN_ROOMS_FILE:-./deploy/edge/rooms.yaml}:/etc/marvin/rooms.yaml:ro

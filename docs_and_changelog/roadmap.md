@@ -71,9 +71,10 @@ screen share, transcript clock, Docker room sandbox (`sandbox.md`).
 6. Two-origin preview: make the iframe preview handle SPA-on-one-port + API-on-another as well as it handles the
    single-origin shape (what Rails/Django teams will show up with). Small; can slot in anywhere.
 7. **Connect GitHub from the browser** (decided 2026-09-12, `decisions-log.md`). No `.env`, no terminal:
-   - Per user: "Connect GitHub" in Settings runs GitHub's device flow (show a code, confirm on github.com). The worker
-     stores the user token encrypted and serves it to git/gh through a credential helper keyed by room + current
-     requester, so commits and PRs are authored by the human who asked. Falls back to the machine identity.
+   - ~~Per user~~ Shipped 2026-09-12 (`github.md`): "Connect GitHub" in Settings runs GitHub's device flow (show a
+     code, confirm on github.com). The worker stores the user token encrypted and hands it to git/gh through per-room
+     identity files rewritten at every turn for the person who asked, so commits and PRs are authored by the human
+     who asked. Falls back to the machine identity. One operator step remains: `MARVIN_GITHUB_CLIENT_ID`.
    - Per machine: a GitHub App created through the manifest flow (one click creates it, a second installs it on the
      org with repo selection) replaces the PAT; installation tokens are minted per hour, scoped to selected repos.
    - Clone-by-URL on the join screen becomes a repo picker listing what the connected account/installation can see.

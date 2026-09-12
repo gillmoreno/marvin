@@ -28,11 +28,13 @@ class Conductor:
         timeline: Timeline | None = None,
         uploads_dir: str | Path | None = None,
         app_links: list[dict] | None = None,
+        on_turn_begin: Callable[[str], Awaitable[None]] | None = None,
     ) -> None:
         self.harness = harness
         self.publish = publish
         self.agent_name = agent_name
         self.app_links = app_links or []
+        self.on_turn_begin = on_turn_begin  # called with the requester's name before the harness sees the prompt (git identity)
         self.timeline = timeline if timeline is not None else Timeline()  # an empty Timeline is falsy (__len__)
         self.assembler = TurnAssembler(self.timeline, WakeDetector(name=agent_name))
         self.permissions = PermissionBroker(self._notify_permission)
@@ -135,6 +137,11 @@ class Conductor:
             await self._set_state("thinking")
             await self.publish({"kind": "turn_start", "asked_by": turn.asked_by, "question": turn.question})
             try:
+                if self.on_turn_begin:
+                    try:
+                        await self.on_turn_begin(turn.asked_by)
+                    except Exception:
+                        log.exception("on_turn_begin")
                 prompt = render_prompt(turn, self.timeline, agent_name=self.agent_name, attachments=[str(a.path) for a in attachments])
                 async for ev in self.harness.send(prompt):
                     if ev.kind == "turn_start":

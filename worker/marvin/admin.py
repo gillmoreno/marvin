@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from aiohttp import web
 
 from marvin.adapters import registry
 from marvin.changes import changes as repo_changes, file_diff
+from marvin.github import GitHubConnect
 from marvin.room.manager import RoomManager
 from marvin import notes as notes_mod
 
@@ -20,8 +22,60 @@ def who(req: web.Request) -> str:
     return f"{user} [{roles}]" if roles else user
 
 
-def make_admin_app(mgr: RoomManager) -> web.Application:
+def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None) -> web.Application:
     app = web.Application()
+
+    # -- GitHub connection (self-service: the token server lets every signed-in user call /github/*) --------------
+    def _user(req: web.Request) -> str | None:
+        u = req.headers.get("X-Marvin-User", "").strip()
+        return u if u and u != "?" else None
+
+    async def github_me(req: web.Request) -> web.Response:
+        if github is None:
+            return web.json_response({"configured": False, "connected": None, "machine_identity": False})
+        user = _user(req)
+        if not user:
+            return web.json_response({"error": "no signed-in user"}, status=400)
+        if req.query.get("verify") and github.store.get(user):
+            await github.verify(user)
+        return web.json_response(github.status(user))
+
+    async def github_connect(req: web.Request) -> web.Response:
+        if github is None:
+            return web.json_response({"error": "GitHub connection is not available"}, status=501)
+        user = _user(req)
+        if not user:
+            return web.json_response({"error": "no signed-in user"}, status=400)
+        try:
+            flow = await github.start(user)
+        except RuntimeError as e:
+            return web.json_response({"error": str(e)}, status=503)
+        log.info("%s starts a GitHub device flow", who(req))
+        return web.json_response({"flow": flow.id, "user_code": flow.user_code, "verification_uri": flow.verification_uri, "expires_in": int(flow.expires_at - time.time()), "interval": flow.interval}, status=201)
+
+    async def github_flow(req: web.Request) -> web.Response:
+        if github is None:
+            return web.json_response({"error": "GitHub connection is not available"}, status=501)
+        user = _user(req)
+        flow = github.get_flow(req.match_info["flow"], user or "")
+        if not flow:
+            return web.json_response({"error": "no such flow"}, status=404)
+        return web.json_response({"status": flow.status, "error": flow.error, "connected": flow.connection.public() if flow.connection else None})
+
+    async def github_disconnect(req: web.Request) -> web.Response:
+        if github is None:
+            return web.json_response({"error": "GitHub connection is not available"}, status=501)
+        user = _user(req)
+        if not user:
+            return web.json_response({"error": "no signed-in user"}, status=400)
+        github.disconnect(user)
+        log.info("%s disconnects GitHub", who(req))
+        return web.json_response(github.status(user))
+
+    app.router.add_get("/github/me", github_me)
+    app.router.add_delete("/github/me", github_disconnect)
+    app.router.add_post("/github/connect", github_connect)
+    app.router.add_get("/github/connect/{flow}", github_flow)
 
     async def rooms(req: web.Request) -> web.Response:
         return web.json_response({"rooms": mgr.describe()})
@@ -148,8 +202,8 @@ def make_admin_app(mgr: RoomManager) -> web.Application:
     return app
 
 
-async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090) -> web.AppRunner:
-    runner = web.AppRunner(make_admin_app(mgr))
+async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090, github: GitHubConnect | None = None) -> web.AppRunner:
+    runner = web.AppRunner(make_admin_app(mgr, github))
     await runner.setup()
     await web.TCPSite(runner, host, port).start()
     log.info("admin api on http://%s:%d", host, port)

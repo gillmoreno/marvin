@@ -28,8 +28,13 @@ WEB_DIST = os.environ.get("MARVIN_WEB_DIST")  # directory with the built web UI;
 
 # Proxied admin routes. Everything needs a session; writes need `admin`; the machine notes need `admin` even to read
 # (they are a prompt-injection surface into every room).
-PROXIED = ("/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/models", "/api/harnesses", "/api/notes")
+PROXIED = (
+    "/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/models", "/api/harnesses", "/api/notes",
+    "/api/github/me", "/api/github/connect", "/api/github/connect/{flow}",
+)
 ADMIN_ONLY_PREFIXES = ("/api/notes",)
+# Self-service: every signed-in user may write here, because it only touches their own record (keyed by X-Marvin-User).
+SELF_SERVICE_PREFIXES = ("/api/github/",)
 
 
 def auth_of(req: web.Request) -> Auth:
@@ -60,7 +65,7 @@ async def proxy_admin(req: web.Request) -> web.Response:
     ident = identity_of(req)
     if ident is None:
         return web.json_response({"error": "not signed in"}, status=401)
-    if not ident.is_admin and (req.method not in ("GET", "HEAD") or req.path.startswith(ADMIN_ONLY_PREFIXES)):
+    if not ident.is_admin and not req.path.startswith(SELF_SERVICE_PREFIXES) and (req.method not in ("GET", "HEAD") or req.path.startswith(ADMIN_ONLY_PREFIXES)):
         return web.json_response({"error": "admin role required"}, status=403)
     path = req.path[len("/api"):]
     headers = {"content-type": req.content_type, "X-Marvin-User": ident.id, "X-Marvin-Roles": ",".join(sorted(ident.roles))}

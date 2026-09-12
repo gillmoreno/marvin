@@ -48,6 +48,7 @@ DEFAULT_FORWARD_ENV: tuple[str, ...] = (
     "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
     "MARVIN_GIT_NAME", "MARVIN_GIT_EMAIL", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
     "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_AGENT_SDK_VERSION", "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING", "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
+    "GIT_CONFIG_GLOBAL", "GH_CONFIG_DIR",  # the per-turn git/gh identity files (marvin.github), under the room HOME
     "TERM", "LANG", "LC_ALL",
 )
 _NAME_RE = re.compile(r"[^a-z0-9-]+")
