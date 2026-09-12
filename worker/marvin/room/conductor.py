@@ -76,8 +76,10 @@ class Conductor:
     # -- inputs -----------------------------------------------------------------
     async def on_segment(self, seg: Segment) -> None:
         """An utterance from one speaker's STT: interim (final=False, UI only) or final (becomes a turn candidate)."""
+        # start/end are session-relative seconds (what the prompt context uses); `at` is wall-clock for the UI.
+        at = time.time() - (time.monotonic() - seg.start)
         await self.publish(
-            {"kind": "transcript", "speaker": seg.speaker, "text": seg.text, "start": seg.start - self.timeline.t0, "end": seg.end - self.timeline.t0, "final": seg.final}
+            {"kind": "transcript", "speaker": seg.speaker, "text": seg.text, "start": seg.start - self.timeline.t0, "end": seg.end - self.timeline.t0, "at": at, "final": seg.final}
         )
         turn = self.assembler.on_segment(seg)
         if turn:

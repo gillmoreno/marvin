@@ -10,7 +10,7 @@ export function Transcript({ lines }: { lines: TranscriptLine[] }) {
       {lines.length === 0 && <p className="hint">Live transcript of everyone in the room appears here.</p>}
       {lines.map((l, i) => (
         <p key={i} className={l.final === false ? "interim" : undefined}>
-          <span className="t">{mmss(l.start)}</span> <b>{l.speaker}</b> {l.text}
+          <span className="t" title={`${l.start.toFixed(1)} s into the session`}>{clock(l)}</span> <b>{l.speaker}</b> {l.text}
         </p>
       ))}
       <div ref={endRef} />
@@ -18,7 +18,9 @@ export function Transcript({ lines }: { lines: TranscriptLine[] }) {
   );
 }
 
-function mmss(s: number) {
-  const m = Math.floor(s / 60);
-  return `${String(m).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+/** Wall-clock time of the utterance (`at`, epoch seconds); older workers only send session-relative `start`. */
+function clock(l: TranscriptLine) {
+  if (l.at) return new Date(l.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const m = Math.floor(l.start / 60);
+  return `${String(m).padStart(2, "0")}:${String(Math.floor(l.start % 60)).padStart(2, "0")}`;
 }

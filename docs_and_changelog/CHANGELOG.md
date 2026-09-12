@@ -5,6 +5,9 @@ All notable changes to Marvin. Entries are dated; the newest is on top.
 ## 2026-09-12 — Shared screens in the middle column
 
 ### Fixed
+- Transcript timestamps were minutes:seconds since the worker joined the room (`185:37` after three hours). Transcript
+  events now also carry `at` (epoch seconds) and the UI shows local wall-clock time; session-relative `start` stays
+  on the wire for prompt context and is shown as a tooltip.
 - Screen share published fine (ControlBar) but nothing rendered it on either side. `web/src/ScreenShare.tsx` subscribes
   to `Track.Source.ScreenShare` tracks; the Workspace shows one tab per shared screen (yours included, as a preview),
   switches to a share when it starts and back to Changes when it stops.
