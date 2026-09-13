@@ -4,8 +4,6 @@
 {
 	on_demand_tls {
 		ask http://web:8080/tls-ask
-		interval 2m
-		burst 5
 	}
 }
 

@@ -2,6 +2,17 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-13 — Join gate: machine GitHub, an agent, optional personal GitHub
+
+### Added
+- Join page is a three-step gate. **This machine’s GitHub** and **a coding agent** are required (admin, once).
+  **Your GitHub** is optional and never blocks Join. The page says who you are logged in as (email, else name).
+  Password login asks for email. `GET /api/setup` is what the page polls.
+- Machine GitHub account (`PUT /api/github/machine`, or `GITHUB_TOKEN`): shared clone/push/PR identity. Commits
+  say Marvin unless the asker attached their own GitHub. Personal PAT (`PUT /api/github/me`) is self-service.
+- Device-flow links include the user code. **GitHub went blank** / **paste a token** is the escape hatch (no
+  client id needed for a PAT). Docs: `github.md`.
+
 ## 2026-09-13 — Immediate feedback and in-app updates
 
 ### Added
@@ -12,6 +23,7 @@ All notable changes to Marvin. Entries are dated; the newest is on top.
 - Typing a question and hitting Send paints the line and the turn at once (and on the transcript). A follow-up
   while Marvin is still working shows as queued instead of vanishing until the current turn ends. Allow/Deny
   also clear the banner on click.
+- Caddy `caddy:2` no longer accepts `on_demand_tls interval` / `burst`; the preview catch-all only uses `ask`.
 
 ## 2026-09-13 — AWS Terraform appliance
 
