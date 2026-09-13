@@ -195,10 +195,11 @@ class Auth:
         if not (is_admin or is_room):
             return None
         roles = {PARTICIPANT, ADMIN} if is_admin else {PARTICIPANT}
-        return Identity(id=slug(name), name=name, roles=frozenset(roles))
+        email = name if "@" in name else None
+        return Identity(id=slug(name), name=name, email=email, roles=frozenset(roles))
 
     def make_session(self, ident: Identity, now: float | None = None) -> str:
-        payload = {"id": ident.id, "name": ident.name, "roles": sorted(ident.roles), "exp": int((now or time.time()) + self.session_seconds)}
+        payload = {"id": ident.id, "name": ident.name, "email": ident.email, "roles": sorted(ident.roles), "exp": int((now or time.time()) + self.session_seconds)}
         body = _b64(json.dumps(payload, separators=(",", ":")).encode())
         return f"{body}.{_b64(self._sign(body))}"
 
@@ -212,7 +213,8 @@ class Auth:
             data = json.loads(_unb64(body))
             if float(data["exp"]) < (now or time.time()):
                 return None
-            return Identity(id=str(data["id"]), name=str(data["name"]), roles=frozenset(str(r) for r in data["roles"]) | {PARTICIPANT})
+            email = data.get("email")
+            return Identity(id=str(data["id"]), name=str(data["name"]), email=str(email) if email else None, roles=frozenset(str(r) for r in data["roles"]) | {PARTICIPANT})
         except Exception:
             return None
 

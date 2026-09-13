@@ -4,14 +4,14 @@ import { People } from "./People";
 import { MarvinPane } from "./MarvinPane";
 import { Transcript } from "./Transcript";
 import { useMarvin } from "./useMarvin";
-import { RoomPicker } from "./RoomPicker";
+import { JoinGate } from "./JoinGate";
 import { Workspace } from "./Workspace";
 import { SettingsPanel } from "./Settings";
 import { agent, loadAgentName } from "./agent";
 import { RoomAndMachine, useRoomInfo, useHarnesses, useModels } from "./RoomSettings";
 import { Gutter, useColumns } from "./Columns";
 import { SlidersIcon } from "./icons";
-import { MeContext, fetchMe, isAdmin, login, logout, type Me } from "./auth";
+import { MeContext, fetchMe, login, type Me } from "./auth";
 import { ThemeProvider, useTheme } from "./theme/ThemeContext";
 import { AgentPresence } from "./theme/Presence";
 import { stateLabel } from "./People";
@@ -251,49 +251,28 @@ function AppLinks({ links, onOpen }: { links: { label: string; url: string }[]; 
   );
 }
 
-/** Join screen. Password mode without a session shows the login form; header mode shows who the proxy signed in;
- * none mode (localhost dev) asks for a name as before. */
+/** Join screen. Password mode without a session shows the login form; everyone else hits the three-step gate
+ * (machine GitHub + an agent required; personal GitHub optional). none mode still asks for a display name. */
 function JoinScreen({ onJoin, error }: { onJoin: (room: string, name: string | null) => void; error: string | null }) {
   const { me, setMe } = useContext(MeContext);
-  const [room, setRoom] = useState(localStorage.getItem("marvin.room") ?? "");
   const [name, setName] = useState(localStorage.getItem("marvin.name") ?? "");
   const [agentName, setAgentName] = useState(agent.name);
   useEffect(() => { void loadAgentName().then(setAgentName); }, []);
   if (me.auth === "password" && !me.identity) return <LoginScreen agentName={agentName} onLogin={setMe} notice={error} />;
-  const needsName = me.auth === "none";
-  const canJoin = Boolean(room) && (!needsName || Boolean(name));
   return (
-    <form
-      className="join"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!canJoin) return;
-        localStorage.setItem("marvin.room", room);
-        if (needsName) localStorage.setItem("marvin.name", name);
-        onJoin(room, needsName ? name : null);
-      }}
-    >
-      <h1>Marvin</h1>
-      <p>A voice room with a coding agent in it. Say "{agentName}" to talk to it.</p>
-      {needsName ? (
-        <label>Your name <input value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></label>
-      ) : (
-        <p className="signedin">
-          Signed in as <b>{me.identity?.name}</b>{isAdmin(me) && <span className="badge">admin</span>}
-          {me.auth === "password" && (
-            <button type="button" className="ghost" onClick={() => void logout().then(() => setMe({ ...me, identity: null }))}>log out</button>
-          )}
-        </p>
-      )}
-      <RoomPicker value={room} onPick={setRoom} />
-      <button type="submit" disabled={!canJoin}>Join {room || "a room"}</button>
-      {error && <p className="error">{error}</p>}
-    </form>
+    <JoinGate
+      onJoin={onJoin}
+      error={error}
+      needsName={me.auth === "none"}
+      name={name}
+      setName={setName}
+      agentName={agentName}
+    />
   );
 }
 
 function LoginScreen({ agentName, onLogin, notice }: { agentName: string; onLogin: (m: Me) => void; notice: string | null }) {
-  const [name, setName] = useState(localStorage.getItem("marvin.name") ?? "");
+  const [email, setEmail] = useState(localStorage.getItem("marvin.name") ?? "");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -302,23 +281,23 @@ function LoginScreen({ agentName, onLogin, notice }: { agentName: string; onLogi
       className="join"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!name || !password) return;
+        if (!email || !password) return;
         setBusy(true);
         setError(null);
-        login(name, password)
-          .then((m) => { localStorage.setItem("marvin.name", name); onLogin(m); })
+        login(email, password)
+          .then((m) => { localStorage.setItem("marvin.name", email); onLogin(m); })
           .catch((err) => setError(String(err instanceof Error ? err.message : err)))
           .finally(() => setBusy(false));
       }}
     >
       <h1>Marvin</h1>
       <p>A voice room with a coding agent in it. Say "{agentName}" to talk to it.</p>
-      <label>Your name <input value={name} onChange={(e) => setName(e.target.value)} required autoFocus autoComplete="username" /></label>
+      <label>Email <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus autoComplete="username" /></label>
       <label>
         Room password <span className="hint small">(the admin password also works)</span>
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
       </label>
-      <button type="submit" disabled={busy || !name || !password}>{busy ? "signing in…" : "Sign in"}</button>
+      <button type="submit" disabled={busy || !email || !password}>{busy ? "signing in…" : "Sign in"}</button>
       {(error || notice) && <p className="error">{error ?? notice}</p>}
     </form>
   );

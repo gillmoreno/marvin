@@ -40,6 +40,13 @@ def test_key_encrypts_and_env_wins(tmp_path, monkeypatch):
     assert xai["key_source"] == "env" and xai["key_hint"].startswith("xai-")
 
 
+def test_ready_is_true_when_any_provider_is_set(tmp_path, monkeypatch):
+    c = creds(tmp_path, monkeypatch)
+    assert c.ready()["ready"] is False
+    c.put_key("xai", "xai-supersecret-key")
+    assert c.ready()["ready"] is True and c.ready()["label"] == "xAI (Grok)"
+
+
 def test_key_shape(tmp_path, monkeypatch):
     c = creds(tmp_path, monkeypatch)
     with pytest.raises(ValueError, match="sk-ant-"):

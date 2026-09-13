@@ -116,3 +116,10 @@ this file is the "why we did it this way" layer on top.
   SSM always, SSH only with a CIDR. No baked AMI, no Cloudflare provider, no VPC creator, no blocking health
   wait. A private `git_repo` needs `git_token` in SSM (clone on first boot only; not in `.env` or user-data).
   Write-up: `aws-terraform.md`.
+- **Join gate, not a wizard or an in-room takeover.** First-run lives on the join page. Three steps: this
+  machine’s GitHub (required, admin, once), a coding agent (required, admin, once), your GitHub (optional,
+  never blocks Join). People are identified by Marvin login (prefer email); GitHub is how the box talks to
+  repos, plus an optional author line for programmers who want their name on commits. Rejected: “everyone
+  must connect GitHub” (Alex has none) and “shared only” (programmers need the author line). Device flow
+  opens the URI that already contains the user code; a pasted PAT is the escape when GitHub’s confirmation
+  is blank. Write-up: `github.md`.

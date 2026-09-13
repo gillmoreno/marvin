@@ -1,9 +1,16 @@
 """Connect GitHub from the browser: per-user tokens through GitHub's device flow, handed to git and gh per turn.
 
-Flow (Settings -> Account -> Connect GitHub): the worker asks GitHub for a device code, the UI shows the 8-character
-user code and a link to github.com/login/device, the worker polls until the person approves, then stores the user
-token encrypted under their Marvin identity. No client secret is involved (device flow), so the only configuration
-is the public client id of an OAuth App with "Device flow" enabled: MARVIN_GITHUB_CLIENT_ID.
+Two GitHub identities:
+
+- **Machine** (required, admin, once): the shared account every room uses to clone, push and open PRs. A PAT
+  pasted in the join gate, or ``GITHUB_TOKEN`` in the environment. Commits say Marvin unless the person who asked
+  attached their own account.
+- **Personal** (optional): a signed-in person may connect their GitHub (device flow or a PAT) so *their* turns
+  write as them. Join never waits on this. People without GitHub still enter; they are known by their Marvin login.
+
+Device flow: the worker asks GitHub for a code, the UI shows it and a link that already contains the code
+(``verification_uri_complete``), the worker polls until approved. A PAT is the escape hatch when GitHub's
+confirmation page is blank. The OAuth App client id is only needed for device flow, not for a PAT.
 
 Per turn, the conductor asks `GitIdentity.apply(room, requester)` and the room's git and gh see that person's
 identity: `GIT_CONFIG_GLOBAL` points at a per-room gitconfig (user.name/email, a credential helper that reads a
@@ -92,6 +99,29 @@ class TokenStore:
         tmp.chmod(0o600)
         tmp.replace(self.path)
 
+    def machine(self) -> Connection | None:
+        """The shared machine account, if an admin pasted a token here (not the environment)."""
+        rec = (self._data.get("settings") or {}).get("machine")
+        if not rec:
+            return None
+        try:
+            token = self._fernet.decrypt(rec["token_enc"].encode()).decode()
+        except (InvalidToken, KeyError):
+            log.warning("machine GitHub token cannot be decrypted (session secret changed?); dropping it")
+            self.forget_machine()
+            return None
+        return Connection(login=rec["login"], name=rec["name"], email=rec["email"], token=token, scopes=rec.get("scopes", ""), connected_at=rec.get("connected_at", 0.0))
+
+    def put_machine(self, conn: Connection) -> None:
+        settings = self._data.setdefault("settings", {})
+        settings["machine"] = {**conn.public(), "token_enc": self._fernet.encrypt(conn.token.encode()).decode()}
+        self._save()
+
+    def forget_machine(self) -> None:
+        settings = self._data.setdefault("settings", {})
+        if settings.pop("machine", None) is not None:
+            self._save()
+
     def get(self, user_id: str) -> Connection | None:
         rec = self._data["users"].get(user_id)
         if not rec:
@@ -123,6 +153,7 @@ class Flow:
     expires_at: float
     interval: float
     status: str = "pending"  # pending | connected | error
+    dest: str = "user"  # user | machine
     error: str | None = None
     connection: Connection | None = None
     task: asyncio.Task | None = None
@@ -138,7 +169,7 @@ class GitHubConnect:
         self.env_client_id = client_id or os.environ.get("MARVIN_GITHUB_CLIENT_ID", "").strip() or None
         self.http = http or httpx.AsyncClient(timeout=20, headers={"Accept": "application/json", "User-Agent": "marvin"})
         self.flows: dict[str, Flow] = {}
-        self.machine_token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
+        self._env_machine = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
         self._repo_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
 
     @property
@@ -159,18 +190,61 @@ class GitHubConnect:
     def configured(self) -> bool:
         return bool(self.client_id)
 
+    @property
+    def machine_token(self) -> str | None:
+        if self._env_machine:
+            return self._env_machine
+        conn = self.store.machine()
+        return conn.token if conn else None
+
+    @machine_token.setter
+    def machine_token(self, value: str | None) -> None:
+        # Tests assign this; treat it as the environment override.
+        self._env_machine = value
+
+    def machine_public(self) -> dict[str, Any] | None:
+        """What every signed-in person may see about the shared account (never the token)."""
+        if self._env_machine:
+            cached = self.store.machine()
+            if cached and cached.token == self._env_machine:
+                return {**cached.public(), "source": "env"}
+            return {"login": None, "name": "Marvin", "email": "", "scopes": "", "connected_at": 0, "source": "env"}
+        conn = self.store.machine()
+        return {**conn.public(), "source": "settings"} if conn else None
+
     def status(self, user_id: str, *, admin: bool = False) -> dict[str, Any]:
         conn = self.store.get(user_id)
-        out: dict[str, Any] = {"configured": self.configured, "connected": conn.public() if conn else None, "machine_identity": bool(self.machine_token)}
+        machine = self.machine_public()
+        out: dict[str, Any] = {
+            "configured": self.configured, "connected": conn.public() if conn else None,
+            "machine_identity": bool(self.machine_token), "machine": machine,
+        }
         if admin:
             cid = self.client_id
             out["client_id"] = cid  # admins may see it; it is public anyway (the UI masks it by default)
             out["client_id_source"] = self.client_id_source
         return out
 
-    async def start(self, user_id: str) -> Flow:
+    async def connect_token(self, user_id: str, token: str) -> Connection:
+        """Store a pasted PAT as this person's GitHub. Join never requires this."""
+        conn = await self._whoami(_require_token(token))
+        self.store.put(user_id, conn)
+        log.info("github: %s connected as @%s (token paste)", user_id, conn.login)
+        return conn
+
+    async def connect_machine_token(self, token: str) -> Connection:
+        """Store a pasted PAT as the shared machine account."""
+        conn = await self._whoami(_require_token(token))
+        self.store.put_machine(conn)
+        log.info("github: machine account connected as @%s", conn.login)
+        return conn
+
+    def forget_machine(self) -> None:
+        self.store.forget_machine()
+
+    async def start(self, user_id: str, *, dest: str = "user") -> Flow:
         if not self.client_id:
-            raise RuntimeError("GitHub is not set up on this machine: an admin pastes the OAuth App client id in Settings → GitHub (or set MARVIN_GITHUB_CLIENT_ID)")
+            raise RuntimeError("Device flow needs the OAuth App client id (join gate or Settings → GitHub). Or paste a personal access token — that does not need a client id.")
         r = await self.http.post(DEVICE_CODE_URL, data={"client_id": self.client_id, "scope": SCOPES})
         try:
             d = r.json() if r.content else {}
@@ -183,13 +257,17 @@ class GitHubConnect:
             if r.status_code == 404 or err in ("Not Found", "unauthorized_client"):
                 raise RuntimeError("GitHub does not know this client id. Check it against the OAuth App page (Settings → Developer settings → OAuth Apps) and save it again.")
             raise RuntimeError(f"GitHub device code request failed: {d.get('error_description') or err or f'HTTP {r.status_code}'}")
+        base = d.get("verification_uri", "https://github.com/login/device")
+        complete = d.get("verification_uri_complete") or f"{base}?user_code={d['user_code']}"
+        if dest not in ("user", "machine"):
+            raise ValueError("dest must be user or machine")
         flow = Flow(
             id=secrets.token_urlsafe(12), user_id=user_id, device_code=d["device_code"], user_code=d["user_code"],
-            verification_uri=d.get("verification_uri", "https://github.com/login/device"),
+            verification_uri=complete, dest=dest,
             expires_at=time.time() + float(d.get("expires_in", 900)), interval=float(d.get("interval", 5)),
         )
-        # One live flow per user: starting again cancels the previous one.
-        for old in [f for f in self.flows.values() if f.user_id == user_id and f.status == "pending"]:
+        # One live flow per user+dest: starting again cancels the previous one.
+        for old in [f for f in self.flows.values() if f.user_id == user_id and f.dest == dest and f.status == "pending"]:
             if old.task:
                 old.task.cancel()
             self.flows.pop(old.id, None)
@@ -211,9 +289,12 @@ class GitHubConnect:
                 d = r.json() if r.content else {}
                 if token := d.get("access_token"):
                     conn = await self._whoami(token, scopes=d.get("scope", ""))
-                    self.store.put(flow.user_id, conn)
+                    if flow.dest == "machine":
+                        self.store.put_machine(conn)
+                    else:
+                        self.store.put(flow.user_id, conn)
                     flow.connection, flow.status = conn, "connected"
-                    log.info("github: %s connected as @%s", flow.user_id, conn.login)
+                    log.info("github: %s connected as @%s (%s)", flow.user_id, conn.login, flow.dest)
                     return
                 err = d.get("error")
                 if err == "authorization_pending":
@@ -233,6 +314,8 @@ class GitHubConnect:
     async def _whoami(self, token: str, *, scopes: str = "") -> Connection:
         h = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
         r = await self.http.get(f"{API}/user", headers=h)
+        if r.status_code == 401:
+            raise RuntimeError("GitHub rejected that token. Check it still exists and has repo access.")
         r.raise_for_status()
         u = r.json()
         email = u.get("email") or ""
@@ -273,7 +356,7 @@ class GitHubConnect:
         Cached for a minute per token. `query` filters on full name / description, case-insensitively."""
         token = self.token_for(user_id)
         if not token:
-            raise LookupError("connect GitHub first (Settings -> GitHub), or set GITHUB_TOKEN on the machine")
+            raise LookupError("connect GitHub first (join gate or Settings → GitHub), or set GITHUB_TOKEN on the machine")
         key = hashlib.sha256(token.encode()).hexdigest()[:16]
         cached = self._repo_cache.get(key)
         if cached and time.time() - cached[0] < 60:
@@ -344,8 +427,12 @@ class GitIdentity:
             name, email, token, who = conn.name, conn.email, conn.token, f"@{conn.login} ({user_id})"
         else:
             token = self.connect.machine_token if self.connect else None
-            name, email = os.environ.get("MARVIN_GIT_NAME", "Marvin"), os.environ.get("MARVIN_GIT_EMAIL", "marvin@example.com")
-            who = "machine identity" if token else "no GitHub credentials (system git helpers apply)"
+            machine = self.connect.store.machine() if self.connect else None
+            if machine and token == machine.token:
+                name, email, who = machine.name, machine.email, f"machine @{machine.login}"
+            else:
+                name, email = os.environ.get("MARVIN_GIT_NAME", "Marvin"), os.environ.get("MARVIN_GIT_EMAIL", "marvin@example.com")
+                who = "machine identity" if token else "no GitHub credentials (system git helpers apply)"
         token_file = d / "token"
         gitconfig = [
             "# written by Marvin at every turn: the identity of the person who asked (or the machine's)",
@@ -372,6 +459,13 @@ class GitIdentity:
             (d / "gh" / "hosts.yml").unlink(missing_ok=True)
         _write_private(d / "gitconfig", "\n".join(gitconfig) + "\n")
         return who
+
+
+def _require_token(raw: str) -> str:
+    token = (raw or "").strip()
+    if len(token) < 20 or any(c.isspace() for c in token):
+        raise ValueError("that does not look like a GitHub token")
+    return token
 
 
 def _write_private(path: Path, text: str) -> None:

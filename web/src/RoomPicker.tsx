@@ -6,7 +6,7 @@ import { SettingsPanel } from "./Settings";
 export type RoomInfo = { name: string; repo: string; git_url: string | null; branch: string | null; static: boolean; live: boolean; repos: ProjectRepoInfo[] };
 
 /** Projects on this machine, plus a form to create one from one or more repos (your GitHub, a folder here, or a URL). */
-export function RoomPicker({ value, onPick }: { value: string; onPick: (room: string) => void }) {
+export function RoomPicker({ value, onPick, locked }: { value: string; onPick: (room: string) => void; locked?: boolean }) {
   const admin = useIsAdmin(); // creating projects (and cloning repos) is admin-only; the token server enforces it
   const [rooms, setRooms] = useState<RoomInfo[] | null>(null);
   const [creating, setCreating] = useState(false);
@@ -53,14 +53,14 @@ export function RoomPicker({ value, onPick }: { value: string; onPick: (room: st
     <div className="rooms">
       <div className="rooms-head">
         <span>Project</span>
-        {admin && <button type="button" className="ghost" onClick={() => setCreating((c) => !c)}>{creating ? "cancel" : "new project"}</button>}
+        {admin && !locked && <button type="button" className="ghost" onClick={() => setCreating((c) => !c)}>{creating ? "cancel" : "new project"}</button>}
       </div>
       {rooms === null && <p className="hint">loading projects…</p>}
       {rooms && rooms.length === 0 && !creating && <p className="hint">{admin ? "No projects yet. Create one from your GitHub repos, a folder here, or a URL." : "No projects yet. Ask an admin to create one."}</p>}
       {rooms && rooms.length > 0 && (
         <ul className="room-list">
           {rooms.map((r) => (
-            <li key={r.name} className={r.name === value ? "sel" : ""} onClick={() => onPick(r.name)}>
+            <li key={r.name} className={r.name === value ? "sel" : ""} onClick={() => { if (!locked) onPick(r.name); }}>
               <span className={`dot ${r.live ? "idle" : "offline"}`} />
               <b>{r.name}</b>
               <span className="repo" title={(r.repos ?? []).map((x) => x.path).join("\n")}>{roles(r)}</span>

@@ -9,6 +9,12 @@ App-preview wildcard reserved as `*.marvin.aigil.dev`.
 
 ## 2026-09-13
 
+- **GitHub device confirmation was blank, and showed the wrong code.** Marvin displayed `5435-B533`;
+  github.com/login/device showed `2790-60E2`; Continue then opened a white `…/device/confirmation`. The
+  worker *did* get a device code (it can reach GitHub). Opening `verification_uri` without Marvin’s code
+  lets GitHub invent another one. Fix: open `verification_uri_complete` (or `?user_code=`), and if the
+  confirmation page is blank, paste a PAT — that does not need the OAuth client id. Join now requires the
+  machine account (and an agent); personal GitHub stays optional.
 - **Typed Send had no immediate feedback.** The box cleared, then nothing until Grok finished the current
   turn (and LiveKit rounded the trip). Cause: typed `ask` never published a transcript line, and `turn_start`
   waited for the runner. Fix: paint locally on click; worker publishes transcript + `turn_start` at enqueue

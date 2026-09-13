@@ -353,6 +353,18 @@ class HarnessCreds:
             "harnesses": [x.to_wire() for x in registry.profiles()],
         }
 
+    def ready(self) -> dict:
+        """Whether the machine can talk to an agent. No secrets. Join waits on this."""
+        st = self.status()
+        chosen = next((p for p in st["providers"] if p["id"] == "xai" and (p["key_set"] or p["subscription_set"])), None)
+        if not chosen:
+            chosen = next((p for p in st["providers"] if p["key_set"] or p["subscription_set"]), None)
+        return {
+            "ready": bool(chosen),
+            "label": chosen["label"] if chosen else None,
+            "default_harness": st["default_harness"],
+        }
+
     # -- grok device login ------------------------------------------------------
     async def start_grok_login(self) -> GrokFlow:
         for f in list(self._flows.values()):

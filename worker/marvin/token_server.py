@@ -31,13 +31,14 @@ WEB_DIST = os.environ.get("MARVIN_WEB_DIST")  # directory with the built web UI;
 # (they are a prompt-injection surface into every room).
 PROXIED = (
     "/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/models", "/api/harnesses", "/api/notes",
-    "/api/github/me", "/api/github/connect", "/api/github/connect/{flow}", "/api/github/config", "/api/github/repos",
+    "/api/setup",
+    "/api/github/me", "/api/github/connect", "/api/github/connect/{flow}", "/api/github/config", "/api/github/machine", "/api/github/repos",
     "/api/themes", "/api/themes/default", "/api/themes/{id}", "/api/themes/{id}/theme.css",  # reading is for everyone signed in; default/delete are writes (admin)
     "/api/harness-creds", "/api/harness-creds/default", "/api/harness-creds/{id}",
     "/api/harness-creds/grok/login", "/api/harness-creds/grok/login/{flow}",
     "/api/update",
 )
-ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config", "/api/harness-creds", "/api/update")
+ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config", "/api/github/machine", "/api/harness-creds", "/api/update")
 # Self-service: every signed-in user may write here, because it only touches their own record (keyed by X-Marvin-User).
 SELF_SERVICE_PREFIXES = ("/api/github/",)
 
@@ -117,10 +118,10 @@ async def login(req: web.Request) -> web.Response:
         return web.json_response({"error": "too many failed logins; wait a minute"}, status=429)
     try:
         body = await req.json()
-        name, password = str(body.get("name", "")), str(body.get("password", ""))
+        who, password = str(body.get("email") or body.get("name") or ""), str(body.get("password", ""))
     except Exception:
-        return web.json_response({"error": "expected JSON {name, password}"}, status=400)
-    ident = auth.login(name, password)
+        return web.json_response({"error": "expected JSON {email, password}"}, status=400)
+    ident = auth.login(who, password)
     if ident is None:
         auth.record_failure(req.remote)
         await asyncio.sleep(auth.fail_delay)

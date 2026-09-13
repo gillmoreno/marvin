@@ -1,101 +1,125 @@
-# Connect GitHub from the browser
+# GitHub on a Marvin machine
 
-Marvin commits, pushes and opens pull requests on behalf of the people in the room. This page is about **whose name
-that happens under** and how a person links their GitHub account without touching a terminal or a `.env` file.
+Marvin commits, pushes and opens pull requests on behalf of the people in the room. People are known by their
+**Marvin login** (email, or SSO). GitHub is how the *machine* talks to repos, not how a person proves who they are.
 
-Roadmap item 7 (`roadmap.md`), decided in `decisions-log.md`. Shipped 2026-09-12 for the per-user half; the
-per-machine GitHub App (manifest flow) and the repo picker are still to do.
+The join page is three steps. The first two are required and admin-only; the third is optional and never blocks Join.
+
+| Step | Who | Required? |
+|---|---|---|
+| This machine’s GitHub | Admin, once | Yes. One shared account for the box. |
+| A coding agent | Admin, once | Yes. Grok sign-in or one API key is enough. |
+| Your GitHub | Anyone | No. Only if you want your name on the git author line. |
+
+Roadmap item 7 (`roadmap.md`). Decided in `decisions-log.md` (2026-09-12 direction, 2026-09-13: ship the shared
+machine account plus optional personal). A GitHub App (manifest flow) is still to do; today the machine account is
+a pasted PAT or `GITHUB_TOKEN`.
 
 ## What a person sees
 
-1. Open **Settings** (the gear in the room header) → section **GitHub** → **Connect GitHub**.
-2. Marvin shows an 8-character code and opens `https://github.com/login/device` in a new tab. Type the code, approve.
-3. Within a few seconds the panel says *Connected as @login*. Done. From now on, when this person asks Marvin to
-   commit, push or `gh pr create`, git and gh run with their identity and their token. **Disconnect** forgets the
-   token.
+1. Sign in with Marvin. Password mode asks for **email**. The join page says *You’re logged in as* that email
+   (or the SSO name).
+2. If the box is not ready, Join and the project list stay locked. Participants see “Waiting on an admin” on the
+   two required rows. The optional GitHub row is still there.
+3. **Your GitHub** is skippable. Alex with no GitHub joins. A programmer who wants the author line to be theirs
+   connects (device flow, or **paste a token**). Disconnect returns their turns to the machine account.
+4. Settings → GitHub is the same two accounts later (change / disconnect), not the first-run surface.
 
-Nothing is typed into Marvin except the code on GitHub's page; Marvin never sees a password and there is no client
-secret anywhere (this is OAuth's *device flow*, the same thing `gh auth login` does).
+`GET /api/setup` is what the join page polls: `ready` is true only when the machine GitHub and a coding agent
+are set. Personal GitHub is reported and ignored for `ready`.
 
-## What an admin does once (from the same Settings panel)
+## What an admin does once
 
-GitHub needs to know which application is asking. An admin registers one OAuth App per Marvin installation (five
-minutes, no server, no callback of ours involved) and pastes its client id into Settings → GitHub; the panel
-walks through it:
+On a fresh box the join page is the place. Settings still works if you need to change it later.
 
-1. GitHub → **Settings → Developer settings → OAuth Apps → New OAuth App** (for a company, do it under the org:
-   *Organization settings → Developer settings → OAuth Apps*).
-2. Application name: `Marvin`. Homepage URL and Authorization callback URL: the Marvin address (the device flow does
-   not use the callback, the form just requires one).
-3. Tick **Enable Device Flow**. Register. Copy the **Client ID** (starts with `Ov23li…` or `Iv1.…`). Do not generate a
-   client secret; Marvin does not want one.
-4. Paste it into Settings → GitHub → **save**. No restart. It is stored in `<state_dir>/github.json` next to the
-   tokens (`PUT /api/github/config`, admin-only, validated as a plausible client id). `MARVIN_GITHUB_CLIENT_ID` in the
-   environment still works and, when set, wins over the stored value (the panel then shows "from the environment").
+**This machine’s GitHub.** One account every room uses to clone, push and open PRs. Commits say Marvin unless the
+person who asked attached their own GitHub. Two ways in:
 
-The client id is a **public identifier**, not a secret: GitHub puts it in every OAuth URL, and the device flow has no
-client secret at all. The UI masks it out of habit; there is nothing to protect. What *is* sensitive is
-`MARVIN_SESSION_SECRET`, the key the user tokens are encrypted with (falls back to `LIVEKIT_API_SECRET`).
+- **Paste a token** (fine-grained PAT, Contents read/write + pull requests, the repos this machine will touch).
+  No OAuth App, no client id. This is also the escape hatch when GitHub’s device confirmation page is blank.
+- **Connect this machine** (device flow). Needs the OAuth App client id below. The link Marvin opens already
+  contains the user code (`verification_uri_complete`, or `?user_code=`). GitHub must show *that* code; if the
+  page is blank or shows a different one, cancel and paste a token instead.
 
-Until an admin has done this the GitHub section tells non-admins so, and rooms keep working with whatever they had:
-the machine's `GITHUB_TOKEN` if set, otherwise the git credentials of the machine (on a developer's Mac, the keychain).
+`GITHUB_TOKEN` / `GH_TOKEN` in the environment still wins and the UI says “from the environment”. Stored machine
+tokens live encrypted in `<state_dir>/github.json` → `settings.machine` (`PUT /api/github/machine`, admin-only).
 
-Scopes requested: `repo read:org workflow` (what `gh auth login` asks for, minus gists). If your organization
+**A coding agent.** Sign in with Grok, or paste an Anthropic key on the same page. Other providers stay in
+Settings → Coding agents. One provider is enough; Join unlocks.
+
+**OAuth App client id** (device flow only). An admin registers one OAuth App per install and pastes the client id
+on the join page or in Settings → GitHub. A pasted PAT does not need this.
+
+1. GitHub → **Settings → Developer settings → OAuth Apps → New OAuth App** (for a company: *Organization settings
+   → Developer settings → OAuth Apps*).
+2. Application name: `Marvin`. Homepage URL and Authorization callback URL: the Marvin address (the device flow
+   does not use the callback; the form just requires one).
+3. Tick **Enable Device Flow**. Register. Copy the **Client ID** (`Ov23li…` or `Iv1.…`). Do not generate a client
+   secret; Marvin does not want one.
+4. Paste it → **save**. No restart. Stored in `<state_dir>/github.json` (`PUT /api/github/config`, admin-only).
+   `MARVIN_GITHUB_CLIENT_ID` in the environment still wins (“from the environment”).
+
+The client id is a **public identifier**, not a secret. What *is* sensitive is `MARVIN_SESSION_SECRET`, the key
+tokens are encrypted with (falls back to `LIVEKIT_API_SECRET`).
+
+Scopes requested: `repo read:org workflow` (what `gh auth login` asks for, minus gists). If the organization
 restricts third-party OAuth apps, an org owner approves the app once under *Third-party access*.
 
 ## How it works
 
 ```
-Settings ──POST /api/github/connect──▶ token server ──▶ worker admin  ──▶ github.com/login/device/code
-          ◀── {user_code, verification_uri, flow} ──                     (client_id, scope)
-          ──GET /api/github/connect/<flow>── poll ──▶ worker polls github.com/login/oauth/access_token
-                                                      on success: GET /user (+ /user/emails), store encrypted
+join / Settings
+  POST /api/github/connect[?dest=machine] ──▶ token server ──▶ worker  ──▶ github.com/login/device/code
+       ◀── {user_code, verification_uri (already has the code), flow}
+  GET  /api/github/connect/<flow>  poll until connected
+  PUT  /api/github/machine | /api/github/me   pasted PAT (no client id)
+  GET  /api/setup   {ready, machine_github, agent, personal}
 ```
 
-- **Identity.** The token server (`token_server.py`) already knows who is signed in (password, SSO header or the
-  dev name) and stamps `X-Marvin-User` on every proxied call. `/api/github/*` is *self-service*: any signed-in
-  person may call it, and it only ever touches the record of the identity in that header. Other users cannot read
-  or poll someone else's flow (`404`).
-- **Storage.** `<state_dir>/github.json`: `settings.client_id` (plain, public) and one `users` record per Marvin
-  identity: login, name, e-mail, scopes, and the token encrypted with Fernet under
-  `sha256("marvin-github:" + MARVIN_SESSION_SECRET)`. File mode `0600`. A copied state
-  directory without the secret is not a copied credential; if the secret changes, the records become undecryptable
-  and are dropped on first read (people simply connect again).
-- **Per-turn identity** (`marvin/github.py`, `GitIdentity`). Each room's harness is started with two environment
-  variables pointing into the room's directory (`<state_dir>/sandbox/<room>/home/.marvin/`, the same directory the
-  sandbox mounts as the room's HOME, so the paths are identical inside the container):
-  - `GIT_CONFIG_GLOBAL=…/gitconfig`: git's global config for that process tree. It includes the real `~/.gitconfig`
-    underneath (aliases etc. survive), then sets `user.name`/`user.email`, `safe.directory=*`, and, when a token is
-    available, resets the credential helper list and installs one that reads `…/token`; `git@github.com:` URLs are
-    rewritten to HTTPS.
-  - `GH_CONFIG_DIR=…/gh`: gh's config directory, with a `hosts.yml` carrying the same token.
+- **Identity of record.** Marvin login (email + password, or SSO headers). GitHub is optional attribution.
+  `Requested-by:` in the commit trailer is that person. The committer stays `marvin[bot]` (roadmap item 8;
+  wrapper/hooks still to land).
+- **Two stored accounts.** `<state_dir>/github.json`: `settings.client_id` (plain), `settings.machine` (encrypted
+  token + public login/name/email), and one `users` record per Marvin identity. Fernet key
+  `sha256("marvin-github:" + MARVIN_SESSION_SECRET)`. File mode `0600`. A copied state directory without the
+  secret is not a copied credential; if the secret changes, records become undecryptable and are dropped on
+  first read.
+- **Who may write.** `/api/github/me` and `/api/github/connect` (personal) are self-service: they only touch the
+  identity in `X-Marvin-User`. `/api/github/machine` and `/api/github/config` are admin-only (token server
+  `ADMIN_ONLY_PREFIXES` and a second check in `admin.py`). `POST /api/github/connect?dest=machine` is the same
+  admin check inside the worker.
+- **Per-turn identity** (`marvin/github.py`, `GitIdentity`). Each room's harness sees two env vars pointing into
+  the room directory (`<state_dir>/sandbox/<room>/home/.marvin/`, the same path the sandbox mounts as HOME):
+  - `GIT_CONFIG_GLOBAL=…/gitconfig`: includes `~/.gitconfig`, then sets `user.name` / `user.email`,
+    `safe.directory=*`, and a credential helper that reads `…/token`. `git@github.com:` is rewritten to HTTPS.
+  - `GH_CONFIG_DIR=…/gh`: `hosts.yml` with the same token.
 
-  When a turn starts, the conductor calls `RoomSession._on_turn_begin(asked_by)`; the session maps the speaker's
-  display name to their Marvin identity (the LiveKit participant identity), and `GitIdentity.apply(room, user_id)`
-  rewrites the three files: the requester's connected account if they have one, else the machine identity
-  (`GITHUB_TOKEN`, `MARVIN_GIT_NAME/EMAIL`), else no credentials at all (the token file is removed, git falls back to
-  the system's helpers). git and gh read those files at every invocation, so the switch is immediate even though the
-  agent process is long-lived. In the room log: `turn by Gil, git identity: @gil (gil)`.
-- **Sandbox.** Both variables are in `DEFAULT_FORWARD_ENV`, so `docker exec` carries them into the container, where
-  the same paths exist because the room HOME is bind-mounted. `marvin-sandbox-init`'s own credential helper (reading
+  At turn start the conductor calls `RoomSession._on_turn_begin(asked_by)` → `GitIdentity.apply(room, user_id)`:
+  the asker's connected account if they have one, else the stored machine account (`machine @login`), else the
+  env token / `MARVIN_GIT_NAME`/`EMAIL` (“machine identity”), else no credentials (system git helpers). git and
+  gh reread the files every time, so the switch is immediate. Room log: `turn by Gil, git identity: @gil (gil)`.
+- **Sandbox.** Both variables are in `DEFAULT_FORWARD_ENV`. `marvin-sandbox-init`'s helper (reading
   `GITHUB_TOKEN` from the exec environment) remains the fallback when the worker has no state dir.
 
 ## Limits, honestly
 
-- A turn is attributed to the person who *asked*. If two people talk during one turn, the requester is the one whose
-  words woke Marvin. Parallel work by different people in the same room is sequential turns anyway.
-- The token file is readable by the agent (that is the point). In sandbox mode it is only mounted into that room's
-  container; without the sandbox all rooms run as the worker's user and could read each other's files, which is the
-  existing trust model of unsandboxed mode (`sandbox.md`, `security-and-compliance.md` finding 4).
-- OAuth App user tokens do not expire on their own; **Disconnect** (or revoking the app under GitHub → Settings →
-  Applications) ends them. Tokens are re-checked against GitHub when the Settings panel opens; a revoked one is
-  forgotten.
+- A turn is attributed to the person who *asked*. If two people talk during one turn, the requester is the one
+  whose words woke Marvin. Parallel work is sequential turns anyway.
+- The token file is readable by the agent (that is the point). In sandbox mode it is only mounted into that
+  room's container; without the sandbox all rooms run as the worker's user and could read each other's files
+  (`sandbox.md`, `security-and-compliance.md` finding 4).
+- OAuth App user tokens do not expire on their own; disconnect (or revoking the app under GitHub → Settings →
+  Applications) ends them. Tokens are re-checked when Settings → GitHub opens; a revoked one is forgotten.
 - The scopes are broad (`repo`). The per-machine GitHub App (next step) is what narrows access to selected
   repositories and gives short-lived installation tokens; user tokens remain for attribution.
+- GitHub’s device confirmation page has been blank on the Frankfurt pilot and has shown a *different* code
+  than Marvin. The join page opens the URI that already contains Marvin’s code, and **GitHub went blank**
+  switches to a PAT. See `pilot-findings.md`.
 
 ## Next
 
 - GitHub App through the manifest flow: one click creates the app under the org, a second installs it with repo
   selection; the worker mints hourly installation tokens for clones and the fallback identity.
 - Repo picker on the join screen, listing what the connected account (and the installation) can see.
-- Audit line per turn: who asked, which identity acted, what was pushed.
+- Audit line per turn: who asked, which identity acted, what was pushed. Commit wrapper / `marvin[bot]`
+  committer from roadmap item 8.

@@ -1,7 +1,21 @@
 # Design explorations (2026-09-12)
 
-Three alternative looks for Marvin, as clickable HTML prototypes. Nothing here is wired to the app; the goal is to
-pick a direction (or a mix) before touching `web/src`. Open `index.html` in a browser, no server needed.
+Clickable HTML prototypes. Nothing here is wired to the app; the goal is to pick a direction (or a mix) before
+touching `web/src`. Open `index.html` in a browser, no server needed.
+
+## First-run setup (2026-09-13)
+
+`setup-first-run.html` — throwaway. Join gate won as the surface. Optional personal
+GitHub is the only model (`web/src/JoinGate.tsx`). Switch who you are with `?who=fresh|alex|gil`:
+
+| | Required to join | Your GitHub |
+|---|---|---|
+| Gil · first run | Machine GitHub + an agent, both still empty | “Use my GitHub” — click through to the connected mock |
+| Alex · no GitHub | Already set | She leaves the row alone. Join works |
+| Gil · GitHub connected | Already set | Connected as @gillmoreno. Turns write as him |
+
+People sign in with Marvin (password or SSO). GitHub is how the *machine* talks to repos,
+not how a person proves who they are. Personal GitHub never blocks Join.
 
 ## Why
 

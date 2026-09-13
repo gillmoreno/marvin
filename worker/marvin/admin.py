@@ -40,13 +40,55 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
 
     async def github_me(req: web.Request) -> web.Response:
         if github is None:
-            return web.json_response({"configured": False, "connected": None, "machine_identity": False})
+            return web.json_response({"configured": False, "connected": None, "machine_identity": False, "machine": None})
         user = _user(req)
         if not user:
             return web.json_response({"error": "no signed-in user"}, status=400)
         if req.query.get("verify") and github.store.get(user):
             await github.verify(user)
         return web.json_response(github.status(user, admin=_is_admin(req)))
+
+    async def github_token(req: web.Request) -> web.Response:
+        """Paste a PAT as this person's optional GitHub."""
+        if github is None:
+            return web.json_response({"error": "GitHub connection is not available"}, status=501)
+        user = _user(req)
+        if not user:
+            return web.json_response({"error": "no signed-in user"}, status=400)
+        body = await req.json()
+        try:
+            await github.connect_token(user, str(body.get("token", "")))
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        except RuntimeError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        except Exception as e:
+            return web.json_response({"error": f"GitHub: {type(e).__name__}: {e}"}, status=502)
+        log.info("%s pastes a personal GitHub token", who(req))
+        return web.json_response(github.status(user, admin=_is_admin(req)))
+
+    async def github_machine(req: web.Request) -> web.Response:
+        """Admin sets or clears the shared machine GitHub account."""
+        if github is None:
+            return web.json_response({"error": "GitHub connection is not available"}, status=501)
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        user = _user(req) or "?"
+        if req.method == "DELETE":
+            github.forget_machine()
+            log.info("%s clears the machine GitHub account", who(req))
+            return web.json_response(github.status(user, admin=True))
+        body = await req.json()
+        try:
+            await github.connect_machine_token(str(body.get("token", "")))
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        except RuntimeError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        except Exception as e:
+            return web.json_response({"error": f"GitHub: {type(e).__name__}: {e}"}, status=502)
+        log.info("%s sets the machine GitHub account", who(req))
+        return web.json_response(github.status(user, admin=True))
 
     async def github_config(req: web.Request) -> web.Response:
         """Admin sets the OAuth App client id from Settings (the token server only lets admins through; checked again here)."""
@@ -68,11 +110,14 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
         user = _user(req)
         if not user:
             return web.json_response({"error": "no signed-in user"}, status=400)
+        dest = "machine" if req.query.get("dest") == "machine" else "user"
+        if dest == "machine" and not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
         try:
-            flow = await github.start(user)
+            flow = await github.start(user, dest=dest)
         except RuntimeError as e:
             return web.json_response({"error": str(e)}, status=503)
-        log.info("%s starts a GitHub device flow", who(req))
+        log.info("%s starts a GitHub device flow (%s)", who(req), dest)
         return web.json_response({"flow": flow.id, "user_code": flow.user_code, "verification_uri": flow.verification_uri, "expires_in": int(flow.expires_at - time.time()), "interval": flow.interval}, status=201)
 
     async def github_flow(req: web.Request) -> web.Response:
@@ -92,7 +137,7 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
             return web.json_response({"error": "no signed-in user"}, status=400)
         github.disconnect(user)
         log.info("%s disconnects GitHub", who(req))
-        return web.json_response(github.status(user))
+        return web.json_response(github.status(user, admin=_is_admin(req)))
 
     async def github_repos(req: web.Request) -> web.Response:
         if github is None:
@@ -105,9 +150,29 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
             return web.json_response({"error": f"GitHub: {type(e).__name__}: {e}"}, status=502)
         return web.json_response({"repos": repos})
 
+    async def setup(req: web.Request) -> web.Response:
+        """Join-gate status: machine GitHub and a coding agent are required; personal GitHub is not."""
+        user = _user(req)
+        if not user:
+            return web.json_response({"error": "no signed-in user"}, status=400)
+        machine = github.machine_public() if github else None
+        personal = github.store.get(user).public() if github and github.store.get(user) else None
+        agent = _creds().ready() if _creds() else {"ready": False, "label": None, "default_harness": None}
+        return web.json_response({
+            "ready": bool(machine) and bool(agent.get("ready")),
+            "machine_github": machine,
+            "agent": agent,
+            "personal": personal,
+            "oauth_configured": bool(github and github.configured),
+        })
+
+    app.router.add_get("/setup", setup)
     app.router.add_get("/github/repos", github_repos)
     app.router.add_get("/github/me", github_me)
+    app.router.add_put("/github/me", github_token)
     app.router.add_put("/github/config", github_config)
+    app.router.add_put("/github/machine", github_machine)
+    app.router.add_delete("/github/machine", github_machine)
     app.router.add_delete("/github/me", github_disconnect)
     app.router.add_post("/github/connect", github_connect)
     app.router.add_get("/github/connect/{flow}", github_flow)

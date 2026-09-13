@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marvin · join gate · who owns GitHub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* PROTOTYPE — throwaway. Optional personal GitHub is the model. Machine + agent
+   required; Your GitHub never blocks Join. ?who=fresh|alex|gil */
+:root{
+  --bg0:#0B0C0E; --bg1:#101215; --bg2:#15181C; --bg3:#1B1F24;
+  --line:#22272D; --line2:#303740;
+  --t0:#E8EBEF; --t1:#B0B8C1; --t2:#828B96;
+  --amber:#FFB224; --amber-dim:rgba(255,178,36,.10); --amber-line:rgba(255,178,36,.42);
+  --ok:#5CD387;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --sans:"IBM Plex Sans Condensed","Archivo Narrow",sans-serif;
+  --r:3px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#000;color:var(--t0);font:13px/1.45 var(--mono);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit;background:none;border:0}
+button{cursor:pointer}
+a{color:inherit}
+::selection{background:var(--amber-line);color:#000}
+.dim{color:var(--t2)}
+.ok{color:var(--ok)}
+.lbl{font-family:var(--sans);font-weight:500;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--t2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:32px;padding:0 12px;border:1px solid var(--line2);border-radius:var(--r);color:var(--t1);font-family:var(--sans);font-size:13px;font-weight:500}
+.btn:hover{background:var(--bg3);color:var(--t0)}
+.btn.primary{background:var(--t0);color:var(--bg0);border-color:var(--t0)}
+.btn.primary:hover{background:#fff}
+.btn.primary:disabled,.btn:disabled{opacity:.38;cursor:default;background:transparent;color:var(--t2);border-color:var(--line)}
+.btn.ghost{border-color:transparent;color:var(--t2)}
+.btn.ghost:hover{color:var(--t0);border-color:var(--line2)}
+.field input{height:34px;padding:0 10px;background:var(--bg0);border:1px solid var(--line2);border-radius:var(--r);outline:none;width:100%}
+.field input:focus{border-color:var(--t2)}
+.badge{font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.1em;padding:2px 5px;border:1px solid var(--amber-line);color:var(--amber);border-radius:2px}
+.badge.grey{border-color:var(--line2);color:var(--t2)}
+.lamp{width:7px;height:7px;border-radius:50%;background:var(--t2);display:inline-block;flex:none}
+.lamp.on{background:var(--ok);box-shadow:0 0 6px rgba(92,211,135,.45)}
+.lamp.wait{background:var(--amber);box-shadow:0 0 6px var(--amber-line)}
+.lamp.off{box-shadow:inset 0 0 0 1px var(--t2);background:transparent}
+
+.stage{height:100%;display:flex;flex-direction:column;background:var(--bg0)}
+.qbar{flex:none;padding:10px 18px 8px;border-bottom:1px solid var(--line);background:var(--bg1)}
+.qbar p{font-family:var(--sans);font-size:13.5px;color:var(--t1);max-width:90ch}
+.qbar p b{color:var(--t0);font-weight:600}
+.qbar .why{margin-top:4px;font-size:12.5px;color:var(--t2)}
+.view{flex:1;min-height:0;overflow:auto}
+
+.wrap{min-height:100%;display:grid;place-items:start center;padding:40px 20px 110px}
+.card{width:min(760px,100%);display:grid;gap:20px}
+.card h1{font:600 22px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.lead{font-family:var(--sans);font-size:15px;color:var(--t1);max-width:62ch}
+.who{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--t1);flex-wrap:wrap}
+.checks{border:1px solid var(--line2);background:var(--bg1)}
+.check{display:grid;grid-template-columns:18px 1fr;gap:12px;align-items:start;padding:14px 16px;border-top:1px solid var(--line)}
+.check:first-child{border-top:0}
+.check.opt{background:var(--bg0)}
+.check h3{font:600 13px var(--mono);margin-bottom:3px}
+.check p{font-family:var(--sans);font-size:13px;color:var(--t2)}
+.check.done h3{color:var(--ok)}
+.check.opt h3{color:var(--t1);font-weight:500}
+.panel{margin:10px 0 2px;padding:14px;background:var(--bg0);border:1px solid var(--line2)}
+.rooms{border:1px solid var(--line)}
+.rooms.head{display:flex;justify-content:space-between;padding:8px 14px}
+.roomrow{display:grid;grid-template-columns:14px 1fr auto;gap:12px;align-items:center;padding:11px 14px;border-top:1px solid var(--line);cursor:pointer}
+.roomrow:hover{background:var(--bg2)}
+.roomrow.sel{background:var(--bg3)}
+.wrap[data-locked=true] .rooms{opacity:.42;pointer-events:none}
+.cta{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.lock{font-family:var(--sans);font-size:13px;color:var(--amber)}
+.code{font:600 22px/1 var(--mono);letter-spacing:.18em;padding:12px 14px;border:1px dashed var(--line2);display:inline-block;margin:8px 0;user-select:all}
+.hint{font-family:var(--sans);font-size:13px;color:var(--t1)}
+.warn{border:1px solid var(--amber-line);background:var(--amber-dim);padding:10px 12px;font-family:var(--sans);font-size:13px}
+.picks{display:grid;gap:8px}
+.pick{text-align:left;padding:12px 14px;border:1px solid var(--line2);background:var(--bg1);border-radius:var(--r)}
+.pick:hover{border-color:var(--t2);background:var(--bg3)}
+.pick b{display:block;margin-bottom:3px}
+.pick span{font-family:var(--sans);color:var(--t2);font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.together{border:1px solid var(--line2);background:var(--bg1)}
+.together .hd{padding:10px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.together .hd p{font-family:var(--sans);font-size:13px;color:var(--t2)}
+.person{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;padding:12px 16px;border-top:1px solid var(--line)}
+.person:first-of-type{border-top:0}
+.person .n{font-weight:600}
+.person .you{color:var(--amber)}
+.gitline{font-size:12px;color:var(--t1)}
+.commit{margin:0 16px 14px;padding:12px;background:var(--bg0);border:1px solid var(--line);font-size:11.5px;color:var(--t1)}
+.commit b{color:var(--t0);font-weight:500}
+
+.proto{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;display:flex;align-items:center;gap:4px;padding:6px 8px 6px 12px;background:#F2F3F5;color:#15171B;border-radius:8px;font:12px/1 var(--sans);box-shadow:0 8px 24px rgba(0,0,0,.55);user-select:none;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 16px)}
+.proto b{letter-spacing:.08em;margin-right:4px;color:#6C727C;font-size:10px}
+.proto button{padding:7px 9px;border-radius:4px;font-weight:500;color:#3A3F47}
+.proto button:hover{background:#E0E3E8}
+.proto button[aria-pressed=true]{background:#15171B;color:#fff}
+.proto .sep{width:1px;height:16px;background:#C9CDD3;margin:0 5px}
+.state{position:fixed;top:8px;right:10px;z-index:40;font:11px/1.4 var(--mono);color:#6C727C;background:#F2F3F5;padding:6px 8px;border-radius:4px}
+[hidden]{display:none !important}
+@media (max-width:720px){
+  .wrap{padding:24px 14px 120px}
+  .person{grid-template-columns:1fr}
+  .state{display:none}
+  .proto{left:0;right:0;bottom:0;transform:none;border-radius:0}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="state" id="state"></div>
+<div class="stage">
+  <div class="qbar">
+    <p><b>Prototype · Join gate.</b> People sign in with Marvin. GitHub is how the machine talks to repos. A person may also attach their own GitHub — that never blocks Join.</p>
+    <p class="why">Switch who you are. Gil · GitHub connected is the optional row after someone opts in. Arrow keys switch.</p>
+  </div>
+  <div class="view" id="view"></div>
+</div>
+
+<div class="proto" role="toolbar" aria-label="prototype switcher">
+  <b>WHO</b>
+  <button type="button" id="prev" aria-label="previous person">←</button>
+  <button type="button" data-w="fresh" aria-pressed="true">Gil · first run</button>
+  <button type="button" data-w="alex">Alex · no GitHub</button>
+  <button type="button" data-w="gil">Gil · GitHub connected</button>
+  <button type="button" id="next" aria-label="next person">→</button>
+</div>
+
+<script>
+const WHO = ["fresh", "alex", "gil"];
+const params = new URLSearchParams(location.search);
+const S = {
+  who: params.get("who") || "fresh",
+  machineGh: "missing",   // missing | device | blank | connected
+  personal: "missing",    // missing | device | blank | connected
+  agent: "missing",
+  provider: null,
+  room: "sandbox",
+  joined: false,
+};
+
+function person() {
+  if (S.who === "alex") return { name: "Alex", role: "participant", admin: false, email: "alex@studio.com" };
+  return { name: "Gil", role: "admin", admin: true, email: "gil@aigil.dev" };
+}
+
+function seed() {
+  S.joined = false;
+  if (S.who === "fresh") {
+    S.machineGh = "missing"; S.agent = "missing"; S.personal = "missing"; S.provider = null;
+  } else if (S.who === "alex") {
+    S.machineGh = "connected"; S.agent = "connected"; S.personal = "missing"; S.provider = "grok";
+  } else {
+    S.machineGh = "connected"; S.agent = "connected"; S.personal = "connected"; S.provider = "grok";
+  }
+}
+
+function canJoin() { return S.machineGh === "connected" && S.agent === "connected"; }
+
+function writeUrl() {
+  const u = new URL(location.href);
+  u.searchParams.delete("variant");
+  u.searchParams.set("who", S.who);
+  history.replaceState(null, "", u);
+}
+
+function dump() {
+  const me = person();
+  document.getElementById("state").textContent =
+    `who=${me.name}\nmachineGh=${S.machineGh}\npersonal=${S.personal}\nagent=${S.agent}\ncanJoin=${canJoin()}`;
+}
+
+function connectPanel(kind) {
+  const st = kind === "machine" ? S.machineGh : S.personal;
+  const start = kind === "machine" ? "m-start" : "p-start";
+  const ok = kind === "machine" ? "m-ok" : "p-ok";
+  const blank = kind === "machine" ? "m-blank" : "p-blank";
+  const cancel = kind === "machine" ? "m-cancel" : "p-cancel";
+  const again = kind === "machine" ? "m-device" : "p-device";
+  const pat = kind === "machine" ? "m-pat" : "p-pat";
+  if (st === "device") {
+    return `<div class="panel">
+      <p class="hint">GitHub must show <b>this exact code</b>. The link already has it.</p>
+      <div class="code">${kind === "machine" ? "5435-B533" : "2790-60E2"}</div>
+      <p class="hint"><a href="#" data-act="noop">https://github.com/login/device?user_code=${kind === "machine" ? "5435-B533" : "2790-60E2"}</a></p>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" data-act="${ok}">I’ve approved</button>
+        <button class="btn" data-act="${blank}">GitHub went blank</button>
+        <button class="btn ghost" data-act="${cancel}">cancel</button>
+      </div>
+    </div>`;
+  }
+  if (st === "blank") {
+    return `<div class="panel">
+      <div class="warn">Blank confirmation page: don’t wait. Paste a token for ${kind === "machine" ? "this machine" : "your account"}.</div>
+      <p class="hint" style="margin:12px 0 8px">Fine-grained PAT. ${kind === "machine" ? "The repos this box will touch." : "Your repos, if you want Marvin to use them."}</p>
+      <div class="field"><input placeholder="github_pat_… or ghp_…"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" data-act="${pat}">Save token</button>
+        <button class="btn ghost" data-act="${again}">try the code again</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="row"><button class="btn primary" data-act="${start}">${kind === "machine" ? "Connect this machine" : "Use my GitHub"}</button></div>`;
+}
+
+function agentWidget(me) {
+  if (!me.admin) {
+    return S.agent === "connected"
+      ? `<p class="hint ok">This machine talks to <b>Grok</b>. You don’t set that.</p>`
+      : `<p class="hint">An admin still has to connect an agent. You can wait, or come back.</p>`;
+  }
+  if (S.agent === "connected") return `<p class="hint ok">Default agent: <b>${S.provider === "anthropic" ? "Claude" : "Grok"}</b>.</p>`;
+  if (S.agent === "key") {
+    return `<div class="panel">
+      <p class="hint">Paste an Anthropic API key. Nothing in a <code>.env</code>.</p>
+      <div class="field"><input placeholder="sk-ant-…"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" data-act="save-key">Save key</button>
+        <button class="btn ghost" data-act="ag-back">back</button>
+      </div>
+    </div>`;
+  }
+  if (S.agent === "grok") {
+    return `<div class="panel">
+      <p class="hint">Enter this code on grok.com:</p>
+      <div class="code">WDJB-MJHT</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" data-act="grok-ok">I’ve approved</button>
+        <button class="btn ghost" data-act="ag-back">cancel</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="picks">
+    <button class="pick" data-act="ag-grok"><b>Grok</b><span>Sign in with a grok.com subscription.</span></button>
+    <button class="pick" data-act="ag-key"><b>Claude</b><span>Paste an Anthropic API key.</span></button>
+  </div>`;
+}
+
+function rooms() {
+  return `<div class="rooms">
+    <div class="rooms head"><span class="lbl">Project</span><span class="dim">new project</span></div>
+    ${[["sandbox","empty folder · main"],["shop","acme/web + acme/api"]].map(([n,r]) =>
+      `<div class="roomrow ${n===S.room?"sel":""}" data-act="room" data-room="${n}">
+        <span class="lamp ${n==="sandbox"?"on":"off"}"></span><b>${n}</b><span class="dim">${r}</span>
+      </div>`).join("")}
+  </div>`;
+}
+
+function gitFor(name) {
+  const gilPersonal = S.personal === "connected" && name === "Gil";
+  return gilPersonal
+    ? { git: "@gillmoreno", detail: "their connected account" }
+    : { git: "Marvin · @aigil-bot", detail: "the machine account" };
+}
+
+function together(me) {
+  if (!canJoin()) return "";
+  const people = [
+    { name: "Gil", role: "admin", email: "gil@aigil.dev" },
+    { name: "Alex", role: "participant", email: "alex@studio.com" },
+  ];
+  const mine = gitFor(me.name);
+  return `<div class="together">
+    <div class="hd">
+      <span class="lbl">If they sit in the same room</span>
+      <p>Machine GitHub by default. A person may override theirs.</p>
+    </div>
+    ${people.map((p) => {
+      const g = gitFor(p.name);
+      const you = p.name === me.name;
+      return `<div class="person">
+        <div>
+          <div class="n ${you?"you":""}">${p.name}${you?" · you":""} <span class="badge grey">${p.role}</span></div>
+          <div class="dim">signed in as ${p.email}</div>
+        </div>
+        <div class="gitline">git writes as <b>${g.git}</b><br><span class="dim">${g.detail}</span></div>
+      </div>`;
+    }).join("")}
+    <div class="commit">
+      <span class="lbl">A commit from ${me.name}’s turn</span><br>
+      author&nbsp;&nbsp;&nbsp; <b>${mine.git === "@gillmoreno" ? "Gil Moreno &lt;gil@users.noreply.github.com&gt;" : "Marvin &lt;marvin@aigil.dev&gt;"}</b><br>
+      committer <b>marvin[bot]</b><br>
+      trailer&nbsp;&nbsp; Requested-by: <b>${me.name} &lt;${me.email}&gt;</b>
+    </div>
+  </div>`;
+}
+
+function render() {
+  writeUrl();
+  const me = person();
+  const locked = !canJoin();
+  const lead = S.who === "fresh"
+    ? "This machine needs a GitHub account and a coding agent. After that, anyone with a Marvin login can join — they do not need a GitHub account."
+    : S.who === "alex"
+      ? "Alex has no GitHub. That is fine. She is Alex because she signed into Marvin, not because of a token."
+      : "The box is already set up. Gil attached his GitHub, so his turns write as him. Join did not wait on that.";
+
+  const machineRow = me.admin || S.machineGh !== "connected" ? `<div class="check ${S.machineGh==="connected"?"done":""}">
+      <span class="lamp ${S.machineGh==="connected"?"on":"wait"}"></span>
+      <div>
+        <h3>This machine’s GitHub</h3>
+        <p>${S.machineGh==="connected"
+          ? "Shared account <b>@aigil-bot</b>. Clones, pushes and PRs use this unless someone opts in with their own."
+          : "One account for the box. Admin does this once. Commits say Marvin. People are recorded on the trailer from their login."}</p>
+        ${S.machineGh==="connected"
+          ? `<p class="hint ok">Connected as <b>@aigil-bot</b>.</p>`
+          : (me.admin ? connectPanel("machine") : `<p class="hint">Waiting on an admin.</p>`)}
+      </div>
+    </div>` : `<div class="check done">
+      <span class="lamp on"></span>
+      <div>
+        <h3>This machine’s GitHub</h3>
+        <p class="hint ok">Shared account <b>@aigil-bot</b>. Already set. You don’t touch it.</p>
+      </div>
+    </div>`;
+
+  const agentRow = `<div class="check ${S.agent==="connected"?"done":""}">
+      <span class="lamp ${S.agent==="connected"?"on":"wait"}"></span>
+      <div>
+        <h3>A coding agent</h3>
+        <p>${S.agent==="connected" ? "Who answers when someone talks." : (me.admin ? "One provider. Without this, talking does nothing." : "Set by an admin.")}</p>
+        ${agentWidget(me)}
+      </div>
+    </div>`;
+
+  const personalRow = `<div class="check opt ${S.personal==="connected"?"done":""}">
+      <span class="lamp ${S.personal==="connected"?"on":"off"}"></span>
+      <div>
+        <h3>Your GitHub <span class="badge grey">optional</span></h3>
+        <p>${S.personal==="connected"
+          ? "Your turns will push as <b>@gillmoreno</b>. Alex’s turns still use the machine account."
+          : "Skip this. Join works. Connect only if you want your name on the git author line."}</p>
+        ${S.personal==="connected"
+          ? `<p class="hint ok">Connected as <b>@gillmoreno</b> · <a href="#" data-act="p-forget">use the machine account instead</a></p>`
+          : (S.who === "alex"
+            ? `<p class="hint">Alex leaves this alone. She is still in the room.</p>`
+            : connectPanel("personal"))}
+      </div>
+    </div>`;
+
+  document.getElementById("view").innerHTML = `<div class="wrap" data-locked="${locked}">
+    <div class="card">
+      <div>
+        <h1>Marvin</h1>
+        <p class="lead">${lead}</p>
+      </div>
+      <div class="who">Signed in as <b>${me.name}</b> <span class="badge">${me.role}</span>
+        <span class="dim">${me.email} · Marvin login, not GitHub</span>
+      </div>
+      <div class="checks">${machineRow}${agentRow}${personalRow}</div>
+      ${rooms()}
+      <div class="cta">
+        <span class="${locked?"lock":"dim"}">${locked ? "Join waits on the machine rows — never on a person’s GitHub." : "Ready. GitHub on the box is enough."}</span>
+        <button class="btn primary" data-act="join" ${locked?"disabled":""}>${S.joined ? "In "+S.room : "Join "+S.room}</button>
+      </div>
+      ${together(me)}
+    </div>
+  </div>`;
+  dump();
+  sync();
+}
+
+function sync() {
+  document.querySelectorAll("[data-w]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.w === S.who));
+}
+
+function act(ev) {
+  const t = ev.target.closest("[data-act]");
+  if (!t) return;
+  ev.preventDefault();
+  const a = t.dataset.act;
+  if (a === "m-start") S.machineGh = "device";
+  if (a === "m-ok" || a === "m-pat") S.machineGh = "connected";
+  if (a === "m-blank") S.machineGh = "blank";
+  if (a === "m-cancel") S.machineGh = "missing";
+  if (a === "m-device") S.machineGh = "device";
+  if (a === "p-start") S.personal = "device";
+  if (a === "p-ok" || a === "p-pat") S.personal = "connected";
+  if (a === "p-blank") S.personal = "blank";
+  if (a === "p-cancel" || a === "p-forget") S.personal = "missing";
+  if (a === "p-device") S.personal = "device";
+  if (a === "ag-grok") { S.agent = "grok"; S.provider = "grok"; }
+  if (a === "ag-key") { S.agent = "key"; S.provider = "anthropic"; }
+  if (a === "ag-back") { S.agent = "missing"; S.provider = null; }
+  if (a === "save-key" || a === "grok-ok") S.agent = "connected";
+  if (a === "room") S.room = t.dataset.room;
+  if (a === "join" && canJoin()) S.joined = true;
+  render();
+}
+
+document.getElementById("view").addEventListener("click", act);
+document.querySelectorAll("[data-w]").forEach((b) => b.addEventListener("click", () => { S.who = b.dataset.w; seed(); render(); }));
+document.getElementById("prev").onclick = () => cycle(-1);
+document.getElementById("next").onclick = () => cycle(1);
+function cycle(d) {
+  const i = WHO.indexOf(S.who);
+  S.who = WHO[(i + (d < 0 ? WHO.length - 1 : 1)) % WHO.length];
+  seed(); render();
+}
+document.addEventListener("keydown", (e) => {
+  const tag = document.activeElement?.tagName;
+  if (tag === "INPUT" || document.activeElement?.isContentEditable) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+
+if (!WHO.includes(S.who)) S.who = "fresh";
+seed();
+render();
+</script>
+</body>
+</html>

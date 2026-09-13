@@ -148,9 +148,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 
 /* -- join / project picker -------------------------------------------------------------------------------------------- */
 .join { max-width: 360px; margin: 15vh auto; display: flex; flex-direction: column; gap: 12px; padding: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.join.gate { max-width: 640px; margin-top: 8vh; }
 .join label { display: flex; flex-direction: column; gap: 4px; color: var(--dim); } .join input { padding: 8px 10px; }
 .join .hint.small { font-size: 11px; }
 .signedin { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; color: var(--dim); } .signedin b { color: var(--fg); } .signedin .ghost { margin-left: auto; }
+.join-steps { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); }
+.join-steps li { padding: 12px 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.join-steps li:first-child { border-top: 0; }
+.join-steps li.opt { background: var(--bg); }
+.join-steps h3 { margin: 0; font-size: 14px; }
+.join-steps li.done h3 { color: var(--ok); }
+.join-steps .github-setup, .join-steps .github-flow { margin-top: 4px; }
+.join-locked { opacity: 0.45; pointer-events: none; }
+.lock-reason { margin: 0; font-size: 12px; color: var(--warn); }
 .rooms { display: flex; flex-direction: column; gap: 6px; }
 .rooms-head { display: flex; justify-content: space-between; align-items: center; color: var(--dim); }
 .room-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); }

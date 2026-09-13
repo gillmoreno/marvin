@@ -10,6 +10,8 @@ from aiohttp.test_utils import TestClient, TestServer
 
 from marvin.github import Connection, GitHubConnect, GitIdentity, TokenStore
 
+PAT = "gho_secret_token_xxxx"  # 21 chars: long enough for _require_token, still a fake
+
 
 class FakeGitHub:
     """httpx mock transport for github.com: device code, token polling (pending -> token), /user."""
@@ -25,7 +27,7 @@ class FakeGitHub:
             assert b"client_id=Iv1.test" in req.content and b"scope=repo" in req.content
             if self.device_flow_disabled:
                 return httpx.Response(400, json={"error": "device_flow_disabled", "error_description": "Device Flow must be explicitly enabled for this App"})
-            return httpx.Response(200, json={"device_code": "dc", "user_code": "ABCD-1234", "verification_uri": "https://github.com/login/device", "expires_in": 900, "interval": 0.01})
+            return httpx.Response(200, json={"device_code": "dc", "user_code": "ABCD-1234", "verification_uri": "https://github.com/login/device", "verification_uri_complete": "https://github.com/login/device?user_code=ABCD-1234", "expires_in": 900, "interval": 0.01})
         if url.endswith("/login/oauth/access_token"):
             self.polls += 1
             if self.deny:
@@ -36,7 +38,7 @@ class FakeGitHub:
                 return httpx.Response(200, json={"error": "slow_down", "interval": 0.01})
             return httpx.Response(200, json={"access_token": "gho_secret", "token_type": "bearer", "scope": "repo,read:org"})
         if url.endswith("/user"):
-            assert req.headers["Authorization"] == "Bearer gho_secret"
+            assert req.headers["Authorization"].startswith("Bearer gho_")
             return httpx.Response(200, json={"login": "gil", "id": 42, "name": "Gil Moreno", "email": None})
         if url.endswith("/user/emails"):
             return httpx.Response(200, json=[{"email": "gil@example.com", "primary": True, "verified": True}])
@@ -83,9 +85,10 @@ def test_token_store_encrypts_at_rest(tmp_path):
 async def test_device_flow_end_to_end(tmp_path):
     fake = FakeGitHub()
     gh = connect_for(tmp_path, fake)
-    assert gh.status("gil") == {"configured": True, "connected": None, "machine_identity": gh.machine_token is not None}
+    st = gh.status("gil")
+    assert st["configured"] and st["connected"] is None and st["machine"] is None
     flow = await gh.start("gil")
-    assert flow.user_code == "ABCD-1234" and flow.verification_uri.endswith("/login/device")
+    assert flow.user_code == "ABCD-1234" and flow.verification_uri.endswith("user_code=ABCD-1234")
     assert gh.get_flow(flow.id, "gil") is flow and gh.get_flow(flow.id, "someone-else") is None
     await wait_for(flow)
     assert fake.polls == 3  # pending, slow_down, token
@@ -193,6 +196,46 @@ def test_git_identity_files(tmp_path, monkeypatch):
     assert not (d / "token").exists() and not (d / "gh" / "hosts.yml").exists()
 
 
+async def test_machine_account_and_personal_pat(tmp_path, monkeypatch):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    fake = FakeGitHub()
+    gh = connect_for(tmp_path, fake)
+    gh.machine_token = None
+    assert gh.machine_public() is None
+    conn = await gh.connect_machine_token(PAT)
+    assert conn.login == "gil"
+    assert gh.machine_public()["login"] == "gil" and gh.machine_public()["source"] == "settings"
+    assert gh.machine_token == PAT
+    # env wins over the stored machine token
+    gh.machine_token = "ghp_from_env"
+    assert gh.machine_public()["source"] == "env"
+    gh.machine_token = None
+    assert gh.machine_token == PAT
+    # a person may still attach their own account; join does not require it
+    personal = await gh.connect_token("alex", PAT)
+    assert personal.login == "gil"
+    assert gh.status("alex")["connected"]["login"] == "gil"
+    assert gh.status("bob")["connected"] is None and gh.status("bob")["machine"]["login"] == "gil"
+    ident = GitIdentity(str(tmp_path), gh)
+    assert ident.apply("demo", "guest") == "machine @gil"
+    assert ident.apply("demo", "alex") == "@gil (alex)"
+    gh.forget_machine()
+    assert gh.machine_public() is None
+    await gh.aclose()
+
+
+async def test_machine_device_flow_does_not_attach_to_the_admin(tmp_path):
+    fake = FakeGitHub()
+    gh = connect_for(tmp_path, fake)
+    gh.machine_token = None
+    flow = await gh.start("gil", dest="machine")
+    await wait_for(flow)
+    assert gh.store.get("gil") is None
+    assert gh.machine_public()["login"] == "gil"
+    await gh.aclose()
+
+
 def test_git_identity_without_state_dir_is_a_noop():
     ident = GitIdentity(None, None)
     assert ident.env("demo") == {} and ident.apply("demo", "gil") == "no state dir"
@@ -216,7 +259,7 @@ async def test_admin_routes_are_per_user(tmp_path):
         r = await c.post("/github/connect", headers=h)
         assert r.status == 201
         f = await r.json()
-        assert f["user_code"] == "ABCD-1234" and f["verification_uri"].startswith("https://github.com/")
+        assert f["user_code"] == "ABCD-1234" and "user_code=ABCD-1234" in f["verification_uri"]
         # another user cannot peek at this flow
         assert (await c.get(f"/github/connect/{f['flow']}", headers={"X-Marvin-User": "bob"})).status == 404
         await wait_for(gh.flows[f["flow"]])
@@ -232,4 +275,44 @@ async def test_admin_routes_are_per_user(tmp_path):
         assert (await c.put("/github/config", json={"client_id": "x"}, headers=adm)).status == 400
         r = await c.put("/github/config", json={"client_id": "Iv1.other"}, headers=adm)
         assert r.status == 200 and (await r.json())["client_id"] == "Iv1.other"
+        # machine account: admin only; personal PAT is self-service
+        assert (await c.put("/github/machine", json={"token": PAT}, headers=h)).status == 403
+        r = await c.put("/github/machine", json={"token": PAT}, headers=adm)
+        assert r.status == 200 and (await r.json())["machine"]["login"] == "gil"
+        r = await c.put("/github/me", json={"token": PAT}, headers=h)
+        assert r.status == 200 and (await r.json())["connected"]["login"] == "gil"
+        gate = await (await c.get("/setup", headers=h)).json()
+        assert gate["machine_github"]["login"] == "gil" and gate["personal"]["login"] == "gil"
+        # no agent key in this test: join is not ready
+        assert gate["ready"] is False and gate["agent"]["ready"] is False
+    await gh.aclose()
+
+
+async def test_setup_ready_when_machine_and_agent_are_set(tmp_path, monkeypatch):
+    from marvin.admin import make_admin_app
+    from marvin.config import Config
+    from marvin.harness_creds import HarnessCreds
+    from marvin.room.manager import RoomManager
+
+    for k in ("ANTHROPIC_API_KEY", "XAI_API_KEY", "OPENAI_API_KEY", "GITHUB_TOKEN", "GH_TOKEN"):
+        monkeypatch.delenv(k, raising=False)
+    fake = FakeGitHub()
+    gh = connect_for(tmp_path, fake)
+    gh.machine_token = None
+    creds = HarnessCreds(str(tmp_path), secret="s3")
+    mgr = RoomManager(Config(rooms=()), repos_dir=str(tmp_path / "repos"), state_dir=str(tmp_path), session_kwargs={})
+    adm = {"X-Marvin-User": "root", "X-Marvin-Roles": "participant,admin"}
+    async with TestClient(TestServer(make_admin_app(mgr, gh, harness_creds=creds))) as c:
+        gate = await (await c.get("/setup", headers=adm)).json()
+        assert gate["ready"] is False and gate["machine_github"] is None and gate["personal"] is None
+        assert (await c.put("/github/machine", json={"token": PAT}, headers=adm)).status == 200
+        gate = await (await c.get("/setup", headers=adm)).json()
+        assert gate["ready"] is False and gate["machine_github"]["login"] == "gil"
+        creds.put_key("xai", "xai-supersecret-key")
+        gate = await (await c.get("/setup", headers=adm)).json()
+        assert gate["ready"] is True and gate["agent"]["label"] == "xAI (Grok)"
+        # personal GitHub does not change ready
+        assert (await c.put("/github/me", json={"token": PAT}, headers=adm)).status == 200
+        gate = await (await c.get("/setup", headers=adm)).json()
+        assert gate["ready"] is True and gate["personal"]["login"] == "gil"
     await gh.aclose()

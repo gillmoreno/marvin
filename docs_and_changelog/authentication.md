@@ -31,20 +31,23 @@ Finer roles (`viewer`, `approver`) and per-repo policies are Enterprise Edition 
 Marvin's own login. No extra service. Suitable for a team behind Caddy on a VM.
 
 ```
-browser ── POST /api/login {name, password} ──▶ token server ── compare (constant time) ──▶ Set-Cookie marvin_session
+browser ── POST /api/login {email, password} ──▶ token server ── compare (constant time) ──▶ Set-Cookie marvin_session
 browser ── GET /api/token?room=dev  (cookie) ──▶ token server ── read+verify cookie ──▶ LiveKit JWT {identity, name, metadata.roles}
 browser ── wss /rtc (JWT) ─────────────────────▶ Caddy ──▶ LiveKit ──▶ worker sees participant.metadata.roles
 ```
 
 - `MARVIN_ROOM_PASSWORD` → `participant`; `MARVIN_ADMIN_PASSWORD` (optional) → `participant` + `admin`. Both compared
   with `hmac.compare_digest`; both are checked on every attempt so timing does not reveal which one matched.
-- Cookie `marvin_session`: `<base64url(payload)>.<base64url(HMAC-SHA256)>`, payload `{id, name, roles, exp}`;
+- The login form asks for **email**. `POST /api/login` accepts `{email, password}` (`name` is still accepted).
+  If the identifier contains `@`, it is stored on `Identity.email` and shown on the join page as
+  “You’re logged in as …”.
+- Cookie `marvin_session`: `<base64url(payload)>.<base64url(HMAC-SHA256)>`, payload `{id, name, email, roles, exp}`;
   `HttpOnly`, `SameSite=Lax`, `Secure` whenever the browser is on https (directly or via `X-Forwarded-Proto`),
   `Max-Age` = `MARVIN_SESSION_HOURS` (12). Signed with `MARVIN_SESSION_SECRET`, falling back to `LIVEKIT_API_SECRET`
   (a warning is logged if that is still the LiveKit dev secret).
 - Brute force: a wrong password costs 0.5 s; after 10 failures in a minute from one IP, `/api/login` answers 429.
-- The identity id is a slug of the typed name, so two people typing the same name are the same LiveKit identity. That
-  is a known limitation of password mode; use `header` mode when names must be authoritative.
+- The identity id is a slug of the typed email (or name), so two people typing the same value are the same LiveKit
+  identity. That is a known limitation of password mode; use `header` mode when names must be authoritative.
 
 ### `header` (single sign-on)
 

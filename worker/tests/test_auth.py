@@ -98,12 +98,15 @@ async def test_password_login_sets_cookie_and_identity(upstream):
         ck = r.cookies["marvin_session"]
         assert ck["httponly"] and ck["samesite"] == "Lax" and ck["path"] == "/" and not ck["secure"]  # plain http test client
         assert (await r.json())["identity"] == {"id": "gil-moreno", "name": "Gil Moreno", "email": None, "roles": ["participant"]}
+        await c.post("/api/logout")
+        r = await c.post("/api/login", json={"email": "gil@aigil.dev", "password": "open-sesame"})
+        assert (await r.json())["identity"]["email"] == "gil@aigil.dev"
         j = await (await c.get("/api/me")).json()
-        assert j["identity"]["id"] == "gil-moreno" and j["identity"]["roles"] == ["participant"]
+        assert j["identity"] == {"id": "gil-aigil-dev", "name": "gil@aigil.dev", "email": "gil@aigil.dev", "roles": ["participant"]}
         r = await c.get("/api/token?room=dev&name=Somebody+Else")  # the name query is ignored: the session decides
         assert r.status == 200
         p = jwt_payload((await r.json())["token"])
-        assert p["sub"] == "gil-moreno" and p["name"] == "Gil Moreno" and json.loads(p["metadata"]) == {"roles": ["participant"]}
+        assert p["sub"] == "gil-aigil-dev" and p["name"] == "gil@aigil.dev" and json.loads(p["metadata"]) == {"roles": ["participant"]}
         assert (await c.post("/api/logout")).status == 200
         assert (await (await c.get("/api/me")).json())["identity"] is None
 

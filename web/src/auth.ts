@@ -21,8 +21,8 @@ export async function fetchMe(): Promise<Me> {
   }
 }
 
-export async function login(name: string, password: string): Promise<Me> {
-  const r = await fetch("/api/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, password }) });
+export async function login(email: string, password: string): Promise<Me> {
+  const r = await fetch("/api/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error ?? r.statusText);
   return j as Me;

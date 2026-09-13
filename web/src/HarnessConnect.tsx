@@ -68,7 +68,7 @@ function KeyForm({ p, onSaved }: { p: Provider; onSaved: (s: Status) => void }) 
   );
 }
 
-function GrokLogin({ onSaved }: { onSaved: (s: Status) => void }) {
+export function GrokLogin({ onSaved }: { onSaved: (s: Status) => void }) {
   const [flow, setFlow] = useState<Flow | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -106,13 +106,13 @@ function GrokLogin({ onSaved }: { onSaved: (s: Status) => void }) {
         <div className="github-code" onClick={copy} title="click to copy">{flow.user_code || "…"}{copied ? <span className="dim small"> copied</span> : null}</div>
         <p className="small"><a href={flow.verification_uri} target="_blank" rel="noopener noreferrer">{flow.verification_uri}</a></p>
         <p className="dim small">Waiting for you to approve… the code is valid for {Math.max(1, Math.round(flow.expires_in / 60))} minutes.</p>
-        <div className="btns"><button className="ghost" onClick={() => { stop(); setFlow(null); }}>cancel</button></div>
+        <div className="btns"><button type="button" className="ghost" onClick={() => { stop(); setFlow(null); }}>cancel</button></div>
       </div>
     );
   }
   return (
     <>
-      <div className="btns"><button className="primary" disabled={busy} onClick={() => void start()}>{busy ? "starting…" : "Sign in with Grok"}</button></div>
+      <div className="btns"><button type="button" className="primary" disabled={busy} onClick={() => void start()}>{busy ? "starting…" : "Sign in with Grok"}</button></div>
       {err && <p className="error small">{err}</p>}
     </>
   );
