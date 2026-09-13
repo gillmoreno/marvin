@@ -7,6 +7,16 @@ Pilot hostname: `https://marvin.aigil.dev`. Box: `c7i.2xlarge` in `eu-central-1a
 `63.185.15.12`. DNS is Cloudflare, grey-cloud (not proxied) so WebRTC and Caddy's HTTP-01 hit the VM.
 App-preview wildcard reserved as `*.marvin.aigil.dev`.
 
+## 2026-09-13
+
+- **Typed Send had no immediate feedback.** The box cleared, then nothing until Grok finished the current
+  turn (and LiveKit rounded the trip). Cause: typed `ask` never published a transcript line, and `turn_start`
+  waited for the runner. Fix: paint locally on click; worker publishes transcript + `turn_start` at enqueue
+  (`queued` if busy).
+- **No in-app upgrade.** A new `main` on GitHub stayed off the VM until someone SSHed. Settings → This
+  machine now lists the missing commits and updates from the browser (`updates.md`). The first box still
+  needs one manual pull so that panel exists.
+
 ## 2026-09-12
 
 - **Preview hosts stay under this install.** `*.marvin.aigil.dev` is this VM. It cannot be the preview domain

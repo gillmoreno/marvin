@@ -35,8 +35,9 @@ PROXIED = (
     "/api/themes", "/api/themes/default", "/api/themes/{id}", "/api/themes/{id}/theme.css",  # reading is for everyone signed in; default/delete are writes (admin)
     "/api/harness-creds", "/api/harness-creds/default", "/api/harness-creds/{id}",
     "/api/harness-creds/grok/login", "/api/harness-creds/grok/login/{flow}",
+    "/api/update",
 )
-ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config", "/api/harness-creds")
+ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config", "/api/harness-creds", "/api/update")
 # Self-service: every signed-in user may write here, because it only touches their own record (keyed by X-Marvin-User).
 SELF_SERVICE_PREFIXES = ("/api/github/",)
 

@@ -38,9 +38,15 @@ sandbox-clean: ## remove every room container (they are recreated on the next wo
 
 # ---------- Edge stack: everything in containers behind Caddy (TLS + auth), for a machine other people reach.
 EDGE := docker compose -f docker-compose.edge.yml
+export MARVIN_INSTALL_DIR ?= $(abspath .)
+export MARVIN_GIT_SHA ?= $(shell git rev-parse HEAD 2>/dev/null)
+export MARVIN_GIT_REF ?= main
 
 edge-up: sandbox-image ## build + start livekit, worker, web and Caddy; password login (MARVIN_ROOM_PASSWORD)
 	$(EDGE) up -d --build
+
+update: ## pull origin/$(MARVIN_GIT_REF) and rebuild the edge stack (same as Settings → Update)
+	@deploy/edge/update.sh
 
 edge-oidc-up: sandbox-image ## same, with single sign-on through oauth2-proxy (MARVIN_AUTH=header, OAUTH2_PROXY_* in .env)
 	MARVIN_AUTH=header MARVIN_CADDYFILE=./deploy/edge/Caddyfile.oidc $(EDGE) --profile oidc up -d --build

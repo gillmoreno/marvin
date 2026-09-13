@@ -54,6 +54,10 @@ aws ssm start-session --target "$(terraform output -raw instance_id)"
 Stop the instance to stop compute. Keep the Elastic IP so DNS does not move (~$3.60/month for the
 address either way). `terraform destroy` releases the IP and deletes the SSM parameters.
 
+After the box is up, new code on GitHub does **not** appear until an admin uses Settings → This
+machine → Update (or `make update` on the VM). Terraform apply again would replace the instance.
+See `updates.md`.
+
 ## Cost (order of magnitude)
 
 - Elastic IP / public IPv4: about $0.005/hour whether the VM is running or stopped.

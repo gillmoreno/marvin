@@ -6,7 +6,11 @@
 # The four-terminal dev loop (`make up` + token/worker/web on the host) uses docker-compose.yml, not this file.
 
 x-marvin-image: &marvin-image
-  build: { context: ., dockerfile: Dockerfile }
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      MARVIN_GIT_SHA: ${MARVIN_GIT_SHA:-}
   image: ${MARVIN_IMAGE:-marvin:local}
 
 services:
@@ -99,6 +103,10 @@ services:
       MARVIN_GITHUB_CLIENT_ID: ${MARVIN_GITHUB_CLIENT_ID:-}
       MARVIN_SESSION_SECRET: ${MARVIN_SESSION_SECRET:-}
       MARVIN_DOMAIN: ${MARVIN_DOMAIN:-}           # app links: https://p{port}.<this> (docs_and_changelog/app-previews.md)
+      MARVIN_GIT_SHA: ${MARVIN_GIT_SHA:-}
+      MARVIN_GIT_REF: ${MARVIN_GIT_REF:-main}
+      MARVIN_GIT_REPO: ${MARVIN_GIT_REPO:-https://github.com/gillmoreno/marvin.git}
+      MARVIN_INSTALL_DIR: ${MARVIN_INSTALL_DIR:-}
       ORT_DISABLE_TELEMETRY: "1"   # otherwise ONNX Runtime writes worker/:memory:.ses
     volumes:
       - marvin_work:/work
@@ -107,6 +115,8 @@ services:
       # MARVIN_SANDBOX_DOCKER_SOCKET=1, hands it to the agents too). Root-equivalent on this host: the VM is the blast
       # radius. See security-and-compliance.md section 6.
       - /var/run/docker.sock:/var/run/docker.sock
+      # Same-path mount of this checkout so Settings → Update can git pull and compose still sees host paths.
+      - ${MARVIN_INSTALL_DIR:?set MARVIN_INSTALL_DIR (make edge-up exports it)}:${MARVIN_INSTALL_DIR}
     depends_on: [livekit]
     restart: unless-stopped
     # No ports.

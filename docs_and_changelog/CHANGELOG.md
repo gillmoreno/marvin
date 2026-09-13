@@ -2,6 +2,17 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-13 — Immediate feedback and in-app updates
+
+### Added
+- Settings → **This machine** (admin): commits on `main` that this VM does not have, and **Update this
+  machine** (`git pull` + rebuild). Same script as `make update`. Docs: `updates.md`.
+
+### Fixed
+- Typing a question and hitting Send paints the line and the turn at once (and on the transcript). A follow-up
+  while Marvin is still working shows as queued instead of vanishing until the current turn ends. Allow/Deny
+  also clear the banner on click.
+
 ## 2026-09-13 — AWS Terraform appliance
 
 ### Added

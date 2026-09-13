@@ -104,8 +104,24 @@ class Conductor:
                 await self.publish({"kind": "permission_resolved", "id": msg["id"], "allow": action == "approve", "by": sender})
         elif action == "ask":
             # Typed question: same path as a spoken "Marvin, ...", context is whatever the room said since the last turn.
+            # Publish the line now (speech already does this in on_segment) so the transcript moves before the harness.
+            text = str(msg.get("text") or "").strip()
+            if not text:
+                return
             t = time.monotonic()
-            seg = Segment(start=t, end=t, speaker=sender, text=f"{self.agent_name}, {msg.get('text', '')}", final=True)
+            at = time.time()
+            await self.publish(
+                {
+                    "kind": "transcript",
+                    "speaker": sender,
+                    "text": text,
+                    "start": t - self.timeline.t0,
+                    "end": t - self.timeline.t0,
+                    "at": at,
+                    "final": True,
+                }
+            )
+            seg = Segment(start=t, end=t, speaker=sender, text=f"{self.agent_name}, {text}", final=True)
             turn = self.assembler.on_segment(seg)
             if turn:
                 await self._enqueue(turn)
@@ -133,15 +149,22 @@ class Conductor:
 
     # -- turns ------------------------------------------------------------------
     async def _enqueue(self, turn: Turn) -> None:
-        """Claim whatever images are waiting now, so a later drop can't attach itself to this turn."""
+        """Claim whatever images are waiting now, so a later drop can't attach itself to this turn.
+
+        Announce the turn here, not when the runner dequeues it: a typed ask while Marvin is already
+        working used to sit in the queue with no UI until the current turn finished.
+        """
         attachments, self._attachments = self._attachments, []
+        queued = self._state != "idle" or not self._queue.empty()
+        await self.publish(
+            {"kind": "turn_start", "asked_by": turn.asked_by, "question": turn.question, "queued": queued}
+        )
         await self._queue.put((turn, attachments))
 
     async def _run_turns(self) -> None:
         while True:
             turn, attachments = await self._queue.get()
             await self._set_state("thinking")
-            await self.publish({"kind": "turn_start", "asked_by": turn.asked_by, "question": turn.question})
             try:
                 if self.on_turn_begin:
                     try:

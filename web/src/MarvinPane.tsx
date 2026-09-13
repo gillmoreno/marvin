@@ -102,7 +102,9 @@ export function MarvinPane({ marvin, room }: { marvin: ReturnType<typeof useMarv
                 ))}
               </ul>
             )}
-            <div className="a">{t.text || (t.result ? "" : <WaitingHint />)}</div>
+            <div className="a">
+              {t.queued ? <span className="hint">waiting for the current turn to finish…</span> : t.text || (t.result ? "" : <WaitingHint />)}
+            </div>
             {t.result && (
               <div className="meta">
                 {t.result.is_error ? "failed" : "done"} · {t.result.duration_ms != null ? `${(t.result.duration_ms / 1000).toFixed(1)}s` : ""}

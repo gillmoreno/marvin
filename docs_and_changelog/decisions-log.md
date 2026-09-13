@@ -96,6 +96,15 @@ this file is the "why we did it this way" layer on top.
   if the agent cannot answer, the pane says so in a sentence and points at the next click (Settings). No
   interactive CLI login from a headless room (device flow belongs in Settings). No browser `alert()` for room
   operations. A room that looks live with a dead turn queue is a bug, not a timeout.
+- **Send is local first.** Clearing the composer and waiting for LiveKit + the harness to echo `turn_start`
+  made typed asks look like they disappeared — worse when a turn was already running and the next one sat
+  in the queue. The click paints the transcript line and the turn immediately; the worker also announces
+  `turn_start` at enqueue (with `queued` if busy) so everyone else sees it too. Tool events still attach to
+  the running turn, not the queued one.
+- **Updates are in Settings, not SSH.** The appliance is a checkout; staying on the clone from first boot
+  is how testers miss Send fixes. Admin Settings lists the commits on `main` this VM does not have and
+  applies `deploy/edge/update.sh` (same as `make update`). `.env` stays. First box still needs one manual
+  pull so the button exists; after that, the browser is enough. Write-up: `updates.md`.
 
 ## 2026-09-13
 

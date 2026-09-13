@@ -78,6 +78,9 @@ MARVIN_DOMAIN=${hostname}
 MARVIN_TLS=${tls}
 MARVIN_WHISPER=small
 SANDBOX_HARNESSES=${sandbox_harnesses}
+MARVIN_INSTALL_DIR=$HOME_DIR
+MARVIN_GIT_REPO=${git_repo}
+MARVIN_GIT_REF=${git_ref}
 EOF
   chown ubuntu:ubuntu "$ENV"
   chmod 600 "$ENV"

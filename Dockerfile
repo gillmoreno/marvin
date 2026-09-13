@@ -13,8 +13,10 @@ COPY web/ .
 RUN pnpm build
 
 FROM python:3.12-slim
+ARG MARVIN_GIT_SHA=
 ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 \
-    UV_PROJECT_ENVIRONMENT=/app/.venv UV_PYTHON=/usr/local/bin/python3 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
+    UV_PROJECT_ENVIRONMENT=/app/.venv UV_PYTHON=/usr/local/bin/python3 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never \
+    MARVIN_GIT_SHA=$MARVIN_GIT_SHA
 # git for the repos, docker CLI + compose for the apps (daemon is the dind sidecar), ripgrep for Claude Code, libgomp for CTranslate2
 RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates gnupg ripgrep libgomp1 openssh-client procps \
  && install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \

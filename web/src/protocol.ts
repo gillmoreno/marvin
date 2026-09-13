@@ -7,7 +7,7 @@ export type MarvinEvent =
   | { kind: "app_links"; links: { label: string; url: string }[] } // where the room's app is served (from rooms.yaml)
   | { kind: "status"; state: "idle" | "thinking" | "waiting_approval" }
   | { kind: "transcript"; speaker: string; text: string; start: number; end: number; at?: number; final?: boolean }
-  | { kind: "turn_start"; asked_by: string; question: string }
+  | { kind: "turn_start"; asked_by: string; question: string; queued?: boolean } // queued: another turn is still running
   | { kind: "text_delta"; text: string }
   | { kind: "text"; text: string }
   | { kind: "tool_use"; id: string; tool: string; input: Record<string, unknown> }

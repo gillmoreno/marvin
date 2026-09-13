@@ -13,6 +13,7 @@ from marvin.harness_creds import HarnessCreds
 from marvin.room.manager import RoomManager
 from marvin import notes as notes_mod
 from marvin.themes import ThemeStore
+from marvin.update import Install
 
 log = logging.getLogger("marvin.admin")
 
@@ -24,9 +25,10 @@ def who(req: web.Request) -> str:
     return f"{user} [{roles}]" if roles else user
 
 
-def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None) -> web.Application:
+def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None) -> web.Application:
     app = web.Application()
     themes = themes or ThemeStore(None)
+    install = install or Install.from_env()
 
     # -- GitHub connection (self-service: the token server lets every signed-in user call /github/*) --------------
     def _user(req: web.Request) -> str | None:
@@ -374,11 +376,27 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
     app.router.add_get("/ports", ports)
     app.router.add_get("/changes", changes)
     app.router.add_get("/changes/file", changes_file)
+
+    async def update_status(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        return web.json_response(await install.describe())
+
+    async def update_apply(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        try:
+            return web.json_response(install.start(), status=202)
+        except RuntimeError as e:
+            return web.json_response({"error": str(e)}, status=409)
+
+    app.router.add_get("/update", update_status)
+    app.router.add_post("/update", update_apply)
     return app
 
 
-async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None) -> web.AppRunner:
-    runner = web.AppRunner(make_admin_app(mgr, github, themes, harness_creds))
+async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None) -> web.AppRunner:
+    runner = web.AppRunner(make_admin_app(mgr, github, themes, harness_creds, install))
     await runner.setup()
     await web.TCPSite(runner, host, port).start()
     log.info("admin api on http://%s:%d", host, port)
