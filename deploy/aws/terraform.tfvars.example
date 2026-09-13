@@ -1,0 +1,26 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Then:
+#   cd deploy/aws && terraform init && terraform apply
+#
+# This is a throwaway stack. It does not touch an existing Marvin box.
+
+hostname           = "marvin.example.com"
+letsencrypt_email  = "you@example.com"
+room_password      = "change-me-room"
+admin_password     = "change-me-admin"
+
+# Optional: Terraform writes A + *.A for hostname in this zone.
+# route53_zone_id = "Zxxxxxxxxxx"
+
+# access_mode = "public"   # default: 80/443/media to the world
+# access_mode = "private"
+# access_cidr = "10.10.0.0/16"   # required when private (Firezone / VPN)
+
+# ssh_cidr = "203.0.113.10/32"   # your laptop; omit = SSM only
+# key_name = "my-keypair"
+
+# instance_type = "c7i.xlarge"
+# git_ref       = "main"
+# git_token     = ""            # HTTPS token; required when git_repo is private
+# region        = "eu-central-1"
+# vpc_id        = ""
+# subnet_id     = ""

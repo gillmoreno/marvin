@@ -20,7 +20,7 @@ class TestWakeDetector:
         assert m and m.position == "end" and m.question == "what do you think about that"
 
     def test_stt_misspellings(self):
-        for spelling in ("Marvyn", "Marven", "marvin"):
+        for spelling in ("Marvyn", "Marven", "marvin", "Marvel"):
             assert self.d.detect(f"{spelling} run the tests") is not None
 
     def test_fuzzy(self):
@@ -74,6 +74,37 @@ class TestTimelineAndTurns:
         capped.on_segment(seg("Gil", "recent remark", 3600.0))
         turn = capped.on_segment(seg("Gil", "Marvin what do you think", 3605.0))
         assert [s.text for s in turn.context] == ["recent remark"]
+
+    def test_name_alone_waits_for_the_rest(self):
+        # Silero VAD often ends the utterance after "Marvin,"; that must not become a turn.
+        tl = Timeline(t0=0.0)
+        ta = TurnAssembler(tl)
+        assert ta.on_segment(seg("Gil", "Marvin.", 1.0, dur=0.4)) is None
+        turn = ta.on_segment(seg("Gil", "what does this repo do", 1.8))
+        assert turn is not None
+        assert turn.asked_by == "Gil"
+        assert turn.question == "what does this repo do"
+        assert [s.text for s in turn.context] == ["Marvin."]
+
+    def test_name_alone_expires(self):
+        tl = Timeline(t0=0.0)
+        ta = TurnAssembler(tl, wake_hold_s=2.0)
+        assert ta.on_segment(seg("Gil", "Marvin.", 1.0, dur=0.4)) is None
+        assert ta.on_segment(seg("Gil", "what about this", 10.0)) is None
+
+    def test_other_speaker_cancels_name_hold(self):
+        tl = Timeline(t0=0.0)
+        ta = TurnAssembler(tl)
+        assert ta.on_segment(seg("Gil", "Marvin.", 1.0, dur=0.4)) is None
+        assert ta.on_segment(seg("Ana", "meanwhile the tests failed", 1.6)) is None
+        assert ta.on_segment(seg("Gil", "what about this", 2.0)) is None
+
+    def test_same_utterance_still_strips_the_name(self):
+        tl = Timeline(t0=0.0)
+        ta = TurnAssembler(tl)
+        turn = ta.on_segment(seg("Gil", "Marvin, how does the retry backoff work?", 1.0))
+        assert turn is not None
+        assert turn.question == "how does the retry backoff work"
 
     def test_prompt_rendering(self):
         tl = Timeline(t0=0.0)

@@ -9,6 +9,16 @@ App-preview wildcard reserved as `*.marvin.aigil.dev`.
 
 ## 2026-09-12
 
+- **Preview hosts stay under this install.** `*.marvin.aigil.dev` is this VM. It cannot be the preview domain
+  for every Marvin customer: a wildcard has one IP, and riding on `aigil.dev` would make us their hosted edge.
+  General rule: `p{port}.{MARVIN_DOMAIN}`.
+- **Leading "Marvin" on CPU Whisper.** Not Super Whisper: this box is faster-whisper `small` plus Silero VAD
+  (NVIDIA streaming STT is the other path, and it is not running here). Two failures showed up in the worker
+  log: `turn from gil: Marvin.` then a later line that was not a wake. (1) VAD ends the utterance after the
+  name, so the worker used to start a turn whose question was just `Marvin.` and drop the rest. (2)
+  `initial_prompt="Marvin, Marvin."` made Whisper treat the name as already said and omit it at the start of
+  the next sentence. Fix: latch a name-only utterance onto the next line from the same speaker; change the
+  prompt and pass `hotwords=Marvin`. "Marvin, how does X work?" in one breath still strips the name.
 - **Smoothness bar (first real Grok session).** Signing in, switching harness, and the first turns
   looked alive (listening / working / `…`) while the agent was dead, missing, or retrying DNS. A
   native `alert()` said `AcpError: agent exited (rc=127)`. That is not shippable: a visitor would

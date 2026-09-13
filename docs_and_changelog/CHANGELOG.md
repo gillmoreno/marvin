@@ -2,6 +2,33 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-13 — AWS Terraform appliance
+
+### Added
+- `deploy/aws`: Terraform root module that boots a new VM (Elastic IP, optional Route 53, SSM, cloud-init
+  `edge-up`). Apply returns when the AWS objects exist; the room is ready when `/healthz` is 200. Outputs say
+  where secrets live, never the values. Private origin repos take `git_token` (SSM, clone-only). Docs:
+  `aws-terraform.md`.
+
+## 2026-09-12 — HTTPS app previews under this install's hostname
+
+### Added
+- Edge stack: a listening port becomes `https://p{port}.{MARVIN_DOMAIN}` (Caddy on-demand TLS, nginx to the worker).
+  Settings → **App previews** shows the pattern. Docs: `app-previews.md`.
+- `GET /tls-ask` (unauthenticated): Caddy may issue a certificate only for a preview host of this machine.
+
+### Changed
+- App links prefer `MARVIN_DOMAIN` (child hosts) over the older k8s `marvin-{port}.{parent}` shape, which still
+  works when only `MARVIN_APPS_DOMAIN` is set.
+
+## 2026-09-12 — Leading "Marvin" after a pause
+
+### Fixed
+- Saying "Marvin," then pausing no longer starts a junk turn on the name alone. The next utterance from the same
+  speaker (about 8s) is the question.
+- Local Whisper no longer prompts with `"Marvin, Marvin."`, which made the `small` model omit a leading spoken
+  "Marvin". It now uses a full-sentence prompt and the `Marvin` hotword.
+
 ## 2026-09-12 — Coding agents from Settings
 
 ### Added

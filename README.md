@@ -104,7 +104,7 @@ worker/marvin/token_server.py   token endpoint, /api proxy, serves the built UI 
 worker/marvin/gate.py      optional "power switch" for clusters (sleep/wake page + schedule)
 stt/                       optional GPU streaming STT service (NVIDIA Nemotron ASR over WebSocket), see stt/README.md
 web/                       Vite + React + LiveKit components; MarvinPane, Transcript, People, Workspace
-deploy/                    Dockerfile entrypoint, k8s manifests (deploy/k8s), apps ingress generator
+deploy/                    Dockerfile entrypoint, k8s manifests (deploy/k8s), AWS Terraform (deploy/aws), apps ingress generator
 docs_and_changelog/        changelog and design notes
 ```
 
@@ -112,8 +112,10 @@ docs_and_changelog/        changelog and design notes
 
 - `--whisper-model` / `MARVIN_WHISPER`: `small` int8 is the latency/accuracy point on Apple Silicon CPU. `base` for a
   fast demo, `large-v3-turbo` if the machine has cores to spare. Multilingual by default; `--language en` to pin.
-- Wake-word aliases and window: `worker/marvin/bridge/wake.py`. The Whisper `initial_prompt` biases spelling toward
-  "Marvin". `MARVIN_NAME` changes the name everywhere (prompt, UI, wake word).
+- Wake-word aliases and window: `worker/marvin/bridge/wake.py`. A lone "Marvin," waits a few seconds for the rest of
+  the sentence (VAD often cuts there). Local Whisper uses a full-sentence prompt plus the `Marvin` hotword; a bare
+  `"Marvin, Marvin."` prompt makes small models drop the spoken name. `MARVIN_NAME` changes the name everywhere
+  (prompt, UI, wake word).
 - Pre-approved tools and the room system prompt: `worker/marvin/adapters/claude_code.py`.
 - `--resume <session id>` continues yesterday's Claude Code session for the same repo (done automatically per room
   when `--state-dir` is set).
@@ -156,7 +158,8 @@ The room is three columns: people, app links and controls on the left; a tabbed 
 - **Changes**: the room repo's files against the branch base (merge-base with main, or uncommitted work when on main),
   with per-file diffs and "commit" / "open PR" buttons that hand the request to Marvin. Backed by `/api/changes`.
 - **App previews**: every app link (declared in `rooms.yaml`, or a detected listening port) opens as an embedded
-  preview with reload and open-in-new-tab. On a cluster, app hostnames allow framing from the Marvin host only.
+  preview with reload and open-in-new-tab. On a public install the URL is `https://p{port}.{MARVIN_DOMAIN}`;
+  framing is allowed from that Marvin host only (`app-previews.md`).
 - **Shared screens**: a tab per screen someone shares, only while they share it.
 
 ## Where the agent runs

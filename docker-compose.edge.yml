@@ -39,6 +39,7 @@ services:
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
       MARVIN_NAME: ${MARVIN_NAME:-Marvin}
+      MARVIN_DOMAIN: ${MARVIN_DOMAIN:-}           # public hostname; /tls-ask and Settings → App previews
       MARVIN_ICE_RELAY_ONLY: ${MARVIN_ICE_RELAY_ONLY:-false}
       # Authentication (marvin/auth.py). password: MARVIN_ROOM_PASSWORD (+ MARVIN_ADMIN_PASSWORD). header: identity
       # comes from oauth2-proxy through Caddy (Caddyfile.oidc); admins by MARVIN_ADMIN_GROUPS / MARVIN_ADMIN_USERS.
@@ -97,6 +98,7 @@ services:
       # with MARVIN_SESSION_SECRET under the state dir.
       MARVIN_GITHUB_CLIENT_ID: ${MARVIN_GITHUB_CLIENT_ID:-}
       MARVIN_SESSION_SECRET: ${MARVIN_SESSION_SECRET:-}
+      MARVIN_DOMAIN: ${MARVIN_DOMAIN:-}           # app links: https://p{port}.<this> (docs_and_changelog/app-previews.md)
       ORT_DISABLE_TELEMETRY: "1"   # otherwise ONNX Runtime writes worker/:memory:.ses
     volumes:
       - marvin_work:/work
@@ -109,6 +111,15 @@ services:
     restart: unless-stopped
     # No ports.
 
+  apps:
+    # Host → port for preview URLs. Shares nothing with the worker except the compose network; the app listens
+    # in the worker netns (sandboxes join it). See deploy/edge/apps-proxy.conf.
+    image: nginx:1.27-alpine
+    volumes:
+      - ./deploy/edge/apps-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [worker]
+    restart: unless-stopped
+
   caddy:
     image: caddy:2
     ports:
@@ -118,11 +129,23 @@ services:
     environment:
       MARVIN_SITE_ADDRESS: ${MARVIN_DOMAIN:-:443}     # hostname for real certificates; ":443" = self-signed
       MARVIN_TLS: ${MARVIN_TLS:-internal}             # "internal" or your e-mail for Let's Encrypt
+      MARVIN_APPS_CATCHALL: ${MARVIN_DOMAIN:+https://}
     volumes:
       - ${MARVIN_CADDYFILE:-./deploy/edge/Caddyfile}:/etc/caddy/Caddyfile:ro
+      - ./deploy/edge/Caddyfile.apps:/etc/caddy/Caddyfile.apps:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on: [web, livekit]
+    # Stock image ENTRYPOINT is `caddy`; override so we can prepend the on-demand catch-all when MARVIN_DOMAIN is set.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        if [ -n "$$MARVIN_APPS_CATCHALL" ]; then
+          cat /etc/caddy/Caddyfile.apps /etc/caddy/Caddyfile > /tmp/Caddyfile
+          exec caddy run --config /tmp/Caddyfile --adapter caddyfile
+        fi
+        exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    depends_on: [web, livekit, apps]
     restart: unless-stopped
 
   oauth2-proxy:

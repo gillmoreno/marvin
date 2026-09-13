@@ -12,6 +12,7 @@ from livekit import api
 
 from marvin.auth import ADMIN, COOKIE, Auth, Identity, cookie_kwargs
 from marvin.config import load_config
+from marvin.ports import AppsRouting
 from marvin.room.protocol import AGENT_IDENTITY
 
 KEY = os.environ.get("LIVEKIT_API_KEY", "devkey")
@@ -135,7 +136,20 @@ async def logout(req: web.Request) -> web.Response:
 
 
 async def agent(req: web.Request) -> web.Response:
-    return web.json_response({"name": AGENT_NAME})
+    routing = AppsRouting.from_env()
+    return web.json_response({
+        "name": AGENT_NAME,
+        "public_host": routing.domain,
+        "preview_pattern": routing.preview_pattern(),
+    })
+
+
+async def tls_ask(req: web.Request) -> web.Response:
+    """Caddy on-demand TLS: 200 only for a preview host of this install (`p3000.<MARVIN_DOMAIN>`). Unauthenticated."""
+    name = (req.query.get("domain") or "").strip()
+    if AppsRouting.from_env().allows_preview_host(name):
+        return web.Response(text="ok")
+    return web.Response(status=404, text="not a preview host")
 
 
 async def health(req: web.Request) -> web.Response:
@@ -152,6 +166,7 @@ def make_app(auth: Auth | None = None) -> web.Application:
     for route in PROXIED:
         app.router.add_route("*", route, proxy_admin)
     app.router.add_get("/api/agent", agent)
+    app.router.add_get("/tls-ask", tls_ask)
     app.router.add_get("/healthz", health)
     if WEB_DIST:
         dist = Path(WEB_DIST)

@@ -10,6 +10,13 @@ models/
 .marvin/
 web/certs/
 deploy/k8s/secrets.env
+# Terraform (deploy/aws): state and tfvars stay on the laptop.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+deploy/aws/terraform.tfvars
 .pytest_cache/
 *.tsbuildinfo
 *.aiff

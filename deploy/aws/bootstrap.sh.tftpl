@@ -1,0 +1,112 @@
+#!/bin/bash
+# First-boot installer. Reboots must not rotate LiveKit keys (the .env is kept).
+set -u
+STATUS=/var/lib/marvin/status
+LOG=/var/log/marvin-bootstrap.log
+HOME_DIR=/home/ubuntu/marvin
+ENV=$HOME_DIR/.env
+mkdir -p /var/lib/marvin
+exec > >(tee -a "$LOG") 2>&1
+echo starting > "$STATUS"
+
+note() { echo "$(date -Is) $*"; }
+fail() { echo "failed: $*" > "$STATUS"; note "FAILED: $*"; exit 1; }
+
+note "waiting for outbound network"
+ok=0
+for _ in $(seq 1 60); do
+  if curl -fsS --max-time 5 https://github.com >/dev/null; then ok=1; break; fi
+  sleep 5
+done
+[ "$ok" = 1 ] || fail "no outbound HTTPS after 5 minutes (subnet needs an IGW or NAT)"
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y git make curl ca-certificates unzip openssl
+snap install amazon-ssm-agent --classic || true
+systemctl enable --now snap.amazon-ssm-agent.amazon-ssm-agent.service 2>/dev/null || systemctl enable --now amazon-ssm-agent || true
+
+# Ubuntu 24.04 has no awscli apt package. Official v2 installer.
+if ! command -v aws >/dev/null; then
+  note "installing AWS CLI v2"
+  curl -fsS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+  unzip -qo /tmp/awscliv2.zip -d /tmp
+  /tmp/aws/install
+  command -v aws >/dev/null || fail "aws cli install"
+fi
+
+if ! command -v docker >/dev/null; then
+  note "installing Docker"
+  curl -fsSL https://get.docker.com | sh
+fi
+usermod -aG docker ubuntu
+systemctl enable --now docker
+
+if [ ! -d "$HOME_DIR/.git" ]; then
+  note "cloning ${git_repo} (${git_ref})"
+  rm -rf "$HOME_DIR"
+  GIT_TOKEN=""
+  if [ -n "${ssm_git}" ]; then
+    GIT_TOKEN=$(aws ssm get-parameter --region "${region}" --name "${ssm_git}" --with-decryption --query Parameter.Value --output text) \
+      || fail "ssm get git_token"
+  fi
+  # Token stays in the helper env, never on the git argv or in the log.
+  sudo -u ubuntu env GIT_TERMINAL_PROMPT=0 GIT_TOKEN="$GIT_TOKEN" \
+    git -c "credential.helper=!f() { test -n \"\$GIT_TOKEN\" && echo username=x-access-token && echo password=\$GIT_TOKEN; }; f" \
+    clone --depth 1 --branch "${git_ref}" "${git_repo}" "$HOME_DIR" \
+    || fail "git clone ${git_repo} @ ${git_ref} (private repo? set git_token)"
+  unset GIT_TOKEN
+fi
+chown -R ubuntu:ubuntu "$HOME_DIR"
+
+if [ ! -f "$ENV" ]; then
+  note "generating LiveKit keys and session secret; fetching passwords from SSM"
+  ROOM_PW=$(aws ssm get-parameter --region "${region}" --name "${ssm_room}" --with-decryption --query Parameter.Value --output text) \
+    || fail "ssm get room_password"
+  ADMIN_PW=$(aws ssm get-parameter --region "${region}" --name "${ssm_admin}" --with-decryption --query Parameter.Value --output text) \
+    || fail "ssm get admin_password"
+  umask 077
+  cat > "$ENV" <<EOF
+NODE_IP=${node_ip}
+LIVEKIT_API_KEY=marvin
+LIVEKIT_API_SECRET=$(openssl rand -hex 32)
+MARVIN_SESSION_SECRET=$(openssl rand -hex 32)
+MARVIN_AUTH=password
+MARVIN_ROOM_PASSWORD=$ROOM_PW
+MARVIN_ADMIN_PASSWORD=$ADMIN_PW
+MARVIN_DOMAIN=${hostname}
+MARVIN_TLS=${tls}
+MARVIN_WHISPER=small
+SANDBOX_HARNESSES=${sandbox_harnesses}
+EOF
+  chown ubuntu:ubuntu "$ENV"
+  chmod 600 "$ENV"
+  unset ROOM_PW ADMIN_PW
+else
+  note "keeping existing $ENV (reboot; keys not rotated)"
+fi
+
+cat > /etc/motd <<EOF
+
+Marvin (${hostname})
+  Room:     https://${hostname}
+  Health:   https://${hostname}/healthz   (first boot often 10–15 minutes)
+  Secrets:  $ENV  (mode 0600)
+            LiveKit keys and MARVIN_SESSION_SECRET were generated on this disk.
+            Login passwords are the ones you passed to Terraform (also in AWS SSM
+            /${name}/room_password and /${name}/admin_password).
+  Bootstrap: $LOG   status: $STATUS
+  Shell:     aws ssm start-session --target \$(ec2-metadata --instance-id 2>/dev/null | awk '{print \$2}')
+
+EOF
+
+note "building sandbox + edge stack"
+cd "$HOME_DIR"
+set -a
+# shellcheck disable=SC1091
+. "$ENV"
+set +a
+make edge-up || fail "make edge-up"
+
+echo ok > "$STATUS"
+note "ready"

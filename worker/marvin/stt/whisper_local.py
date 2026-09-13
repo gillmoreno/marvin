@@ -40,18 +40,22 @@ class WhisperSegmenter:
         language: str | None = None,
         vad_threshold: float = 0.5,
         min_silence_ms: int = 600,
-        speech_pad_ms: int = 200,
+        speech_pad_ms: int = 320,
         min_speech_ms: int = 300,
         max_utterance_s: float = 30.0,
         lock: asyncio.Lock | None = None,
-        initial_prompt: str | None = "Marvin, Marvin.",
+        initial_prompt: str | None = "A voice room with a coding agent named Marvin.",
+        hotwords: str | None = "Marvin",
     ) -> None:
         self.model = model
         self.speaker = speaker
         self.on_segment = on_segment
         self.clock = clock
         self.language = language
-        self.initial_prompt = initial_prompt  # biases Whisper toward spelling the wake word right
+        # Do not prompt with a bare "Marvin, Marvin.": small Whisper treats that as already-said and drops the
+        # spoken name at the start of the next sentence. A full sentence + hotwords keeps the spelling.
+        self.initial_prompt = initial_prompt
+        self.hotwords = hotwords
         self.min_speech_samples = int(SAMPLE_RATE * min_speech_ms / 1000)
         self.max_utterance_samples = int(SAMPLE_RATE * max_utterance_s)
         self._vad = VADIterator(
@@ -119,7 +123,7 @@ class WhisperSegmenter:
         if not text:
             return
         seg = Segment(start=started, end=ended, speaker=self.speaker, text=text, final=True)
-        log.debug("%s: %s", self.speaker, text)
+        log.info("stt %s: %s", self.speaker, text)
         res = self.on_segment(seg)
         if asyncio.iscoroutine(res):
             await res
@@ -131,6 +135,7 @@ class WhisperSegmenter:
             beam_size=1,
             vad_filter=False,  # we already segmented
             initial_prompt=self.initial_prompt,
+            hotwords=self.hotwords,
             condition_on_previous_text=False,
         )
         return " ".join(s.text for s in segments)
@@ -140,12 +145,22 @@ class WhisperSegmenter:
             await asyncio.gather(*self._tasks, return_exceptions=True)
 
 
-async def transcribe_utterance(model: WhisperModel, audio: np.ndarray, language: str | None, lock: asyncio.Lock, initial_prompt: str | None = "Marvin, Marvin.") -> str:
+async def transcribe_utterance(
+    model: WhisperModel,
+    audio: np.ndarray,
+    language: str | None,
+    lock: asyncio.Lock,
+    initial_prompt: str | None = "A voice room with a coding agent named Marvin.",
+    hotwords: str | None = "Marvin",
+) -> str:
     """Transcribe one int16 utterance with the local model (used as the fallback for the streaming service)."""
     f32 = audio.astype(np.float32) / 32768.0
 
     def run() -> str:
-        segments, _ = model.transcribe(f32, language=language, beam_size=1, vad_filter=False, initial_prompt=initial_prompt, condition_on_previous_text=False)
+        segments, _ = model.transcribe(
+            f32, language=language, beam_size=1, vad_filter=False,
+            initial_prompt=initial_prompt, hotwords=hotwords, condition_on_previous_text=False,
+        )
         return " ".join(s.text for s in segments).strip()
 
     async with lock:

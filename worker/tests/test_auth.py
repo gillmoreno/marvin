@@ -224,3 +224,18 @@ async def test_proxy_roles(upstream):
     assert ("POST", "/github/connect", "pat", "participant") in upstream
     assert ("PUT", "/github/config", "root", "admin,participant") in upstream
     assert ("GET", "/rooms", "pat", "participant") in upstream
+
+
+async def test_tls_ask_only_allows_preview_hosts(monkeypatch):
+    monkeypatch.setenv("MARVIN_DOMAIN", "marvin.example.com")
+    monkeypatch.delenv("MARVIN_APPS_DOMAIN", raising=False)
+    monkeypatch.delenv("MARVIN_APPS_HOST", raising=False)
+    async with await client(Auth("none")) as c:
+        assert (await c.get("/tls-ask?domain=p3000.marvin.example.com")).status == 200
+        assert (await c.get("/tls-ask?domain=marvin.example.com")).status == 404
+        assert (await c.get("/tls-ask?domain=p3000.other.test")).status == 404
+        assert (await c.get("/tls-ask")).status == 404
+        j = await (await c.get("/api/agent")).json()
+        assert j["name"]
+        assert j["public_host"] == "marvin.example.com"
+        assert j["preview_pattern"] == "https://p{port}.marvin.example.com"

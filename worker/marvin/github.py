@@ -170,7 +170,7 @@ class GitHubConnect:
 
     async def start(self, user_id: str) -> Flow:
         if not self.client_id:
-            raise RuntimeError("GitHub connection is not configured on this machine: set MARVIN_GITHUB_CLIENT_ID (see docs_and_changelog/github.md)")
+            raise RuntimeError("GitHub is not set up on this machine: an admin pastes the OAuth App client id in Settings → GitHub (or set MARVIN_GITHUB_CLIENT_ID)")
         r = await self.http.post(DEVICE_CODE_URL, data={"client_id": self.client_id, "scope": SCOPES})
         try:
             d = r.json() if r.content else {}

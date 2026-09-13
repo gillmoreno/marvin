@@ -102,9 +102,9 @@ Marvin's owner and early customers are in the EU. Transcripts are personal data;
   problem is *privileged Docker-in-Docker inside a shared Kubernetes pod*, not Docker itself.
 - **Primary packaging: single-VM appliance.** One VM per team (any cloud or on-prem), Docker installed on the host,
   Marvin services via `docker compose`, the agent uses the host Docker daemon. The VM is the blast radius. Perimeter via
-  OIDC at a reverse proxy (Caddy/oauth2-proxy), VPN (Tailscale, Firezone, WireGuard) optional. Provide cloud-init /
-  Terraform examples for AWS, GCP and Hetzner. This is what most buyers can actually install and what procurement
-  understands ("deploy in your VPC").
+  OIDC at a reverse proxy (Caddy/oauth2-proxy), VPN (Tailscale, Firezone, WireGuard) optional. AWS Terraform lives in
+  `deploy/aws` (`aws-terraform.md`); GCP and Hetzner examples still to write. This is what most buyers can actually
+  install and what procurement understands ("deploy in your VPC").
 - **Kubernetes stays as the EE/large-team option.** Remove the privileged sidecar by one of:
   - Sysbox runtime (unprivileged system containers that run Docker inside; needs a node-level install), or
   - Kata / gVisor sandboxed pods, or

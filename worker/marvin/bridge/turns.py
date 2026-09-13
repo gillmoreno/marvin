@@ -20,21 +20,42 @@ class Turn:
 class TurnAssembler:
     """Feed it every segment; it returns a Turn only when someone addressed the agent."""
 
-    def __init__(self, timeline: Timeline, detector: WakeDetector | None = None, max_context_s: float | None = None) -> None:
+    def __init__(
+        self,
+        timeline: Timeline,
+        detector: WakeDetector | None = None,
+        max_context_s: float | None = None,
+        wake_hold_s: float = 8.0,
+    ) -> None:
         """`max_context_s` caps how far back a turn's context reaches; None (the default) means everything since
-        the previous turn, however long the room talked without addressing the agent."""
+        the previous turn, however long the room talked without addressing the agent.
+        `wake_hold_s`: VAD often cuts after "Marvin,"; a name-only utterance waits this long for the rest."""
         self.timeline = timeline
         self.detector = detector or WakeDetector()
         self.max_context_s = max_context_s
+        self.wake_hold_s = wake_hold_s
         self.last_turn_at: float = timeline.t0
+        self._pending_wake: tuple[str, float, str] | None = None  # speaker, at, alias
 
     def on_segment(self, seg: Segment) -> Turn | None:
         self.timeline.add(seg)
         if not seg.final:
             return None
+        if self._pending_wake and seg.speaker != self._pending_wake[0]:
+            self._pending_wake = None
         match = self.detector.detect(seg.text)
         if match is None:
+            hold = self._pending_wake
+            if hold and (seg.start + 0.5) >= hold[1] and (seg.start - hold[1]) <= self.wake_hold_s and seg.text.strip():
+                match = WakeMatch(position="start", alias=hold[2], question=seg.text.strip())
+                self._pending_wake = None
+            else:
+                return None
+        elif not match.question.strip():
+            self._pending_wake = (seg.speaker, seg.end, match.alias)
             return None
+        else:
+            self._pending_wake = None
         floor = self.last_turn_at if self.max_context_s is None else max(self.last_turn_at, seg.end - self.max_context_s)
         context = [s for s in self.timeline.since(floor, exclude=seg) if s.start < seg.end]
         self.last_turn_at = seg.end

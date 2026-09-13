@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 DEFAULT_NAME = "marvin"
 # Spellings speech-to-text tends to produce for "Marvin" (fuzzy matching covers the rest).
-DEFAULT_ALIASES: tuple[str, ...] = ("marvin", "marvyn", "marven", "marvine")
+DEFAULT_ALIASES: tuple[str, ...] = ("marvin", "marvyn", "marven", "marvine", "marvel")
 
 _WORD_RE = re.compile(r"[a-z0-9']+")
 

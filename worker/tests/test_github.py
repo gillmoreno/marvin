@@ -141,7 +141,7 @@ async def test_start_without_client_id_explains(tmp_path, monkeypatch):
     monkeypatch.delenv("MARVIN_GITHUB_CLIENT_ID", raising=False)
     gh = connect_for(tmp_path, FakeGitHub(), client_id=None)
     assert not gh.configured and gh.client_id_source is None
-    with pytest.raises(RuntimeError, match="MARVIN_GITHUB_CLIENT_ID"):
+    with pytest.raises(RuntimeError, match="Settings"):
         await gh.start("gil")
     # an admin sets it from Settings: persisted next to the tokens, survives a restart, env still wins when present
     with pytest.raises(ValueError):

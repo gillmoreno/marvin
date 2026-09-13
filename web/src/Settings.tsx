@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { agent } from "./agent";
+import { useIsAdmin } from "./auth";
 import { AccountSection } from "./RoomSettings";
 import { GitHubSection } from "./GitHubConnect";
 import { HarnessSection } from "./HarnessConnect";
@@ -28,6 +29,35 @@ export function PowerSection() {
   );
 }
 
+function AppPreviewsSection() {
+  const admin = useIsAdmin();
+  const [pattern, setPattern] = useState<string | null>(null);
+  const [host, setHost] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/agent").then((r) => r.json()).then((j) => {
+      setHost(typeof j.public_host === "string" ? j.public_host : null);
+      setPattern(typeof j.preview_pattern === "string" ? j.preview_pattern : null);
+    }).catch(() => {});
+  }, []);
+  if (!admin) return null;
+  return (
+    <section>
+      <h3>App previews</h3>
+      {pattern && host ? (
+        <>
+          <p className="small">This machine is <code>{host}</code>. A port the agent opens is <code>{pattern}</code> — so port 3000 is <code>{pattern.replace("{port}", "3000")}</code>.</p>
+          <p className="dim small">
+            DNS: an A record for <code>{host}</code> and for <code>*.{host}</code>, both pointing at this VM, DNS-only (not proxied).
+            The name is this install&apos;s hostname (<code>MARVIN_DOMAIN</code>), not a Marvin-wide domain.
+          </p>
+        </>
+      ) : (
+        <p className="dim small">No public hostname on this machine, so previews are <code>http://localhost:&lt;port&gt;</code>. Set <code>MARVIN_DOMAIN</code> (and a <code>*.that-name</code> DNS record) for HTTPS links other people can open.</p>
+      )}
+    </section>
+  );
+}
+
 export function SettingsPanel({ onClose, extra, room }: { onClose: () => void; extra?: React.ReactNode; room?: string }) {
   return (
     <div className="modal-back settings-screen" onClick={onClose}>
@@ -43,6 +73,7 @@ export function SettingsPanel({ onClose, extra, room }: { onClose: () => void; e
           <AccountSection />
           <HarnessSection />
           <GitHubSection />
+          <AppPreviewsSection />
           <ThemeSection />
           <PowerSection />
         </div>

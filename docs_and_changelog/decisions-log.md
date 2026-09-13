@@ -85,8 +85,25 @@ this file is the "why we did it this way" layer on top.
   colour. Decision: the room chrome lives in `web/src/styles.css` (full-page Settings, four icon buttons in one row,
   phone one-pane). A theme recolours and retypes that skeleton. Enforcement is the contract + the skill ("do not set
   a max-width on `.modal`, do not wrap `.left-foot`"), not a CSS linter — theming is not a core product surface.
+- **App preview hosts are children of this install, not a Marvin-wide domain.** A wildcard A record points at one
+  IP. `*.marvin.aigil.dev` is the Frankfurt pilot, not every customer VM. Using `aigil.dev` for every install would
+  make us the hosted edge for other people's running apps (name, abuse, GDPR). Deferred with the hosted tier.
+  Formula: `https://p{port}.{MARVIN_DOMAIN}`. Each install sets its own hostname and `*.that-name` DNS (grey-cloud).
+  TLS is one cert per preview name (Caddy on-demand, gated by `/tls-ask`), not a wildcard cert. Write-up:
+  `app-previews.md`.
 - **The room tells the truth about the agent.** First live Grok session: STT and “listening” / “working” stayed
   up while the harness was missing, unsigned-in, or on a dead network. Native `alert()` for `AcpError`. Decision:
   if the agent cannot answer, the pane says so in a sentence and points at the next click (Settings). No
   interactive CLI login from a headless room (device flow belongs in Settings). No browser `alert()` for room
   operations. A room that looks live with a dead turn queue is a bug, not a timeout.
+
+## 2026-09-13
+
+- **AWS installer is a Terraform root module, not a shell script.** First cut (`deploy/aws`): new throwaway
+  stack (does not import the Frankfurt pilot); `apply` ends on a URL after cloud-init (`git_ref`, default `main`);
+  Route 53 if you pass a zone, otherwise print the Elastic IP; passwords are Terraform variables stored in SSM
+  and copied into `.env`; LiveKit keys and the session secret are generated on the disk only; tell the operator
+  *where* those files are, never dump them in outputs. Default `c7i.xlarge`, `public` or `private` access,
+  SSM always, SSH only with a CIDR. No baked AMI, no Cloudflare provider, no VPC creator, no blocking health
+  wait. A private `git_repo` needs `git_token` in SSM (clone on first boot only; not in `.env` or user-data).
+  Write-up: `aws-terraform.md`.
