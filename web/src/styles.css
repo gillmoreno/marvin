@@ -149,6 +149,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 /* -- join / project picker -------------------------------------------------------------------------------------------- */
 .join { max-width: 360px; margin: 15vh auto; display: flex; flex-direction: column; gap: 12px; padding: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .join.gate { max-width: 640px; margin-top: 8vh; }
+.join.gate > .notice { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--warn-bg); }
 .join label { display: flex; flex-direction: column; gap: 4px; color: var(--dim); } .join input { padding: 8px 10px; }
 .join .hint.small { font-size: 11px; }
 .signedin { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; color: var(--dim); } .signedin b { color: var(--fg); } .signedin .ghost { margin-left: auto; }
@@ -244,6 +245,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .modal header h2 { font-size: 15px; margin: 0; text-transform: none; letter-spacing: 0; color: var(--fg); font-family: var(--font-display); }
 .sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
 .sgrid > section { background: var(--bg); padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 10px; border-top: 0; }
+.sgrid > section label { display: flex; flex-direction: column; gap: 4px; }
+.sgrid > section label input, .sgrid > section label textarea { padding: 7px 9px; }
+.session-log { max-height: 280px; overflow: auto; border: 1px solid var(--line); padding: 8px 12px; }
+.session-log ol { margin: 0; padding-left: 1.2em; }
 .sgrid > section + section { border-top: 0; }
 .appearance { grid-column: 1 / -1; }
 .sgrid > section:nth-child(odd):has(+ .appearance) { grid-column: 1 / -1; }
@@ -290,6 +295,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .github-setup ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
 .github-setup .row { display: flex; gap: 8px; align-items: center; }
 .github-setup input { flex: 1; min-width: 0; }
+.github-setup textarea { width: 100%; min-height: 4.5rem; padding: 8px 10px; resize: vertical; font-family: var(--font-mono); font-size: 12px; box-sizing: border-box; }
 .sgrid > section.coding-agents { grid-column: 1 / -1; }
 .providers { display: flex; flex-direction: column; gap: 4px; }
 .provider { padding: 12px 0 4px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }

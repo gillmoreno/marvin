@@ -10,7 +10,11 @@ from marvin.adapters import registry
 from marvin.admin import serve_admin
 from marvin.config import Config, RoomConfig, load_config
 from marvin.github import GitHubConnect, GitIdentity, TokenStore
+from marvin.access import Access
+from marvin.audit import Audit
+from marvin.export import Exporter
 from marvin.harness_creds import HarnessCreds
+from marvin.license import LicenseStore, bind as bind_license
 from marvin.ports import AppsRouting
 from marvin.room.manager import RoomManager
 from marvin.sandbox import Sandbox, SandboxConfig, SandboxError
@@ -49,6 +53,16 @@ async def run(args: argparse.Namespace) -> None:
     if not github.configured:
         log.info("github: MARVIN_GITHUB_CLIENT_ID not set; 'Connect GitHub' is off, rooms use GITHUB_TOKEN / the system's git helpers")
     harness_creds = HarnessCreds(args.state_dir, secret=secret)
+    licenses = LicenseStore(args.state_dir, secret=secret)
+    bind_license(licenses)
+    access = Access(args.state_dir, secret)
+    exporter = Exporter(args.state_dir, secret)
+    audit = Audit(args.state_dir, secret, on_close=lambda m, p: exporter.ship(m, p))
+    lic = licenses.status()
+    if lic.valid:
+        log.info("license: %s (%s)", lic.message(), lic.source)
+    else:
+        log.info("license: core only (%s)", lic.reason or "missing")
     st = harness_creds.status()
     log.info("harness creds: default=%s (%s); keys from settings: %s",
              st["default_harness"], st["default_source"],
@@ -59,15 +73,23 @@ async def run(args: argparse.Namespace) -> None:
         repos_dir=args.repos_dir,
         state_dir=args.state_dir,
         routing=AppsRouting.from_env(),
-        session_kwargs=dict(url=args.url, api_key=args.api_key, api_secret=args.api_secret, stt=stt, agent_name=args.name, state_dir=args.state_dir, sandbox=sandbox, git_identity=GitIdentity(args.state_dir, github), themes=themes, harness_creds=harness_creds),
+        session_kwargs=dict(url=args.url, api_key=args.api_key, api_secret=args.api_secret, stt=stt, agent_name=args.name, state_dir=args.state_dir, sandbox=sandbox, git_identity=GitIdentity(args.state_dir, github), themes=themes, harness_creds=harness_creds, audit=audit),
     )
     await mgr.start_all()
     harness_creds.on_grok_session = lambda: asyncio.create_task(mgr.reload_harness("grok"))
     log.info("serving %d room(s): %s", len(mgr.sessions), ", ".join(sorted(mgr.sessions)) or "(none yet; create one from the UI)")
-    runner = await serve_admin(mgr, host=args.admin_host, port=args.admin_port, github=github, themes=themes, harness_creds=harness_creds) if args.admin_port else None
+    runner = await serve_admin(mgr, host=args.admin_host, port=args.admin_port, github=github, themes=themes, harness_creds=harness_creds, licenses=licenses, access=access, audit=audit, exporter=exporter) if args.admin_port else None
+
+    async def tick_audit() -> None:
+        while True:
+            await asyncio.sleep(15)
+            audit.close_if_idle()
+
+    idle = asyncio.create_task(tick_audit())
     try:
         await asyncio.Event().wait()
     finally:
+        idle.cancel()
         await mgr.close()
         await github.aclose()
         if runner:

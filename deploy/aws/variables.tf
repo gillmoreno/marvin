@@ -122,6 +122,12 @@ variable "git_token" {
   description = "HTTPS token used only to clone git_repo on first boot (private GitHub). Stored in SSM SecureString. Not written into .env and not put in user-data."
 }
 
+variable "ami_id" {
+  type        = string
+  default     = ""
+  description = "If set, launch this AMI (Packer image from ami.pkr.hcl) instead of stock Ubuntu. First boot skips the 15-minute image build."
+}
+
 variable "sandbox_harnesses" {
   type        = string
   description = "Harnesses baked into marvin-sandbox:local. Keep this short on a small instance."

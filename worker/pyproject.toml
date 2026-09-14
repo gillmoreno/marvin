@@ -5,8 +5,10 @@ description = "Marvin: a voice room with a coding agent in it (bridge to coding-
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "aiohttp>=3.14.3",
+    "boto3>=1.35",
     "claude-agent-sdk>=0.2.152",
     "cryptography>=42",
+    "pyjwt>=2.8",
     "faster-whisper>=1.2.1",
     "httpx>=0.27",
     "livekit>=1.1",
@@ -39,3 +41,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["marvin"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"marvin/license.pub" = "marvin/license.pub"

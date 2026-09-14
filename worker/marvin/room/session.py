@@ -17,6 +17,7 @@ from marvin.adapters.base import Harness
 from marvin.adapters.registry import create_harness
 from marvin.bridge import Timeline
 from marvin.config import RoomConfig
+from marvin.audit import Audit
 from marvin.github import GitIdentity
 from marvin.harness_creds import HarnessCreds
 from marvin.sandbox import Sandbox
@@ -87,6 +88,7 @@ class RoomSession:
         git_identity: GitIdentity | None = None,
         themes: ThemeStore | None = None,
         harness_creds: HarnessCreds | None = None,
+        audit: Audit | None = None,
     ) -> None:
         self.cfg = cfg
         self.url, self.api_key, self.api_secret = url, api_key, api_secret
@@ -96,6 +98,7 @@ class RoomSession:
         self.git_identity = git_identity
         self.themes = themes
         self.harness_creds = harness_creds
+        self.audit = audit
         self.state_file = Path(state_dir) / f"{cfg.name}.json" if state_dir else None
         self.room = rtc.Room()
         self.consumers: dict[str, asyncio.Task] = {}
@@ -150,12 +153,47 @@ class RoomSession:
                 return p.identity
         return None
 
+    def email_of(self, name: str) -> str | None:
+        for p in self.room.remote_participants.values():
+            if (p.name or p.identity) != name:
+                continue
+            try:
+                email = json.loads(p.metadata or "{}").get("email")
+            except Exception:
+                return None
+            return str(email) if email else None
+        return None
+
+    def _audit_event(self, event: dict) -> None:
+        kind = event.get("kind")
+        room = self.cfg.name
+        if kind == "transcript" and event.get("final"):
+            self.audit.append(room, "transcript", str(event.get("speaker") or "?"), {"text": event.get("text"), "at": event.get("at")})
+        elif kind == "turn_start":
+            self.audit.append(room, "turn", str(event.get("asked_by") or "?"), {"question": event.get("question")})
+        elif kind == "permission_request":
+            self.audit.append(room, "permission", "marvin", {"id": event.get("id"), "tool": event.get("tool") or event.get("name")})
+        elif kind == "permission_resolved":
+            self.audit.append(room, "permission", str(event.get("by") or "?"), {"id": event.get("id"), "allow": event.get("allow")})
+        elif kind == "error":
+            self.audit.append(room, "error", "marvin", {"message": event.get("message")})
+        elif kind in ("tool", "tool_call"):
+            self.audit.append(room, "tool", "marvin", {"name": event.get("name") or event.get("tool")})
+
     async def _on_turn_begin(self, asked_by: str) -> None:
         """The person who asked becomes the git/gh identity for this turn (their connected GitHub, or the machine's)."""
         if not self.git_identity:
             return
-        who = await asyncio.to_thread(self.git_identity.apply, self.cfg.name, self.identity_of(asked_by))
-        log.info("room %s: turn by %s, git identity: %s", self.cfg.name, asked_by, who)
+        ident = self.identity_of(asked_by)
+        meeting = self.audit.current(self.cfg.name) if self.audit else None
+        who = await asyncio.to_thread(
+            self.git_identity.apply, self.cfg.name, ident,
+            author_name=asked_by,
+            author_email=self.email_of(asked_by),
+            session_id=meeting.id if meeting else None,
+            turn=meeting.turn if meeting else None,
+        )
+        log.info("room %s: turn by %s, git identity: %s session=%s turn=%s", self.cfg.name, asked_by, who, meeting.id if meeting else "-", meeting.turn if meeting else "-")
 
     async def _ensure_sandbox(self, cfg: RoomConfig) -> None:
         """The room's container exists and matches cfg (repo, linked repos) before any harness process is spawned."""
@@ -208,6 +246,8 @@ class RoomSession:
         async def publish(event: dict) -> None:
             if event.get("kind") == "result" and event.get("session_id"):
                 self._save_state(session_id=event["session_id"])
+            if self.audit:
+                self._audit_event(event)
             await self.room.local_participant.publish_data(encode(event), reliable=True, topic=TOPIC_EVENTS)
 
         if self.git_identity:
@@ -215,7 +255,7 @@ class RoomSession:
         harness = self._make_harness(cfg, resume)
         self.conductor = Conductor(
             harness, publish, agent_name=self.agent_name, timeline=Timeline(t0=time.monotonic()), app_links=[l.to_wire() for l in cfg.app_links],
-            on_turn_begin=self._on_turn_begin if self.git_identity else None,
+            on_turn_begin=self._on_turn_begin if (self.git_identity or self.audit) else None,
         )
         harness.permissions = self.conductor.permissions
         conductor = self.conductor
@@ -245,8 +285,20 @@ class RoomSession:
 
         @self.room.on("participant_connected")
         def on_join(participant: rtc.RemoteParticipant) -> None:
+            if participant.identity == AGENT_IDENTITY:
+                return
             log.info("room %s: %s joined", cfg.name, participant.name or participant.identity)
+            if self.audit:
+                self.audit.join(cfg.name, participant.identity, name=participant.name or participant.identity)
             asyncio.create_task(conductor.announce())
+
+        @self.room.on("participant_disconnected")
+        def on_leave(participant: rtc.RemoteParticipant) -> None:
+            if participant.identity == AGENT_IDENTITY:
+                return
+            log.info("room %s: %s left", cfg.name, participant.name or participant.identity)
+            if self.audit:
+                self.audit.leave(cfg.name, participant.identity)
 
         @self.room.on("data_received")
         def on_data(pkt: rtc.DataPacket) -> None:

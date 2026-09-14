@@ -35,6 +35,11 @@ if ! command -v aws >/dev/null; then
   command -v aws >/dev/null || fail "aws cli install"
 fi
 
+%{ if from_ami ~}
+note "AMI already has Docker and $HOME_DIR; skipping clone and image build"
+usermod -aG docker ubuntu
+systemctl enable --now docker
+%{ else ~}
 if ! command -v docker >/dev/null; then
   note "installing Docker"
   curl -fsSL https://get.docker.com | sh
@@ -57,6 +62,7 @@ if [ ! -d "$HOME_DIR/.git" ]; then
     || fail "git clone ${git_repo} @ ${git_ref} (private repo? set git_token)"
   unset GIT_TOKEN
 fi
+%{ endif ~}
 chown -R ubuntu:ubuntu "$HOME_DIR"
 
 if [ ! -f "$ENV" ]; then
@@ -103,7 +109,11 @@ Marvin (${hostname})
 
 EOF
 
+%{ if from_ami ~}
+note "starting pre-baked edge stack"
+%{ else ~}
 note "building sandbox + edge stack"
+%{ endif ~}
 cd "$HOME_DIR"
 set -a
 # shellcheck disable=SC1091

@@ -43,6 +43,7 @@ WORKDIR /app
 COPY worker/pyproject.toml worker/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
 COPY worker/ .
+COPY ee /app/ee
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
 COPY --from=web /web/dist /app/web-dist
 COPY deploy/docker-entrypoint.sh /usr/local/bin/marvin-entrypoint

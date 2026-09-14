@@ -108,4 +108,4 @@ screen share, transcript clock, Docker room sandbox (`sandbox.md`).
    5. **GitHub App as the machine identity** (item 7's second bullet), then the repo picker.
    6. Per-user GitHub connect (shipped) stays optional: for developers who push to repos only they can access.
 
-Open decisions: core license (Apache 2.0 vs AGPL); trademark check on "Marvin".
+Open decisions: trademark check on "Marvin". Licenses are MIT + Enterprise (`licensing.md`).

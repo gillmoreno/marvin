@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""Refuse a push that does not match the current Marvin turn / audit log."""
+import json
+import os
+import sys
+from pathlib import Path
+
+turn_path = os.environ.get("MARVIN_TURN_FILE")
+if not turn_path or not os.path.isfile(turn_path):
+    sys.exit(0)
+data = json.load(open(turn_path))
+session, turn, actor = data.get("session"), data.get("turn"), data.get("actor")
+if not session or turn is None:
+    print("marvin: no current turn on this machine; refusing push", file=sys.stderr)
+    sys.exit(1)
+root = os.environ.get("MARVIN_STATE_DIR")
+if root:
+    matches = list(Path(root).glob(f"audit/*/{session}.jsonl"))
+    ok = False
+    for p in matches:
+        for line in p.read_text().splitlines():
+            rec = json.loads(line)
+            if rec.get("verb") == "turn" and rec.get("turn") == turn:
+                ok = True
+                break
+    if matches and not ok:
+        print(f"marvin: turn {turn} is not on the audit log for session {session}; refusing push", file=sys.stderr)
+        sys.exit(1)
+print(f"marvin: push session={session} turn={turn} actor={actor}", file=sys.stderr)
+sys.exit(0)

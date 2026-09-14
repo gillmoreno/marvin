@@ -45,11 +45,12 @@ locals {
     ssm_git            = try(aws_ssm_parameter.git_token[0].name, "")
     sandbox_harnesses  = var.sandbox_harnesses
     name               = var.name
+    from_ami           = var.ami_id != ""
   })
 }
 
 resource "aws_instance" "this" {
-  ami                         = data.aws_ami.ubuntu.id
+  ami                         = var.ami_id != "" ? var.ami_id : data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = local.subnet_id
   vpc_security_group_ids      = [aws_security_group.this.id]

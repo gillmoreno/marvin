@@ -10,6 +10,10 @@ from marvin.adapters import registry
 from marvin.changes import changes as repo_changes, file_diff
 from marvin.github import GitHubConnect
 from marvin.harness_creds import HarnessCreds
+from marvin.access import Access
+from marvin.audit import Audit
+from marvin.export import Exporter
+from marvin.license import LicenseStore
 from marvin.room.manager import RoomManager
 from marvin import notes as notes_mod
 from marvin.themes import ThemeStore
@@ -25,10 +29,13 @@ def who(req: web.Request) -> str:
     return f"{user} [{roles}]" if roles else user
 
 
-def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None) -> web.Application:
+def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None, licenses: LicenseStore | None = None, access: Access | None = None, audit: Audit | None = None, exporter: Exporter | None = None) -> web.Application:
     app = web.Application()
     themes = themes or ThemeStore(None)
     install = install or Install.from_env()
+    licenses = licenses or LicenseStore(None, secret="dev")
+    access = access or Access(None, "dev")
+    exporter = exporter or Exporter(None, "dev")
 
     # -- GitHub connection (self-service: the token server lets every signed-in user call /github/*) --------------
     def _user(req: web.Request) -> str | None:
@@ -142,8 +149,14 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
     async def github_repos(req: web.Request) -> web.Response:
         if github is None:
             return web.json_response({"error": "GitHub connection is not available"}, status=501)
+        q = req.query.get("q", "").strip()
+        if github.app.public().get("installed"):
+            try:
+                return web.json_response({"repos": await github.app.repos(q)})
+            except Exception as e:
+                return web.json_response({"error": f"GitHub App: {e}", "repos": []}, status=502)
         try:
-            repos = await github.list_repos(_user(req), query=req.query.get("q", "").strip())
+            repos = await github.list_repos(_user(req), query=q)
         except LookupError as e:
             return web.json_response({"error": str(e), "repos": []}, status=409)
         except Exception as e:
@@ -457,11 +470,158 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
 
     app.router.add_get("/update", update_status)
     app.router.add_post("/update", update_apply)
+
+    async def license_status(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        return web.json_response(licenses.status().public())
+
+    async def license_put(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        try:
+            body = await req.json()
+            key = str(body.get("key") or "")
+        except Exception:
+            return web.json_response({"error": "expected JSON {key}"}, status=400)
+        try:
+            return web.json_response(licenses.put(key).public())
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        except RuntimeError as e:
+            return web.json_response({"error": str(e)}, status=409)
+
+    async def license_clear(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        try:
+            return web.json_response(licenses.clear().public())
+        except RuntimeError as e:
+            return web.json_response({"error": str(e)}, status=409)
+
+    app.router.add_get("/license", license_status)
+    app.router.add_put("/license", license_put)
+    app.router.add_delete("/license", license_clear)
+
+    async def access_get(req: web.Request) -> web.Response:
+        return web.json_response(access.public(admin=_is_admin(req)))
+
+    async def access_put(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        try:
+            body = await req.json()
+        except Exception:
+            return web.json_response({"error": "expected JSON"}, status=400)
+        sso_set = any(str(body.get(k) or "").strip() for k in ("issuer", "client_id", "client_secret", "cookie_secret"))
+        if sso_set and not licenses.status().allows("sso"):
+            return web.json_response({"error": "OIDC / SSO needs a Marvin Enterprise license. Paste it in Settings → Enterprise.", "feature": "sso"}, status=403)
+        return web.json_response(access.put(body))
+
+    async def sessions_list(req: web.Request) -> web.Response:
+        if audit is None:
+            return web.json_response({"sessions": []})
+        return web.json_response({
+            "sessions": audit.list(room=req.query.get("room") or None, who=_user(req), admin=_is_admin(req)),
+            "retention_days": audit.retention_days,
+        })
+
+    async def session_get(req: web.Request) -> web.Response:
+        if audit is None:
+            return web.json_response({"error": "no audit"}, status=404)
+        data = audit.read(req.match_info["id"], who=_user(req), admin=_is_admin(req))
+        if not data:
+            return web.json_response({"error": "not found"}, status=404)
+        return web.json_response(data)
+
+    async def sessions_retention(req: web.Request) -> web.Response:
+        if not _is_admin(req) or audit is None:
+            return web.json_response({"error": "admin role required"}, status=403)
+        body = await req.json()
+        return web.json_response({"retention_days": audit.set_retention(int(body.get("days") or 90))})
+
+    async def export_get(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        return web.json_response(exporter.public())
+
+    async def export_put(req: web.Request) -> web.Response:
+        if not _is_admin(req):
+            return web.json_response({"error": "admin role required"}, status=403)
+        try:
+            body = await req.json()
+        except Exception:
+            return web.json_response({"error": "expected JSON"}, status=400)
+        shipping = any(str(body.get(k) or "").strip() for k in ("bucket", "webhook", "access_key"))
+        if shipping and not licenses.status().allows("audit"):
+            return web.json_response({"error": "Audit export needs a Marvin Enterprise license. Paste it in Settings → Enterprise.", "feature": "audit"}, status=403)
+        return web.json_response(exporter.put(body))
+
+    def _app_origin(req: web.Request) -> str:
+        origin = req.query.get("origin") or req.headers.get("X-Forwarded-Host") or ""
+        proto = req.headers.get("X-Forwarded-Proto") or "https"
+        if origin and "://" not in origin:
+            origin = f"{proto}://{origin}"
+        return origin or "https://localhost"
+
+    def _app_done(message: str, *, error: str | None = None) -> web.Response:
+        loc = "/?github_app=1"
+        if error:
+            body = f"<!doctype html><p>{error}</p><p><a href=\"/\">Back to Marvin</a></p>"
+            return web.Response(text=body, content_type="text/html", status=400)
+        body = f"<!doctype html><meta http-equiv=\"refresh\" content=\"0;url={loc}\"><p>{message} <a href=\"{loc}\">Back to Marvin</a></p>"
+        return web.Response(text=body, content_type="text/html")
+
+    async def github_app_get(req: web.Request) -> web.Response:
+        if not _is_admin(req) or github is None:
+            return web.json_response({"error": "admin role required"}, status=403)
+        if not licenses.status().valid:
+            return web.json_response({"error": "A GitHub App needs a Marvin Enterprise license. Paste it in Settings → Enterprise."}, status=403)
+        origin = _app_origin(req)
+        return web.json_response({**github.app.public(), "manifest": github.app.manifest(origin)})
+
+    async def github_app_callback(req: web.Request) -> web.Response:
+        if github is None:
+            return _app_done("", error="GitHub App is not available on this machine.")
+        if not licenses.status().valid:
+            return _app_done("", error="A GitHub App needs a Marvin Enterprise license.")
+        code = req.query.get("code") or ""
+        inst = req.query.get("installation_id") or ""
+        if inst:
+            github.app.set_installation(inst)
+            return _app_done("GitHub App installed.")
+        if not code:
+            return _app_done("", error="GitHub did not send a manifest code.")
+        try:
+            await github.app.convert(code)
+            return _app_done("GitHub App created. Install it on the org if GitHub has not already sent you there.")
+        except Exception as e:
+            return _app_done("", error=str(e))
+
+    async def github_app_install(req: web.Request) -> web.Response:
+        if not _is_admin(req) or github is None:
+            return web.json_response({"error": "admin role required"}, status=403)
+        body = await req.json()
+        if body.get("installation_id"):
+            return web.json_response(github.app.set_installation(str(body["installation_id"])))
+        return web.json_response({"error": "installation_id required"}, status=400)
+
+    app.router.add_get("/access", access_get)
+    app.router.add_put("/access", access_put)
+    app.router.add_get("/sessions", sessions_list)
+    app.router.add_put("/sessions", sessions_retention)
+    app.router.add_get("/sessions/{id}", session_get)
+    app.router.add_get("/export", export_get)
+    app.router.add_put("/export", export_put)
+    app.router.add_get("/github/app", github_app_get)
+    app.router.add_get("/github/app/callback", github_app_callback)
+    app.router.add_put("/github/app/install", github_app_install)
+    app.router.add_get("/github/app/install", github_app_callback)
     return app
 
 
-async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None) -> web.AppRunner:
-    runner = web.AppRunner(make_admin_app(mgr, github, themes, harness_creds, install))
+async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None, licenses: LicenseStore | None = None, access: Access | None = None, audit: Audit | None = None, exporter: Exporter | None = None) -> web.AppRunner:
+    runner = web.AppRunner(make_admin_app(mgr, github, themes, harness_creds, install, licenses, access, audit, exporter))
     await runner.setup()
     await web.TCPSite(runner, host, port).start()
     log.info("admin api on http://%s:%d", host, port)

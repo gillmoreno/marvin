@@ -41,6 +41,13 @@ browser ── wss /rtc (JWT) ────────────────�
 - The login form asks for **email**. `POST /api/login` accepts `{email, password}` (`name` is still accepted).
   If the identifier contains `@`, it is stored on `Identity.email` and shown on the join page as
   “You’re logged in as …”.
+- An admin can limit who joins: Settings → **Sign-in and notice** (or
+  `MARVIN_ALLOWED_EMAIL_DOMAINS` / `MARVIN_ALLOW_LIST`). Wrong-domain logins are
+  **403** with a sentence naming the domains, not 401. Header mode drops the
+  identity the same way. Empty lists mean “anyone with the password / a valid
+  IdP session”.
+- The same panel holds the recording notice (default: this room is transcribed).
+  `GET /api/me` includes `notice`; the join page shows it.
 - Cookie `marvin_session`: `<base64url(payload)>.<base64url(HMAC-SHA256)>`, payload `{id, name, email, roles, exp}`;
   `HttpOnly`, `SameSite=Lax`, `Secure` whenever the browser is on https (directly or via `X-Forwarded-Proto`),
   `Max-Age` = `MARVIN_SESSION_HOURS` (12). Signed with `MARVIN_SESSION_SECRET`, falling back to `LIVEKIT_API_SECRET`
@@ -117,18 +124,25 @@ Without `MARVIN_DOMAIN`, Caddy serves `:443` with an internal CA (browser warnin
 
 ### Single sign-on (`make edge-oidc-up`)
 
-Adds `oauth2-proxy` (profile `oidc`) and switches to `deploy/edge/Caddyfile.oidc` and `MARVIN_AUTH=header`. Register the
-redirect URL `https://<MARVIN_DOMAIN>/oauth2/callback` at the provider and set `OAUTH2_PROXY_OIDC_ISSUER_URL`,
-`OAUTH2_PROXY_CLIENT_ID`, `OAUTH2_PROXY_CLIENT_SECRET`, `OAUTH2_PROXY_COOKIE_SECRET`
-(`openssl rand -base64 32 | tr -- '+/' '-_'`), and `OAUTH2_PROXY_EMAIL_DOMAINS` (your domain, or `*`).
+Adds `oauth2-proxy` (profile `oidc`) and switches to `deploy/edge/Caddyfile.oidc` and `MARVIN_AUTH=header`.
+Usual place for the issuer, client id/secret and cookie secret: Settings → **Sign-in and notice**
+(Enterprise). That writes `.oauth2-proxy.env` (mode 0600, gitignored) next to the checkout.
+`make edge-oidc-up` seeds the file from `.env` only if it does not exist yet. Register the
+redirect URL `https://<MARVIN_DOMAIN>/oauth2/callback` at the provider.
 
 Provider notes (details in the [oauth2-proxy provider docs](https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/)):
 
 - **Google**: issuer `https://accounts.google.com`; groups need the Google provider with a service account, otherwise
   promote admins with `MARVIN_ADMIN_USERS=<emails>`.
-- **Okta**: issuer `https://<org>.okta.com` (or a custom auth server); add a `groups` claim to the ID token.
-- **Microsoft Entra ID**: issuer `https://login.microsoftonline.com/<tenant-id>/v2.0`; enable the groups claim on the
-  app registration (group ids arrive, so `MARVIN_ADMIN_GROUPS` takes object ids).
+- **Okta**: Applications → **Create App Integration** → OIDC → Web. Sign-in redirect
+  `https://<host>/oauth2/callback`. Add a `groups` claim on the ID token (directory
+  groups). Issuer `https://<org>.okta.com` (or a custom auth server). Paste issuer,
+  client id and secret in Settings. Admin groups in Marvin are those group names.
+- **Microsoft Entra ID**: App registration → **New registration** → name `Marvin`, redirect
+  `https://<host>/oauth2/callback` (Web). Certificates & secrets → new client secret. Token
+  configuration → add **groups** claim (security groups; object ids). Issuer
+  `https://login.microsoftonline.com/<tenant-id>/v2.0`. Paste issuer, client id and secret
+  in Settings. Admin groups in Marvin are those object ids (or `MARVIN_ADMIN_GROUPS`).
 - **GitHub**: `OAUTH2_PROXY_PROVIDER=github` with `OAUTH2_PROXY_GITHUB_ORG`/`_TEAM`; teams arrive as groups.
 - **Keycloak / Authentik / Zitadel**: standard OIDC; make sure the `groups` scope/claim is mapped.
 
@@ -147,9 +161,6 @@ server only (`make token`), and log in twice from two browser profiles.
 
 ## Still open
 
-- Per-user git identity: the agent still commits with the machine's token; `Requested-by:` names the human but is
-  not verifiable. Planned: GitHub App installation tokens.
-- Audit log of asks/approvals/tool runs, with SIEM export.
-- Agent sandboxing per room.
 - `viewer` / `approver` roles and per-repo approval policies.
 - Password mode: names are not unique identities; two people can share one.
+- SAML if an IdP has no OIDC; SCIM.

@@ -5,13 +5,14 @@ release and what belongs in the paid Enterprise Edition (EE). Update it when a d
 
 ## 1. Product and business shape
 
-- **Open core.** The public repo carries the free core under an OSI license (Apache 2.0 or AGPL, not yet decided) and
-  an `ee/` directory under a Marvin Enterprise License: source visible, use requires a valid subscription.
+- **Open core.** Same split as GitLab / PostHog: MIT outside `ee/`, Marvin
+  Enterprise license under `ee/` (source visible; production needs a
+  subscription). See `licensing.md`.
 - **Paid = organisation-only needs.** Everything an individual or a three-person team needs is free. Everything a
   security or compliance team asks for before approving the tool is EE. Never cripple the free tier to force upgrades.
 - **Licensing mechanism.** Yearly subscription, per seat or per instance with a floor. Offline license key: a JWT signed
-  by us, carrying expiry, seat count and enabled features, read from `MARVIN_LICENSE_KEY` and verified at worker start.
-  No phone-home.
+  by us, carrying expiry, seat count and enabled features. Pasted in Settings → Enterprise (encrypted in the state
+  dir) or `MARVIN_LICENSE_KEY` as an override; verified at worker start with the public key in the repo. No phone-home.
 - **Self-hosted first.** Customers run Marvin in their own VPC/cluster/VM. We do not run a hosted tier until there is
   budget for our own SOC 2 Type II and a DPA with our own subprocessors.
 - **Services** (installation, integration, support tiers) are sold on top of the license, not instead of it.
@@ -121,11 +122,11 @@ Marvin's owner and early customers are in the EU. Transcripts are personal data;
 
 The compliance list and the EE list are the same list.
 
-- SSO / OIDC / SAML, SCIM provisioning
+- SSO / OIDC (Settings + oauth2-proxy; SAML and SCIM still out)
 - Roles and approval policies (who may approve which tool classes, per room and per repo)
-- Per-user git identity via GitHub/GitLab App
-- Audit log with SIEM export and retention policies
-- Data retention / deletion controls, transcription consent banner text
+- Machine GitHub App + authorship hooks (landed); GitLab App still out
+- Audit log with S3 / webhook export and retention (landed); per-person redaction still out
+- Transcription notice (landed); GDPR deletion UI still out
 - Multi-team / multi-tenant rooms with per-room sandboxes
 - Hardened deployment: Helm chart, sysbox/Kata option, Pod Security Standards `restricted`
 - GPU streaming STT deployment
@@ -142,6 +143,5 @@ The compliance list and the EE list are the same list.
 
 ## 9. Open decisions
 
-- Core license: Apache 2.0 (friendlier to adoption) vs AGPL (protects against a third party hosting it first).
 - Name/trademark check for "Marvin" before it appears on a pricing page.
 - Which harnesses may be advertised with subscription auth (per-vendor verification pending).

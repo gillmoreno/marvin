@@ -42,7 +42,7 @@ Anything reachable from another machine goes through Caddy, which terminates TLS
 # .env: NODE_IP, LIVEKIT_API_KEY, LIVEKIT_API_SECRET (32+ chars), MARVIN_ROOM_PASSWORD, MARVIN_ADMIN_PASSWORD,
 #       MARVIN_SESSION_SECRET, and MARVIN_DOMAIN + MARVIN_TLS=<your e-mail> for a real certificate
 make edge-up              # livekit + worker + web + caddy in containers; https://<host>/
-make edge-oidc-up         # same, with single sign-on through oauth2-proxy (OAUTH2_PROXY_* in .env)
+make edge-oidc-up         # same, with SSO (Settings → Sign-in, or OAUTH2_PROXY_* seed)
 ```
 
 People sign in with the room password (or their SSO account), admins with the admin password (or by group). Only
@@ -225,4 +225,6 @@ on every push to `main`.
 `make test` runs the worker tests (44, no audio hardware needed). `cd web && pnpm exec tsc --noEmit && pnpm build`
 checks the UI. Changes to features go with a note in `docs_and_changelog/CHANGELOG.md`.
 
-License: to be decided.
+Except for `ee/`, this repository is MIT. `ee/` is the Marvin Enterprise
+license (same split as GitLab / PostHog: source visible; production use needs
+a subscription). See `docs_and_changelog/licensing.md`.

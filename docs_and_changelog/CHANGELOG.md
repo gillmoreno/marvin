@@ -2,6 +2,34 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-14 — Company pack: SSO, audit, GitHub App, AWS AMI
+
+### Added
+- Settings → **Sign-in and notice**: allowed email domains, allow-list, admin groups, recording notice,
+  OIDC issuer / client (writes `.oauth2-proxy.env` for `make edge-oidc-up`). Env still wins.
+- Password and header login refuse addresses outside the domain list (403, not 401).
+- Hash-chained session JSONL under the state dir, HMAC at close, Settings → **Sessions**, retention.
+- Settings → **Audit export**: S3 and/or a JSON webhook when a meeting closes. No phone-home.
+- GitHub App manifest flow (Settings / join gate). Installation tokens replace a shared PAT.
+  Sandbox `git` wrapper + `commit-msg` / `pre-push`: author is the Marvin identity, committer
+  `marvin[bot]`, trailers we stamp, push refused if the turn is not on the audit log.
+- Packer AMI (`deploy/aws/ami.pkr.hcl`) and Terraform `ami_id` so first boot skips the 15-minute build.
+
+### Changed
+- The web container mounts `marvin_work` so the token server reads the same `access.json` as the worker.
+- oauth2-proxy reads `.oauth2-proxy.env` (Settings), not only `.env`.
+- LiveKit participant metadata now includes `email` when Marvin knows it (commit author).
+
+## 2026-09-14 — Open core licenses and an empty `ee/`
+
+### Added
+- Same license split as GitLab / PostHog: MIT outside `ee/` (`LICENSE`),
+  Enterprise license in `ee/LICENSE`. The folder is a skeleton (no SSO / audit
+  / isolation code yet).
+- Offline license JWT: Settings → **Enterprise** (admin) or `MARVIN_LICENSE_KEY`.
+  We mint keys with `make issue-license`; the worker verifies with
+  `worker/marvin/license.pub`. No phone-home. Docs: `licensing.md`.
+
 ## 2026-09-13 — Join gate: machine GitHub, an agent, optional personal GitHub
 
 ### Added

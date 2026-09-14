@@ -5,6 +5,8 @@ import { AccountSection } from "./RoomSettings";
 import { GitHubSection } from "./GitHubConnect";
 import { HarnessSection } from "./HarnessConnect";
 import { ThemeSection } from "./theme/ThemeSection";
+import { AccessSection } from "./AccessSection";
+import { ExportSection, SessionsSection } from "./Sessions";
 
 /** Sleep the whole machine (scale to zero). Only meaningful on the cluster, where /power is served by the gate. */
 export function PowerSection() {
@@ -111,6 +113,86 @@ function UpdateSection() {
   );
 }
 
+type LicenseInfo = {
+  valid: boolean;
+  reason: string | null;
+  message: string;
+  company: string | null;
+  seats: number | null;
+  expires_at: number | null;
+  features: string[];
+  source: "env" | "settings" | null;
+  has_key: boolean;
+  ee: boolean;
+};
+
+function LicenseSection() {
+  const admin = useIsAdmin();
+  const [info, setInfo] = useState<LicenseInfo | null>(null);
+  const [key, setKey] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = () =>
+    fetch("/api/license")
+      .then(async (r) => {
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error ?? r.statusText);
+        setInfo(j);
+        setErr(null);
+      })
+      .catch((e) => setErr(String(e instanceof Error ? e.message : e)));
+  useEffect(() => { if (admin) void load(); }, [admin]);
+  if (!admin) return null;
+  const save = async () => {
+    setBusy(true); setErr(null);
+    const r = await fetch("/api/license", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key }) });
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    if (!r.ok) { setErr(j.error ?? r.statusText); return; }
+    setKey("");
+    setInfo(j);
+  };
+  const clear = async () => {
+    if (!confirm("Remove the license key from this machine? Enterprise features turn off. The free core stays.")) return;
+    setBusy(true); setErr(null);
+    const r = await fetch("/api/license", { method: "DELETE" });
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    if (!r.ok) { setErr(j.error ?? r.statusText); return; }
+    setInfo(j);
+  };
+  const fromEnv = info?.source === "env";
+  return (
+    <section>
+      <h3>Enterprise</h3>
+      {info?.valid ? (
+        <>
+          <p className="small">{info.message}{info.source === "env" ? " · from the environment" : " · set here"}.</p>
+          <p className="dim small">Enterprise features are on for this machine. The key stays on this box; Marvin does not call home.
+            {info.features.length > 0 && info.features[0] !== "*" ? <> On: {info.features.join(", ")}.</> : null}
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="small">{info?.has_key ? info.message : "This machine is the free core. Anyone can run it."}</p>
+          <p className="dim small">A paid subscription is only for the compliance pack (SSO, audit, isolation). You get a license string from us; paste it here. No restart.</p>
+        </>
+      )}
+      {!fromEnv && (
+        <div className="github-setup">
+          <textarea rows={3} placeholder="eyJ… (the license string)" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" spellCheck={false} />
+          <div className="row">
+            <button type="button" disabled={busy || key.trim().length < 20} onClick={() => void save()}>{busy ? "saving…" : "save license"}</button>
+            {info?.source === "settings" && <button type="button" className="ghost" disabled={busy} onClick={() => void clear()}>remove</button>}
+          </div>
+        </div>
+      )}
+      {fromEnv && <p className="dim small">License is <code>MARVIN_LICENSE_KEY</code> from the environment.</p>}
+      {err && <p className="error small">{err}</p>}
+    </section>
+  );
+}
+
 function AppPreviewsSection() {
   const admin = useIsAdmin();
   const [pattern, setPattern] = useState<string | null>(null);
@@ -153,9 +235,13 @@ export function SettingsPanel({ onClose, extra, room }: { onClose: () => void; e
         <div className="sgrid">
           {extra}
           <AccountSection />
+          <AccessSection />
           <HarnessSection />
           <GitHubSection />
+          <SessionsSection />
+          <ExportSection />
           <AppPreviewsSection />
+          <LicenseSection />
           <UpdateSection />
           <ThemeSection />
           <PowerSection />

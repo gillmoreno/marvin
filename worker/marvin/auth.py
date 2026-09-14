@@ -24,6 +24,7 @@ from dataclasses import dataclass
 
 from aiohttp import web
 
+from marvin.access import Access
 from marvin.room.protocol import AGENT_IDENTITY
 
 log = logging.getLogger("marvin.auth")
@@ -93,6 +94,9 @@ class Auth:
         session_secret: str = "",
         session_hours: float = 12,
         insecure_ok: bool = False,
+        access: Access | None = None,
+        allowed_domains: str = "",
+        allow_list: str = "",
     ) -> None:
         if mode not in MODES:
             raise SystemExit(f"MARVIN_AUTH={mode!r}: expected one of {', '.join(MODES)}")
@@ -105,6 +109,9 @@ class Auth:
         self.secret = session_secret.encode()
         self.session_seconds = int(session_hours * 3600)
         self.insecure_ok = insecure_ok
+        self.access = access
+        self._env_domains = _csv(allowed_domains)
+        self._env_allow = _csv(allow_list)
         self._fails: dict[str, deque[float]] = {}
         self._warned_untrusted = False
         if mode == "password" and not room_password:
@@ -124,16 +131,21 @@ class Auth:
                     "MARVIN_ADMIN_PASSWORD), MARVIN_AUTH=header (behind Caddy + oauth2-proxy or an OIDC ingress, "
                     "see deploy/caddy), or MARVIN_AUTH=none (localhost dev only). See docs_and_changelog/authentication.md."
                 )
+        secret = env.get("MARVIN_SESSION_SECRET") or env.get("LIVEKIT_API_SECRET", "")
+        access = Access(env.get("MARVIN_STATE_DIR"), secret, environ=dict(env))
         return cls(
             mode,
             trusted_proxies=env.get("MARVIN_TRUSTED_PROXIES", DEFAULT_TRUSTED_PROXIES),
-            admin_groups=env.get("MARVIN_ADMIN_GROUPS", ""),
-            admin_users=env.get("MARVIN_ADMIN_USERS", ""),
+            admin_groups=env.get("MARVIN_ADMIN_GROUPS", "") or ",".join(access.admin_groups()),
+            admin_users=env.get("MARVIN_ADMIN_USERS", "") or ",".join(access.admin_users()),
             room_password=env.get("MARVIN_ROOM_PASSWORD", ""),
             admin_password=env.get("MARVIN_ADMIN_PASSWORD", ""),
-            session_secret=env.get("MARVIN_SESSION_SECRET") or env.get("LIVEKIT_API_SECRET", ""),
+            session_secret=secret,
             session_hours=float(env.get("MARVIN_SESSION_HOURS", "12")),
             insecure_ok=env.get("MARVIN_AUTH_INSECURE_OK", "").lower() in ("1", "true", "yes"),
+            access=access,
+            allowed_domains=env.get("MARVIN_ALLOWED_EMAIL_DOMAINS", ""),
+            allow_list=env.get("MARVIN_ALLOW_LIST", ""),
         )
 
     def check_startup(self, host: str) -> None:
@@ -173,9 +185,15 @@ class Auth:
         name = req.headers.get(HDR_NAME, "").strip() or (email.split("@", 1)[0] if email else "") or user
         groups = _csv(req.headers.get(HDR_GROUPS))
         roles = {PARTICIPANT}
-        if groups & self.admin_groups or user.lower() in self.admin_users or (email and email.lower() in self.admin_users):
+        groups_admin = self.admin_groups | (frozenset(self.access.admin_groups()) if self.access else frozenset())
+        users_admin = self.admin_users | (frozenset(self.access.admin_users()) if self.access else frozenset())
+        if groups & groups_admin or user.lower() in users_admin or (email and email.lower() in users_admin):
             roles.add(ADMIN)
-        return Identity(id=slug(user), name=name, email=email, roles=frozenset(roles))
+        ident = Identity(id=slug(user), name=name, email=email, roles=frozenset(roles))
+        if not self.email_allowed(ident.email):
+            log.info("header identity %s rejected: email not on this machine's list", ident.email)
+            return None
+        return ident
 
     def _trusted_peer(self, remote: str | None) -> bool:
         try:
@@ -197,6 +215,23 @@ class Auth:
         roles = {PARTICIPANT, ADMIN} if is_admin else {PARTICIPANT}
         email = name if "@" in name else None
         return Identity(id=slug(name), name=name, email=email, roles=frozenset(roles))
+
+    def email_allowed(self, email: str | None) -> bool:
+        if self.access:
+            return self.access.email_allowed(email)
+        domains = self._env_domains
+        allow = self._env_allow
+        if not domains and not allow:
+            return True
+        if not email or "@" not in email:
+            return False
+        e = email.strip().lower()
+        return e in allow or e.rsplit("@", 1)[-1] in domains
+
+    def email_refusal(self) -> str:
+        if self.access:
+            return self.access.refusal()
+        return "This email is not allowed on this machine."
 
     def make_session(self, ident: Identity, now: float | None = None) -> str:
         payload = {"id": ident.id, "name": ident.name, "email": ident.email, "roles": sorted(ident.roles), "exp": int((now or time.time()) + self.session_seconds)}

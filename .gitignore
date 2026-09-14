@@ -21,6 +21,11 @@ deploy/aws/terraform.tfvars
 *.tsbuildinfo
 *.aiff
 .DS_Store
+# License issuer private key (never this file; the public half is worker/marvin/license.pub).
+license-private.pem
+*license-private*
+.oauth2-proxy.env
+
 # ONNX Runtime telemetry droppings (a timestamp + UUID). Also set ORT_DISABLE_TELEMETRY=1 on the worker.
 :memory:.ses
 **/:memory:.ses

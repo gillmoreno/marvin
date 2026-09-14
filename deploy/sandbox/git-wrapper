@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""git on PATH in the sandbox. Drops --author; author comes from MARVIN_TURN_FILE."""
+import json
+import os
+import sys
+
+REAL = "/usr/bin/git"
+TURN = os.environ.get("MARVIN_TURN_FILE")
+args = sys.argv[1:]
+
+if TURN and os.path.isfile(TURN) and args and args[0] == "commit":
+    data = json.load(open(TURN))
+    cleaned = []
+    skip = False
+    for a in args:
+        if skip:
+            skip = False
+            continue
+        if a == "--author" or a.startswith("--author="):
+            skip = a == "--author"
+            continue
+        cleaned.append(a)
+    args = cleaned
+    if data.get("author_name") and data.get("author_email"):
+        os.environ["GIT_AUTHOR_NAME"] = data["author_name"]
+        os.environ["GIT_AUTHOR_EMAIL"] = data["author_email"]
+        os.environ["GIT_COMMITTER_NAME"] = data.get("committer_name") or "marvin[bot]"
+        os.environ["GIT_COMMITTER_EMAIL"] = data.get("committer_email") or "marvin@users.noreply.github.com"
+
+os.execv(REAL, [REAL, *args])

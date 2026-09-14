@@ -37,8 +37,16 @@ PROXIED = (
     "/api/harness-creds", "/api/harness-creds/default", "/api/harness-creds/{id}",
     "/api/harness-creds/grok/login", "/api/harness-creds/grok/login/{flow}",
     "/api/update",
+    "/api/license",
+    "/api/access",
+    "/api/sessions",
+    "/api/sessions/{id}",
+    "/api/export",
+    "/api/github/app",
+    "/api/github/app/callback",
+    "/api/github/app/install",
 )
-ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config", "/api/github/machine", "/api/harness-creds", "/api/update")
+ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config", "/api/github/machine", "/api/github/app", "/api/harness-creds", "/api/update", "/api/license", "/api/access", "/api/export")
 # Self-service: every signed-in user may write here, because it only touches their own record (keyed by X-Marvin-User).
 SELF_SERVICE_PREFIXES = ("/api/github/",)
 
@@ -98,7 +106,7 @@ async def token(req: web.Request) -> web.Response:
         return web.Response(status=404, text=f"unknown room {room!r}; rooms: {', '.join(allowed)}")
     identity = ident.id if ident.id != AGENT_IDENTITY else "human-" + ident.id
     grants = api.VideoGrants(room_join=True, room=room, can_publish=True, can_subscribe=True, can_publish_data=True)
-    metadata = json.dumps({"roles": sorted(ident.roles)})  # the worker reads roles from participant.metadata (server-signed)
+    metadata = json.dumps({"roles": sorted(ident.roles), **({"email": ident.email} if ident.email else {})})
     jwt = api.AccessToken(KEY, SECRET).with_identity(identity).with_name(ident.name).with_metadata(metadata).with_grants(grants).to_jwt()
     return web.json_response({"serverUrl": URL, "token": jwt, "relayOnly": RELAY_ONLY, "agentName": AGENT_NAME, "identity": ident.to_wire()})
 
@@ -107,7 +115,8 @@ async def me(req: web.Request) -> web.Response:
     """200 whether or not the caller is signed in, so the UI can render the right screen."""
     auth = auth_of(req)
     ident = identity_of(req) if auth.mode != "none" else None  # none: the UI still asks for a name
-    return web.json_response({"auth": auth.mode, "identity": ident.to_wire() if ident else None})
+    notice = auth.access.notice() if auth.access else None
+    return web.json_response({"auth": auth.mode, "identity": ident.to_wire() if ident else None, "notice": notice})
 
 
 async def login(req: web.Request) -> web.Response:
@@ -126,6 +135,8 @@ async def login(req: web.Request) -> web.Response:
         auth.record_failure(req.remote)
         await asyncio.sleep(auth.fail_delay)
         return web.json_response({"error": "wrong password"}, status=401)
+    if not auth.email_allowed(ident.email):
+        return web.json_response({"error": auth.email_refusal()}, status=403)
     resp = web.json_response({"auth": auth.mode, "identity": ident.to_wire()})
     resp.set_cookie(COOKIE, auth.make_session(ident), **cookie_kwargs(req, auth.session_seconds))
     return resp

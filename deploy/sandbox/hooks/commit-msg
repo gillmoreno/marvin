@@ -1,0 +1,23 @@
+#!/bin/sh
+# Stamp trailers from the current Marvin turn. Strip copies the model already wrote.
+MSG=$1
+TURN=${MARVIN_TURN_FILE:-}
+[ -n "$TURN" ] && [ -f "$TURN" ] || exit 0
+python3 - "$MSG" "$TURN" <<'PY'
+import json, sys, re
+msg_path, turn_path = sys.argv[1], sys.argv[2]
+data = json.load(open(turn_path))
+text = open(msg_path).read()
+text = re.sub(r"(?im)^(?:Requested-by|Approved-by|Marvin-Session|Marvin-Turn):.*\n?", "", text)
+trailers = []
+if data.get("author_name"):
+    trailers.append(f"Requested-by: {data.get('author_name')} <{data.get('author_email') or 'unknown'}>")
+if data.get("session"):
+    trailers.append(f"Marvin-Session: {data['session']}")
+if data.get("turn") is not None:
+    trailers.append(f"Marvin-Turn: {data['turn']}")
+block = "\n".join(trailers)
+if block:
+    text = text.rstrip() + "\n\n" + block + "\n"
+open(msg_path, "w").write(text)
+PY

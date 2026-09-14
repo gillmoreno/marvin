@@ -9,6 +9,10 @@ git config --global user.name  "${MARVIN_GIT_NAME:-Marvin}"
 git config --global user.email "${MARVIN_GIT_EMAIL:-marvin@example.com}"
 git config --global init.defaultBranch main
 git config --global --add safe.directory '*'
+# Authorship and push checks live here; the git wrapper on PATH reads MARVIN_TURN_FILE.
+if [ -d /opt/marvin/hooks ]; then
+  git config --global core.hooksPath /opt/marvin/hooks
+fi
 
 # GitHub over HTTPS with the token the worker forwards per exec. This is the fallback only: when the worker has a
 # state dir it points GIT_CONFIG_GLOBAL / GH_CONFIG_DIR at per-room files it rewrites at every turn with the

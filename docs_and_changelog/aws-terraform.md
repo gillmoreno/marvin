@@ -27,6 +27,9 @@ Optional:
 - `git_ref` — default `main`.
 - `git_token` — HTTPS token for a **private** `git_repo`. Stored in SSM, used only to clone on
   first boot, never written into `.env` or user-data. Omit it when the repo is public.
+- `ami_id` — a Marvin AMI from `packer build deploy/aws/ami.pkr.hcl`. First boot then
+  writes `.env` and `docker compose up` (minutes). Omit it: stock Ubuntu and a 10–15
+  minute image build, same as before.
 
 ## Where secrets live
 
@@ -64,6 +67,20 @@ See `updates.md`.
 - `c7i.xlarge` while running: the real bill. Stop it when you are not testing.
 - 60 GB gp3 root volume persists while the instance exists.
 
+## Baked AMI
+
+```
+packer init deploy/aws
+packer build -var region=eu-central-1 deploy/aws/ami.pkr.hcl
+# then: terraform apply -var ami_id=ami-...
+```
+
+The image is Ubuntu 24.04 plus Docker, a clone of `git_repo` at `git_ref`, the
+sandbox image, and the edge compose images. Cloud-init still writes `.env` and
+starts the stack; it skips clone and `docker build`. Settings → Update still
+pulls new code.
+
 ## Not in v1
 
-Baked AMI, Cloudflare provider, creating a VPC, a blocking health wait, replacing the existing pilot.
+Cloudflare provider, creating a VPC, a blocking health wait, replacing the existing pilot,
+Cosign on the AMI / images (optional 5b).

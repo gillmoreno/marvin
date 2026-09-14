@@ -171,7 +171,7 @@ def test_git_identity_files(tmp_path, monkeypatch):
     ident = GitIdentity(str(tmp_path), gh)
     env = ident.env("demo")
     d = tmp_path / "sandbox" / "demo" / "home" / ".marvin"  # the sandbox's room HOME: same path inside the container
-    assert env == {"GIT_CONFIG_GLOBAL": str(d / "gitconfig"), "GH_CONFIG_DIR": str(d / "gh")}
+    assert env == {"GIT_CONFIG_GLOBAL": str(d / "gitconfig"), "GH_CONFIG_DIR": str(d / "gh"), "MARVIN_TURN_FILE": str(d / "turn.json")}
 
     # nobody asked yet, no machine token: no identity and no credentials of ours; the included ~/.gitconfig applies
     assert ident.apply("demo", None).startswith("no GitHub credentials")
@@ -182,6 +182,8 @@ def test_git_identity_files(tmp_path, monkeypatch):
     assert ident.apply("demo", "gil") == "@gil (gil)"
     cfg = (d / "gitconfig").read_text()
     assert "name = Gil Moreno" in cfg and "email = gil@example.com" in cfg and f"cat {d / 'token'}" in cfg and "insteadOf = git@github.com:" in cfg
+    turn = json.loads((d / "turn.json").read_text())
+    assert turn["committer_name"] == "marvin[bot]" and turn["actor"] == "gil"
     assert (d / "token").read_text() == "gho_secret\n" and (d / "token").stat().st_mode & 0o777 == 0o600
     assert "oauth_token: gho_secret" in (d / "gh" / "hosts.yml").read_text() and "user: gil" in (d / "gh" / "hosts.yml").read_text()
 

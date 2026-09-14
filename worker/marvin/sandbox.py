@@ -48,7 +48,7 @@ DEFAULT_FORWARD_ENV: tuple[str, ...] = (
     "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
     "MARVIN_GIT_NAME", "MARVIN_GIT_EMAIL", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
     "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_AGENT_SDK_VERSION", "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING", "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
-    "GIT_CONFIG_GLOBAL", "GH_CONFIG_DIR",  # the per-turn git/gh identity files (marvin.github), under the room HOME
+    "GIT_CONFIG_GLOBAL", "GH_CONFIG_DIR", "MARVIN_TURN_FILE", "MARVIN_STATE_DIR",
     "GROK_HOME",  # Grok subscription session (~/.grok/auth.json) written by Settings → Coding agents
     "MARVIN_THEMES_DIR",  # where the agent writes UI themes (marvin.themes); mounted at the same path
     "TERM", "LANG", "LC_ALL",

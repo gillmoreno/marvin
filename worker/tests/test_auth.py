@@ -51,7 +51,7 @@ async def test_header_mode_requires_headers(upstream):
         assert (await c.get("/api/token?room=dev")).status == 401
         assert (await c.get("/api/rooms")).status == 401
         j = await (await c.get("/api/me")).json()
-        assert j == {"auth": "header", "identity": None}
+        assert j["auth"] == "header" and j["identity"] is None
 
 
 async def test_header_mode_identity_and_admin_via_group(upstream):
@@ -62,7 +62,7 @@ async def test_header_mode_identity_and_admin_via_group(upstream):
         assert r.status == 200
         p = jwt_payload((await r.json())["token"])
         assert p["sub"] == "alice-example-com" and p["name"] == "Alice"
-        assert json.loads(p["metadata"]) == {"roles": ["admin", "participant"]}
+        assert json.loads(p["metadata"]) == {"roles": ["admin", "participant"], "email": "alice@example.com"}
         assert p["video"]["room"] == "dev"
 
 
@@ -91,7 +91,7 @@ def pw_auth(**kw) -> Auth:
 
 async def test_password_login_sets_cookie_and_identity(upstream):
     async with await client(pw_auth()) as c:
-        assert (await (await c.get("/api/me")).json()) == {"auth": "password", "identity": None}
+        assert (await (await c.get("/api/me")).json())["identity"] is None
         assert (await c.get("/api/token?room=dev")).status == 401
         r = await c.post("/api/login", json={"name": "Gil Moreno", "password": "open-sesame"})
         assert r.status == 200
@@ -106,7 +106,7 @@ async def test_password_login_sets_cookie_and_identity(upstream):
         r = await c.get("/api/token?room=dev&name=Somebody+Else")  # the name query is ignored: the session decides
         assert r.status == 200
         p = jwt_payload((await r.json())["token"])
-        assert p["sub"] == "gil-aigil-dev" and p["name"] == "gil@aigil.dev" and json.loads(p["metadata"]) == {"roles": ["participant"]}
+        assert p["sub"] == "gil-aigil-dev" and p["name"] == "gil@aigil.dev" and json.loads(p["metadata"]) == {"roles": ["participant"], "email": "gil@aigil.dev"}
         assert (await c.post("/api/logout")).status == 200
         assert (await (await c.get("/api/me")).json())["identity"] is None
 
@@ -126,6 +126,33 @@ async def test_password_wrong_and_admin(upstream):
         assert r.status == 200 and (await r.json())["identity"]["roles"] == ["admin", "participant"]
         p = jwt_payload((await (await c.get("/api/token?room=dev")).json())["token"])
         assert json.loads(p["metadata"]) == {"roles": ["admin", "participant"]}
+
+
+async def test_password_rejects_email_outside_allowed_domains(tmp_path, upstream):
+    from marvin.access import Access
+    access = Access(str(tmp_path), "s3")
+    access.put({"allowed_domains": "company.com"})
+    async with await client(pw_auth(access=access)) as c:
+        r = await c.post("/api/login", json={"email": "alex@gmail.com", "password": "open-sesame"})
+        assert r.status == 403 and "company.com" in (await r.json())["error"]
+        r = await c.post("/api/login", json={"name": "Alex", "password": "open-sesame"})
+        assert r.status == 403
+        r = await c.post("/api/login", json={"email": "maria@company.com", "password": "open-sesame"})
+        assert r.status == 200 and (await r.json())["identity"]["email"] == "maria@company.com"
+        j = await (await c.get("/api/me")).json()
+        assert "transcribed" in (j.get("notice") or "")
+
+
+async def test_header_rejects_email_outside_allowed_domains(tmp_path, upstream):
+    from marvin.access import Access
+    access = Access(str(tmp_path), "s3")
+    access.put({"allowed_domains": "company.com", "allow_list": "friend@other.dev"})
+    async with await client(Auth("header", access=access)) as c:
+        assert (await (await c.get("/api/me", headers=HDRS)).json())["identity"] is None
+        ok = {"X-Forwarded-User": "maria", "X-Forwarded-Email": "maria@company.com"}
+        assert (await (await c.get("/api/me", headers=ok)).json())["identity"]["email"] == "maria@company.com"
+        friend = {"X-Forwarded-User": "friend", "X-Forwarded-Email": "friend@other.dev"}
+        assert (await (await c.get("/api/me", headers=friend)).json())["identity"]["id"] == "friend"
 
 
 async def test_password_rate_limit(upstream):
@@ -184,7 +211,7 @@ def test_mode_defaults_and_validation(monkeypatch):
 
 async def test_none_mode_name_from_query_everyone_admin(upstream):
     async with await client(Auth("none")) as c:
-        assert (await (await c.get("/api/me")).json()) == {"auth": "none", "identity": None}
+        assert (await (await c.get("/api/me")).json())["identity"] is None
         r = await c.get("/api/token?room=dev&name=Marvin")
         p = jwt_payload((await r.json())["token"])
         assert p["sub"] == "human-marvin" and json.loads(p["metadata"]) == {"roles": ["admin", "participant"]}
@@ -211,6 +238,11 @@ async def test_proxy_roles(upstream):
         assert (await c.get("/api/notes", headers=p)).status == 403
         assert (await c.get("/api/harness-creds", headers=p)).status == 403
         assert (await c.get("/api/update", headers=p)).status == 403
+        assert (await c.get("/api/license", headers=p)).status == 403
+        assert (await c.get("/api/access", headers=p)).status == 403
+        assert (await c.get("/api/export", headers=p)).status == 403
+        assert (await c.get("/api/sessions", headers=p)).status == 200
+        assert (await c.put("/api/sessions", headers=p, json={"days": 7})).status == 403
         assert (await c.put("/api/notes", headers=p, json={"text": "x"})).status == 403
         assert (await c.post("/api/rooms", headers=a, json={"name": "x"})).status == 200
         assert (await c.patch("/api/rooms/dev", headers=a, json={"model": "m"})).status == 200
@@ -218,6 +250,9 @@ async def test_proxy_roles(upstream):
         assert (await c.get("/api/notes", headers=a)).status == 200
         assert (await c.get("/api/harness-creds", headers=a)).status == 200
         assert (await c.get("/api/update", headers=a)).status == 200
+        assert (await c.get("/api/license", headers=a)).status == 200
+        assert (await c.get("/api/access", headers=a)).status == 200
+        assert (await c.get("/api/export", headers=a)).status == 200
         assert (await c.put("/api/notes", headers=a, json={"text": "x"})).status == 200
         # GitHub: connecting one's own account is self-service, the machine's client id is admin-only
         assert (await c.post("/api/github/connect", headers=p)).status == 200

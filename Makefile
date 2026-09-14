@@ -48,7 +48,29 @@ edge-up: sandbox-image ## build + start livekit, worker, web and Caddy; password
 update: ## pull origin/$(MARVIN_GIT_REF) and rebuild the edge stack (same as Settings → Update)
 	@deploy/edge/update.sh
 
-edge-oidc-up: sandbox-image ## same, with single sign-on through oauth2-proxy (MARVIN_AUTH=header, OAUTH2_PROXY_* in .env)
+# Mint a customer JWT (private key ~/.marvin-pilot/license-private.pem, not in the repo).
+#   make issue-license COMPANY=example.com EXPIRES=2027-11-01 SEATS=50
+COMPANY ?=
+EXPIRES ?=
+SEATS ?= 10
+FEATURES ?= *
+issue-license:
+	@test -n "$(COMPANY)" && test -n "$(EXPIRES)" || (echo "usage: make issue-license COMPANY=example.com EXPIRES=2027-11-01 SEATS=50"; exit 2)
+	cd worker && uv run python ../tools/issue-license.py --company "$(COMPANY)" --expires "$(EXPIRES)" --seats "$(SEATS)" --features "$(FEATURES)"
+
+edge-oidc-up: sandbox-image ## same, with single sign-on through oauth2-proxy (Settings → Sign-in, or OAUTH2_PROXY_* in .env)
+	@if [ ! -f .oauth2-proxy.env ]; then \
+	  umask 077; \
+	  set -a; [ -f .env ] && . ./.env; set +a; \
+	  { echo "OAUTH2_PROXY_PROVIDER=$${OAUTH2_PROXY_PROVIDER:-oidc}"; \
+	    echo "OAUTH2_PROXY_OIDC_ISSUER_URL=$${OAUTH2_PROXY_OIDC_ISSUER_URL}"; \
+	    echo "OAUTH2_PROXY_CLIENT_ID=$${OAUTH2_PROXY_CLIENT_ID}"; \
+	    echo "OAUTH2_PROXY_CLIENT_SECRET=$${OAUTH2_PROXY_CLIENT_SECRET}"; \
+	    echo "OAUTH2_PROXY_COOKIE_SECRET=$${OAUTH2_PROXY_COOKIE_SECRET}"; \
+	    echo "OAUTH2_PROXY_EMAIL_DOMAINS=$${OAUTH2_PROXY_EMAIL_DOMAINS:-*}"; \
+	    echo "OAUTH2_PROXY_OIDC_GROUPS_CLAIM=$${OAUTH2_PROXY_OIDC_GROUPS_CLAIM:-groups}"; \
+	  } > .oauth2-proxy.env; \
+	fi
 	MARVIN_AUTH=header MARVIN_CADDYFILE=./deploy/edge/Caddyfile.oidc $(EDGE) --profile oidc up -d --build
 
 edge-down:

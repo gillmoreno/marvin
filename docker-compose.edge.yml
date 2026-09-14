@@ -55,7 +55,10 @@ services:
       MARVIN_TRUSTED_PROXIES: ${MARVIN_TRUSTED_PROXIES:-127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       MARVIN_ADMIN_GROUPS: ${MARVIN_ADMIN_GROUPS:-}
       MARVIN_ADMIN_USERS: ${MARVIN_ADMIN_USERS:-}
+      MARVIN_ALLOWED_EMAIL_DOMAINS: ${MARVIN_ALLOWED_EMAIL_DOMAINS:-}
+      MARVIN_ALLOW_LIST: ${MARVIN_ALLOW_LIST:-}
     volumes:
+      - marvin_work:/work
       - ${MARVIN_ROOMS_FILE:-./deploy/edge/rooms.yaml}:/etc/marvin/rooms.yaml:ro
     depends_on: [worker]
     restart: unless-stopped
@@ -107,6 +110,11 @@ services:
       MARVIN_GIT_REF: ${MARVIN_GIT_REF:-main}
       MARVIN_GIT_REPO: ${MARVIN_GIT_REPO:-https://github.com/gillmoreno/marvin.git}
       MARVIN_INSTALL_DIR: ${MARVIN_INSTALL_DIR:-}
+      MARVIN_LICENSE_KEY: ${MARVIN_LICENSE_KEY:-}   # optional override; Settings → Enterprise is the usual place
+      MARVIN_ALLOWED_EMAIL_DOMAINS: ${MARVIN_ALLOWED_EMAIL_DOMAINS:-}
+      MARVIN_ALLOW_LIST: ${MARVIN_ALLOW_LIST:-}
+      MARVIN_AUDIT_S3_BUCKET: ${MARVIN_AUDIT_S3_BUCKET:-}
+      MARVIN_AUDIT_WEBHOOK: ${MARVIN_AUDIT_WEBHOOK:-}
       ORT_DISABLE_TELEMETRY: "1"   # otherwise ONNX Runtime writes worker/:memory:.ses
     volumes:
       - marvin_work:/work
@@ -163,21 +171,18 @@ services:
     # Compose interpolates this block even when the profile is off, so nothing here is `:?`-required; oauth2-proxy
     # itself refuses to start without issuer, client id/secret and a cookie secret (openssl rand -base64 32 | tr -- '+/' '-_').
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.8.1
+    # Issuer / client / cookie come from Settings (written to .oauth2-proxy.env) or a seed from .env (make edge-oidc-up).
+    env_file:
+      - path: .oauth2-proxy.env
+        required: false
     environment:
-      OAUTH2_PROXY_PROVIDER: ${OAUTH2_PROXY_PROVIDER:-oidc}
-      OAUTH2_PROXY_OIDC_ISSUER_URL: ${OAUTH2_PROXY_OIDC_ISSUER_URL:-}
-      OAUTH2_PROXY_CLIENT_ID: ${OAUTH2_PROXY_CLIENT_ID:-}
-      OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET:-}
-      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:-}
       OAUTH2_PROXY_REDIRECT_URL: https://${MARVIN_DOMAIN:-localhost}/oauth2/callback
       OAUTH2_PROXY_WHITELIST_DOMAINS: ${MARVIN_DOMAIN:-}
-      OAUTH2_PROXY_EMAIL_DOMAINS: ${OAUTH2_PROXY_EMAIL_DOMAINS:-*}
       OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
       OAUTH2_PROXY_REVERSE_PROXY: "true"
       OAUTH2_PROXY_SET_XAUTHREQUEST: "true"           # answer /oauth2/auth with X-Auth-Request-* headers
       OAUTH2_PROXY_UPSTREAMS: static://202
       OAUTH2_PROXY_COOKIE_SECURE: "true"
-      OAUTH2_PROXY_OIDC_GROUPS_CLAIM: ${OAUTH2_PROXY_OIDC_GROUPS_CLAIM:-groups}
       OAUTH2_PROXY_SCOPE: ${OAUTH2_PROXY_SCOPE:-openid email profile}
     restart: unless-stopped
 

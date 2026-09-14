@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { MeContext, isAdmin, logout } from "./auth";
-import { ClientIdSetup, GitHubAuth, type Status as GitHubStatus } from "./GitHubConnect";
+import { ClientIdSetup, GitHubAuth, startGitHubApp, type Status as GitHubStatus } from "./GitHubConnect";
 import { GrokLogin } from "./HarnessConnect";
 import { RoomPicker } from "./RoomPicker";
 
@@ -30,6 +30,7 @@ export function JoinGate({
   const [agentKey, setAgentKey] = useState("");
   const [agentBusy, setAgentBusy] = useState(false);
   const [agentErr, setAgentErr] = useState<string | null>(null);
+  const [appErr, setAppErr] = useState<string | null>(null);
 
   const reload = () => {
     fetch("/api/setup").then((r) => r.json()).then((j) => { if (!j.error) setSetup(j); }).catch(() => {});
@@ -68,6 +69,7 @@ export function JoinGate({
     >
       <h1>Marvin</h1>
       <p>A voice room with a coding agent in it. Say "{agentName}" to talk to it. This machine needs a GitHub account and an agent. Your own GitHub is optional.</p>
+      {me.notice && <p className="notice">{me.notice}</p>}
 
       {needsName ? (
         <label>Your name <input value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></label>
@@ -84,11 +86,13 @@ export function JoinGate({
         <li className={machineOk ? "done" : ""}>
           <h3>This machine’s GitHub</h3>
           <p className="dim small">{machineOk
-            ? <>Shared account{machine!.login ? <> <b>@{machine!.login}</b></> : null}{machine!.source === "env" ? " (from the environment)" : ""} · commits say Marvin unless you attach your own GitHub.</>
+            ? <>Shared account{machine!.login ? <> <b>@{machine!.login}</b></> : null}{machine!.source === "env" ? " (from the environment)" : machine!.source === "app" ? " (GitHub App)" : ""} · commits use your Marvin login as author.</>
             : "Required. One account for the box. An admin sets this once."}</p>
           {!machineOk && admin && gh && (
             <>
               {!gh.configured && <ClientIdSetup status={gh} onSaved={(s) => { setGh(s); reload(); }} />}
+              <p className="dim small"><a href="#" onClick={(e) => { e.preventDefault(); void startGitHubApp().then((err) => setAppErr(err)); }}>Create a GitHub App</a> for this machine (Enterprise), or paste a token.</p>
+              {appErr && <p className="error small">{appErr}</p>}
               <GitHubAuth dest="machine" configured={gh.configured} onDone={reload} />
             </>
           )}

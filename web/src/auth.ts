@@ -6,7 +6,7 @@ import { createContext, useContext } from "react";
 
 export type AuthMode = "header" | "password" | "none";
 export type Identity = { id: string; name: string; email: string | null; roles: string[] };
-export type Me = { auth: AuthMode; identity: Identity | null };
+export type Me = { auth: AuthMode; identity: Identity | null; notice?: string | null };
 
 export const FALLBACK_ME: Me = { auth: "none", identity: null }; // an older token server without /api/me
 

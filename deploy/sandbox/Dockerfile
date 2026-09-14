@@ -60,7 +60,9 @@ RUN set -eux; has() { case " $HARNESSES " in *" $1 "*) return 0;; *) return 1;; 
     fi
 
 COPY marvin-sandbox-init /usr/local/bin/marvin-sandbox-init
-RUN chmod +x /usr/local/bin/marvin-sandbox-init
+COPY git-wrapper /opt/marvin/bin/git
+COPY hooks /opt/marvin/hooks
+RUN chmod +x /usr/local/bin/marvin-sandbox-init /opt/marvin/bin/git /opt/marvin/hooks/commit-msg /opt/marvin/hooks/pre-push
 
 # HOME is set per room by the worker (-e HOME=...), the working directory per exec (-w). Nothing runs by default:
 # the worker keeps the container alive with `sleep infinity` and execs into it.

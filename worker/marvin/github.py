@@ -37,6 +37,8 @@ from typing import Any
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
 
+from marvin.github_app import GitHubApp
+
 log = logging.getLogger("marvin.github")
 
 DEVICE_CODE_URL = "https://github.com/login/device/code"
@@ -171,6 +173,7 @@ class GitHubConnect:
         self.flows: dict[str, Flow] = {}
         self._env_machine = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
         self._repo_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+        self.app = GitHubApp(self.store, self.http)
 
     @property
     def client_id(self) -> str | None:
@@ -194,6 +197,10 @@ class GitHubConnect:
     def machine_token(self) -> str | None:
         if self._env_machine:
             return self._env_machine
+        if self.app.public().get("installed"):
+            tok = self.app.token()
+            if tok:
+                return tok
         conn = self.store.machine()
         return conn.token if conn else None
 
@@ -209,6 +216,9 @@ class GitHubConnect:
             if cached and cached.token == self._env_machine:
                 return {**cached.public(), "source": "env"}
             return {"login": None, "name": "Marvin", "email": "", "scopes": "", "connected_at": 0, "source": "env"}
+        if self.app.public().get("installed"):
+            p = self.app.public()
+            return {"login": p.get("slug") or "app", "name": "Marvin", "email": "", "scopes": "installation", "connected_at": 0, "source": "app"}
         conn = self.store.machine()
         return {**conn.public(), "source": "settings"} if conn else None
 
@@ -223,6 +233,11 @@ class GitHubConnect:
             cid = self.client_id
             out["client_id"] = cid  # admins may see it; it is public anyway (the UI masks it by default)
             out["client_id_source"] = self.client_id_source
+            out["app"] = self.app.public()
+            ident = GitIdentity(str(self.store.path.parent) if self.store.path else None, self)
+            pub = ident.signing_public()
+            if pub:
+                out["signing_key"] = pub
         return out
 
     async def connect_token(self, user_id: str, token: str) -> Connection:
@@ -411,12 +426,35 @@ class GitIdentity:
         if d is None:
             return {}
         d.mkdir(parents=True, exist_ok=True)
-        return {"GIT_CONFIG_GLOBAL": str(d / "gitconfig"), "GH_CONFIG_DIR": str(d / "gh")}
+        return {"GIT_CONFIG_GLOBAL": str(d / "gitconfig"), "GH_CONFIG_DIR": str(d / "gh"), "MARVIN_TURN_FILE": str(d / "turn.json")}
+
+    def signing_public(self) -> str | None:
+        if not self.state_dir:
+            return None
+        pub = self.state_dir / "git-signing.pub"
+        return pub.read_text().strip() if pub.exists() else None
+
+    def _signing_key(self) -> Path | None:
+        if not self.state_dir:
+            return None
+        priv = self.state_dir / "git-signing"
+        if priv.exists():
+            return priv
+        try:
+            import subprocess
+            subprocess.run(
+                ["ssh-keygen", "-q", "-t", "ed25519", "-f", str(priv), "-N", "", "-C", "marvin[bot]"],
+                check=True, capture_output=True,
+            )
+            priv.chmod(0o600)
+            return priv
+        except Exception:
+            return None
 
     def resolve(self, user_id: str | None) -> Connection | None:
         return self.connect.store.get(user_id) if (self.connect and user_id) else None
 
-    def apply(self, room: str, user_id: str | None) -> str:
+    def apply(self, room: str, user_id: str | None, *, author_name: str | None = None, author_email: str | None = None, session_id: str | None = None, turn: int | None = None) -> str:
         """Write the room's identity for this turn. Returns a short description for the log."""
         d = self.room_dir(room)
         if d is None:
@@ -424,15 +462,19 @@ class GitIdentity:
         d.mkdir(parents=True, exist_ok=True)
         conn = self.resolve(user_id)
         if conn:
-            name, email, token, who = conn.name, conn.email, conn.token, f"@{conn.login} ({user_id})"
+            token, who = conn.token, f"@{conn.login} ({user_id})"
+            name = author_name or conn.name
+            email = author_email or conn.email
         else:
             token = self.connect.machine_token if self.connect else None
             machine = self.connect.store.machine() if self.connect else None
             if machine and token == machine.token:
-                name, email, who = machine.name, machine.email, f"machine @{machine.login}"
+                fallback_name, fallback_email, who = machine.name, machine.email, f"machine @{machine.login}"
             else:
-                name, email = os.environ.get("MARVIN_GIT_NAME", "Marvin"), os.environ.get("MARVIN_GIT_EMAIL", "marvin@example.com")
+                fallback_name, fallback_email = os.environ.get("MARVIN_GIT_NAME", "Marvin"), os.environ.get("MARVIN_GIT_EMAIL", "marvin@example.com")
                 who = "machine identity" if token else "no GitHub credentials (system git helpers apply)"
+            name = author_name or fallback_name
+            email = author_email or fallback_email
         token_file = d / "token"
         gitconfig = [
             "# written by Marvin at every turn: the identity of the person who asked (or the machine's)",
@@ -451,6 +493,13 @@ class GitIdentity:
                 f"\thelper = \"!f() {{ echo username=x-access-token; echo password=$(cat {token_file}); }}; f\"",
                 '[url "https://github.com/"]', "\tinsteadOf = git@github.com:",
             ]
+            key = self._signing_key()
+            if key:
+                gitconfig += [
+                    "[gpg]", "\tformat = ssh",
+                    "[user]", f"\tsigningkey = {key}",
+                    "[commit]", "\tgpgsign = true",
+                ]
             gh = d / "gh"
             gh.mkdir(exist_ok=True)
             _write_private(gh / "hosts.yml", f"github.com:\n    oauth_token: {token}\n    user: {conn.login if conn else 'marvin'}\n    git_protocol: https\n")
@@ -458,6 +507,15 @@ class GitIdentity:
             token_file.unlink(missing_ok=True)
             (d / "gh" / "hosts.yml").unlink(missing_ok=True)
         _write_private(d / "gitconfig", "\n".join(gitconfig) + "\n")
+        _write_private(d / "turn.json", json.dumps({
+            "author_name": author_name or name,
+            "author_email": email,
+            "committer_name": "marvin[bot]",
+            "committer_email": "marvin@users.noreply.github.com",
+            "session": session_id,
+            "turn": turn,
+            "actor": user_id,
+        }))
         return who
 
 

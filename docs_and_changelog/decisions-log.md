@@ -123,3 +123,21 @@ this file is the "why we did it this way" layer on top.
   must connect GitHub” (Alex has none) and “shared only” (programmers need the author line). Device flow
   opens the URI that already contains the user code; a pasted PAT is the escape when GitHub’s confirmation
   is blank. Write-up: `github.md`.
+
+## 2026-09-14
+
+- **Licenses are GitLab / PostHog, not a new text.** Root `LICENSE` is their
+  preamble plus MIT (everything except `ee/`). `ee/LICENSE` is their
+  Enterprise paragraph with the product name swapped: production needs a paid
+  subscription; dev/test does not. Cal.com’s AGPL core and Mattermost’s
+  AGPL-source / MIT-binary split were left alone. No terms URL yet (written
+  agreement).   JWT verify and Settings → Enterprise shipped; `ee/` is still a
+  skeleton (no compliance features yet). Write-up: `licensing.md`.
+- **Company pack 0–5 in one run.** Paid = org-only. Free core keeps domain
+  allow-lists and a local session JSONL (needed for authorship). License gates
+  OIDC save, S3/webhook export, and the GitHub App. Identity of record stays
+  Marvin login; personal GitHub stays optional. Machine GitHub App is the
+  company shape; a PAT still works. Audit is hash-chained JSONL on disk, HMAC
+  at close, export only to *their* S3 or webhook. AWS: Packer AMI + Terraform
+  `ami_id`; Cosign skipped. Out: SAML, SCIM, Helm, gVisor, GPU STT,
+  `viewer`/`approver`. Plan: `ee-company-pilot.md`.

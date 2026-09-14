@@ -4,11 +4,31 @@ import { useIsAdmin, useMe } from "./auth";
 /** Machine GitHub (required, admin) plus optional personal GitHub. Device flow or a pasted PAT. */
 
 export type Connected = { login: string; name: string; email: string; scopes: string; connected_at: number };
-export type Machine = Connected & { source: "env" | "settings"; login: string | null };
+export type Machine = Connected & { source: "env" | "settings" | "app"; login: string | null };
 export type Status = {
   configured: boolean; connected: Connected | null; machine_identity: boolean; machine?: Machine | null;
   client_id?: string | null; client_id_source?: "env" | "settings" | null;
+  app?: { id: string | null; slug: string | null; installed: boolean; configured: boolean };
+  signing_key?: string | null;
 };
+
+/** Manifest POST to github.com/settings/apps/new. Needs an Enterprise license. */
+export async function startGitHubApp(): Promise<string | null> {
+  const r = await fetch(`/api/github/app?origin=${encodeURIComponent(location.origin)}`);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return (j as { error?: string }).error ?? r.statusText;
+  const f = document.createElement("form");
+  f.method = "POST";
+  f.action = "https://github.com/settings/apps/new";
+  const i = document.createElement("input");
+  i.type = "hidden";
+  i.name = "manifest";
+  i.value = JSON.stringify((j as { manifest: unknown }).manifest);
+  f.appendChild(i);
+  document.body.appendChild(f);
+  f.submit();
+  return null;
+}
 type Flow = { flow: string; user_code: string; verification_uri: string; expires_in: number; interval: number };
 
 export function ClientIdSetup({ status, onSaved }: { status: Status; onSaved: (s: Status) => void }) {
@@ -156,6 +176,10 @@ export function GitHubSection() {
     if (!j.error) setStatus(j); else setErr(j.error);
   };
 
+  const startApp = async () => {
+    const error = await startGitHubApp();
+    if (error) setErr(error);
+  };
   const you = me.identity?.email ?? me.identity?.name ?? "you";
   const machine = status?.machine;
   return (
@@ -165,7 +189,17 @@ export function GitHubSection() {
       {status && admin && <ClientIdSetup status={status} onSaved={(s) => { setStatus(s); setErr(null); }} />}
       {status && (
         <>
-          <p className="small"><b>This machine</b> {machine ? <>· {machine.login ? <>@{machine.login} </> : null}({machine.source === "env" ? "from the environment" : "set here"})</> : <span className="dim">· not set</span>}</p>
+          <p className="small"><b>This machine</b> {machine ? <>· {machine.login ? <>@{machine.login} </> : null}({machine.source === "env" ? "from the environment" : machine.source === "app" ? "GitHub App" : "set here"})</> : <span className="dim">· not set</span>}</p>
+          {admin && (
+            <p className="dim small">
+              <a href="#" onClick={(e) => { e.preventDefault(); void startApp(); }}>Create a GitHub App for this machine</a>
+              {status.app?.configured ? <> · app {status.app.slug || "ready"}{status.app.installed ? ", installed" : " — install it on the org after GitHub redirects"}</> : null}
+              . A pasted PAT still works.
+            </p>
+          )}
+          {admin && status.signing_key && (
+            <p className="dim small">Commit signing key (upload to the GitHub App for Verified): <code style={{ wordBreak: "break-all" }}>{status.signing_key}</code></p>
+          )}
           {admin && !machine?.login && machine?.source !== "env" && (
             <GitHubAuth dest="machine" configured={status.configured} onDone={() => void load()} />
           )}

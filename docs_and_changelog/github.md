@@ -12,8 +12,8 @@ The join page is three steps. The first two are required and admin-only; the thi
 | Your GitHub | Anyone | No. Only if you want your name on the git author line. |
 
 Roadmap item 7 (`roadmap.md`). Decided in `decisions-log.md` (2026-09-12 direction, 2026-09-13: ship the shared
-machine account plus optional personal). A GitHub App (manifest flow) is still to do; today the machine account is
-a pasted PAT or `GITHUB_TOKEN`.
+machine account plus optional personal). The machine account is a **GitHub App** (manifest flow, Enterprise),
+a pasted PAT, or `GITHUB_TOKEN`.
 
 ## What a person sees
 
@@ -32,8 +32,13 @@ are set. Personal GitHub is reported and ignored for `ready`.
 
 On a fresh box the join page is the place. Settings still works if you need to change it later.
 
-**This machine’s GitHub.** One account every room uses to clone, push and open PRs. Commits say Marvin unless the
-person who asked attached their own GitHub. Two ways in:
+**This machine’s GitHub.** One account every room uses to clone, push and open PRs. Author is the Marvin
+identity who asked; committer is `marvin[bot]`. Three ways in:
+
+- **Create a GitHub App** (Enterprise, Settings or the join gate). Marvin POSTs a manifest to
+  GitHub; you name the app, create it, then install it on the org and pick repos. Hourly
+  installation tokens replace a shared PAT. Join-gate repo list is what the install can see.
+  Redirects land on `/api/github/app/callback` and `/api/github/app/install`.
 
 - **Paste a token** (fine-grained PAT, Contents read/write + pull requests, the repos this machine will touch).
   No OAuth App, no client id. This is also the escape hatch when GitHub’s device confirmation page is blank.
@@ -77,8 +82,10 @@ join / Settings
 ```
 
 - **Identity of record.** Marvin login (email + password, or SSO headers). GitHub is optional attribution.
-  `Requested-by:` in the commit trailer is that person. The committer stays `marvin[bot]` (roadmap item 8;
-  wrapper/hooks still to land).
+  `Requested-by:` / `Marvin-Session` / `Marvin-Turn` are stamped by `deploy/sandbox/hooks/commit-msg`.
+  The `git` wrapper on PATH drops `--author`. `pre-push` refuses a push whose turn is not on the
+  audit JSONL. Commits are SSH-signed with `<state_dir>/git-signing` when `ssh-keygen` is available;
+  upload the `.pub` (Settings → GitHub) to the GitHub App for the Verified badge.
 - **Two stored accounts.** `<state_dir>/github.json`: `settings.client_id` (plain), `settings.machine` (encrypted
   token + public login/name/email), and one `users` record per Marvin identity. Fernet key
   `sha256("marvin-github:" + MARVIN_SESSION_SECRET)`. File mode `0600`. A copied state directory without the
@@ -110,16 +117,13 @@ join / Settings
   (`sandbox.md`, `security-and-compliance.md` finding 4).
 - OAuth App user tokens do not expire on their own; disconnect (or revoking the app under GitHub → Settings →
   Applications) ends them. Tokens are re-checked when Settings → GitHub opens; a revoked one is forgotten.
-- The scopes are broad (`repo`). The per-machine GitHub App (next step) is what narrows access to selected
-  repositories and gives short-lived installation tokens; user tokens remain for attribution.
+- User-token scopes are still broad (`repo`). The GitHub App installation is what narrows access to
+  selected repositories and gives short-lived tokens; user tokens remain for attribution.
 - GitHub’s device confirmation page has been blank on the Frankfurt pilot and has shown a *different* code
   than Marvin. The join page opens the URI that already contains Marvin’s code, and **GitHub went blank**
   switches to a PAT. See `pilot-findings.md`.
 
 ## Next
 
-- GitHub App through the manifest flow: one click creates the app under the org, a second installs it with repo
-  selection; the worker mints hourly installation tokens for clones and the fallback identity.
-- Repo picker on the join screen, listing what the connected account (and the installation) can see.
-- Audit line per turn: who asked, which identity acted, what was pushed. Commit wrapper / `marvin[bot]`
-  committer from roadmap item 8.
+- Repo picker on the join screen, listing what the installation (or the connected account) can see.
+- `Approved-by` trailer from the last tool approval.

@@ -18,6 +18,7 @@ admin_password     = "change-me-admin"
 # ssh_cidr = "203.0.113.10/32"   # your laptop; omit = SSM only
 # key_name = "my-keypair"
 
+# ami_id        = "ami-..."     # Packer image (ami.pkr.hcl); omit = stock Ubuntu + 10–15 min first boot
 # instance_type = "c7i.xlarge"
 # git_ref       = "main"
 # git_token     = ""            # HTTPS token; required when git_repo is private
