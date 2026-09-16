@@ -1,18 +1,10 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
 import { MeContext, isAdmin, logout } from "./auth";
-import { ClientIdSetup, GitHubAuth, startGitHubApp, type Status as GitHubStatus } from "./GitHubConnect";
-import { GrokLogin } from "./HarnessConnect";
+import { ClientIdSetup, GitHubAuth, type Status as GitHubStatus } from "./GitHubConnect";
+import { MachineSetup, type Setup } from "./MachineSetup";
 import { MachineUpdate } from "./MachineUpdate";
 import { RoomPicker } from "./RoomPicker";
 import { SettingsPanel } from "./Settings";
-
-type Setup = {
-  ready: boolean;
-  machine_github: { login: string | null; name: string; source: string } | null;
-  agent: { ready: boolean; label: string | null; default_harness: string | null };
-  personal: { login: string; name: string; email: string } | null;
-  oauth_configured: boolean;
-};
 
 export function JoinGate({
   onJoin, error, needsName, name, setName, agentName,
@@ -28,48 +20,57 @@ export function JoinGate({
   const admin = isAdmin(me);
   const [room, setRoom] = useState(localStorage.getItem("marvin.room") ?? "");
   const [setup, setSetup] = useState<Setup | null>(null);
+  const [setupError, setSetupError] = useState(false);
   const [github, setGitHub] = useState<GitHubStatus | null>(null);
-  const [agentKey, setAgentKey] = useState("");
-  const [agentBusy, setAgentBusy] = useState(false);
-  const [agentError, setAgentError] = useState<string | null>(null);
-  const [appError, setAppError] = useState<string | null>(null);
   const [personalOpen, setPersonalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<string | undefined>();
 
   const reload = () => {
-    fetch("/api/setup").then((response) => response.json()).then((body) => { if (!body.error) setSetup(body); }).catch(() => {});
-    fetch("/api/github/me").then((response) => response.json()).then((body) => { if (!body.error) setGitHub(body); }).catch(() => {});
+    fetch("/api/setup")
+      .then((response) => response.json())
+      .then((body) => {
+        if (body.error) { setSetupError(true); return; }
+        setSetupError(false);
+        setSetup(body);
+      })
+      .catch(() => setSetupError(true));
+    fetch("/api/github/me")
+      .then((response) => response.json())
+      .then((body) => { if (!body.error) setGitHub(body); })
+      .catch(() => {});
   };
-  useEffect(reload, [admin]);
+  useEffect(() => {
+    reload();
+    const tick = window.setInterval(reload, 4000);
+    return () => window.clearInterval(tick);
+  }, [admin]);
 
-  const saveClaude = async () => {
-    setAgentBusy(true);
-    setAgentError(null);
-    try {
-      const response = await fetch("/api/harness-creds/anthropic", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ key: agentKey }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
-      setAgentKey("");
-      reload();
-    } catch (cause) {
-      setAgentError((cause as Error).message);
-    } finally {
-      setAgentBusy(false);
-    }
-  };
-
-  const who = me.identity?.email || me.identity?.name || (needsName ? name : "you");
+  const who = me.identity?.email || me.identity?.name || name || "you";
+  const display = me.identity?.name || who;
   const initials = who.split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "M";
-  const machine = setup?.machine_github ?? null;
-  const machineReady = Boolean(machine);
-  const agentReady = Boolean(setup?.agent.ready);
-  const locked = !machineReady || !agentReady || (needsName && !name);
-  const canJoin = Boolean(room) && !locked;
+  const canLogout = me.auth === "password";
+  const onLogout = () => void logout().then(() => setMe({ ...me, identity: null }));
+
+  if (!setup?.ready) {
+    return (
+      <MachineSetup
+        admin={admin}
+        who={display}
+        role={admin ? "Administrator" : "Participant"}
+        initials={initials}
+        canLogout={canLogout}
+        onLogout={onLogout}
+        setup={setup}
+        setupError={setupError}
+        github={github}
+        onGitHub={(status) => { setGitHub(status); reload(); }}
+        reload={reload}
+      />
+    );
+  }
+
+  const canJoin = Boolean(room) && !(needsName && !name);
 
   return (
     <main className="join-workspace">
@@ -82,10 +83,8 @@ export function JoinGate({
         </nav>
         <div className="join-profile">
           <span>{initials}</span>
-          <div><b>{me.identity?.name || who}</b><small>{admin ? "Administrator" : "Participant"}</small></div>
-          {me.auth === "password" && (
-            <button type="button" onClick={() => void logout().then(() => setMe({ ...me, identity: null }))}>Log out</button>
-          )}
+          <div><b>{display}</b><small>{admin ? "Administrator" : "Participant"}</small></div>
+          {canLogout && <button type="button" onClick={onLogout}>Log out</button>}
         </div>
       </aside>
 
@@ -101,7 +100,7 @@ export function JoinGate({
       >
         <header className="join-main-head">
           <div>
-            <span>{setup?.ready ? `${agentName} is ready` : "Finish setting up this machine"}</span>
+            <span>{agentName} is ready</span>
             <h1>Projects</h1>
           </div>
           {canJoin && <button type="submit" className="join-primary">Join {room}</button>}
@@ -116,61 +115,33 @@ export function JoinGate({
         <div className="join-content">
           <section className="join-projects">
             <h2>{room ? "Ready to continue" : "Choose a project"}</h2>
-            <div className={locked ? "join-locked" : undefined} aria-disabled={locked || undefined}>
-              <RoomPicker value={room} onPick={setRoom} locked={locked} />
-            </div>
+            <RoomPicker value={room} onPick={setRoom} locked={false} />
             {canJoin && (
               <button type="submit" className="join-project-cta">
                 <span><i /> Join <b>{room}</b></span><ArrowIcon />
               </button>
             )}
-            {locked && <p className="join-lock-reason">Projects unlock when this machine has GitHub and a coding agent.</p>}
             {error && <p className="error">{error}</p>}
           </section>
 
           <aside className="join-machine">
             <h2>This machine</h2>
-
-            <SetupStatus ready={machineReady} title="GitHub" value={machine?.login ? `@${machine.login}` : machine?.name}>
-              {!machineReady && admin && github && (
-                <div className="join-setup">
-                  {!github.configured && <ClientIdSetup status={github} onSaved={(status) => { setGitHub(status); reload(); }} />}
-                  <button type="button" className="join-link" onClick={() => void startGitHubApp().then(setAppError)}>Create a GitHub App</button>
-                  {appError && <p className="error small">{appError}</p>}
-                  <GitHubAuth dest="machine" configured={github.configured} onDone={reload} />
-                </div>
-              )}
-              {!machineReady && !admin && <small>Waiting on an administrator</small>}
-            </SetupStatus>
-
-            <SetupStatus ready={agentReady} title="Coding agent" value={setup?.agent.label}>
-              {!agentReady && admin && (
-                <div className="join-setup">
-                  <GrokLogin onSaved={reload} />
-                  <p className="dim small">Or use an Anthropic API key.</p>
-                  <div className="join-key">
-                    <input type="password" placeholder="sk-ant-…" value={agentKey} onChange={(event) => setAgentKey(event.target.value)} autoComplete="off" spellCheck={false} />
-                    <button type="button" disabled={agentBusy || agentKey.trim().length < 12} onClick={() => void saveClaude()}>{agentBusy ? "Saving…" : "Save"}</button>
-                  </div>
-                  {agentError && <p className="error small">{agentError}</p>}
-                </div>
-              )}
-              {!agentReady && !admin && <small>Waiting on an administrator</small>}
-            </SetupStatus>
+            <SetupStatus ready title="GitHub" value={setup.machine_github?.login ? `@${setup.machine_github.login}` : setup.machine_github?.name} />
+            <SetupStatus ready title="Coding agent" value={setup.agent.label} />
 
             <div className="join-personal">
-              <span className={setup?.personal ? "ready" : ""}>{setup?.personal ? <CheckIcon /> : <UserIcon />}</span>
+              <span className={setup.personal ? "ready" : ""}>{setup.personal ? <CheckIcon /> : <UserIcon />}</span>
               <div>
                 <b>Your GitHub</b>
-                <small>{setup?.personal ? `@${setup.personal.login}` : "Optional"}</small>
+                <small>{setup.personal ? `@${setup.personal.login}` : "Optional"}</small>
               </div>
-              {setup?.personal ? (
+              {setup.personal ? (
                 <button type="button" className="join-link" onClick={() => void fetch("/api/github/me", { method: "DELETE" }).then(reload)}>Disconnect</button>
               ) : (
                 <button type="button" className="join-link" onClick={() => setPersonalOpen((open) => !open)}>{personalOpen ? "Close" : "Connect"}</button>
               )}
             </div>
-            {personalOpen && !setup?.personal && (
+            {personalOpen && !setup.personal && (
               <div className="join-setup personal">
                 {admin && github && !github.configured && <ClientIdSetup status={github} onSaved={(status) => { setGitHub(status); reload(); }} />}
                 <GitHubAuth dest="user" configured={Boolean(github?.configured)} onDone={() => { setPersonalOpen(false); reload(); }} />
@@ -190,12 +161,11 @@ function Brand() {
   return <div className="join-brand"><span><i /></span><b>Marvin</b></div>;
 }
 
-function SetupStatus({ ready, title, value, children }: { ready: boolean; title: string; value?: string | null; children?: ReactNode }) {
+function SetupStatus({ ready, title, value }: { ready: boolean; title: string; value?: string | null }) {
   return (
     <section className={`join-status${ready ? " ready" : ""}`}>
       <span>{ready ? <CheckIcon /> : <AlertIcon />}</span>
       <div><b>{title}</b><small>{ready ? value : "Required"}</small></div>
-      {children}
     </section>
   );
 }

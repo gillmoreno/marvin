@@ -4,17 +4,17 @@ import { useIsAdmin } from "./auth";
 /** Settings → Coding agents: which model provider this machine talks to, set here, not in .env.
  *  API key paste for every vendor; Grok also has "Sign in with Grok" (device flow, your grok.com subscription). */
 
-type Provider = {
+export type Provider = {
   id: string; label: string; env: string; harnesses: string[]; console_url: string; steps: string[];
   key_prefix: string; note: string; subscription: string | null;
   key_set: boolean; key_source: "env" | "settings" | null; key_hint: string | null;
   subscription_set: boolean;
 };
-type Harness = { id: string; label: string };
-type Status = { providers: Provider[]; default_harness: string; default_source: "env" | "settings" | "builtin"; harnesses: Harness[] };
+export type Harness = { id: string; label: string };
+export type Status = { providers: Provider[]; default_harness: string; default_source: "env" | "settings" | "builtin"; harnesses: Harness[] };
 type Flow = { flow: string; user_code: string; verification_uri: string; expires_in: number; status: string; error?: string | null };
 
-function KeyForm({ p, onSaved }: { p: Provider; onSaved: (s: Status) => void }) {
+export function KeyForm({ p, onSaved }: { p: Provider; onSaved: (s: Status) => void }) {
   const [open, setOpen] = useState(!p.key_set);
   const [value, setValue] = useState("");
   const [show, setShow] = useState(false);

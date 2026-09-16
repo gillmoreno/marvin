@@ -157,3 +157,10 @@ this file is the "why we did it this way" layer on top.
   quality impossible to maintain and distracted from the core workflow, so
   the picker, loader, API, sandbox mounts, and agent theme skill are removed.
   Presence remains a fixed product component.
+
+## 2026-09-16
+
+- **Required setup is its own page.** The two required connections (machine GitHub, then a coding agent)
+  are a hard gate, not a locked projects rail. Until both exist, nobody sees Projects, Sessions, or
+  Settings. Participants get a waiting page. Personal GitHub stays optional and only appears after the
+  machine is ready. Write-up: `github.md`.

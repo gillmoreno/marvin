@@ -2,6 +2,34 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-16-required-machine-setup",
+      "date": "2026-09-16",
+      "title": "Finish setup before the workspace",
+      "summary": "A machine stays on a dedicated setup page until GitHub and a coding agent are connected.",
+      "changes": [
+        {
+          "title": "Required connections first",
+          "description": "Connect this machine’s GitHub, then pick a coding agent. Nothing else is reachable until both are done."
+        },
+        {
+          "title": "Waiting if you are not an admin",
+          "description": "Participants see that the machine is not open yet, instead of a locked projects list."
+        },
+        {
+          "title": "Quiet status after setup",
+          "description": "Once the machine is ready, GitHub and the coding agent sit as compact status next to projects. Your own GitHub stays optional."
+        },
+        {
+          "title": "License on the setup page",
+          "description": "If you choose a GitHub App before the workspace is open, paste the Enterprise license on that same step."
+        },
+        {
+          "title": "How to make a GitHub token",
+          "description": "Paste a token now opens the GitHub page and lists which owner, repos, and permissions to pick."
+        }
+      ]
+    },
+    {
       "id": "2026-09-15-workspace-and-clear-updates",
       "date": "2026-09-15",
       "title": "A focused workspace",

@@ -2,6 +2,18 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-16 — Setup is a hard gate
+
+### Changed
+- A fresh machine is a dedicated setup page until it has a shared GitHub account and at least
+  one coding agent. Projects, sessions, and settings stay hidden. Participants see a waiting
+  page. After both connections exist, the projects workspace comes back with those two as
+  quiet status; personal GitHub stays optional.
+- **Create a GitHub App** on that setup page accepts the Enterprise license there, so you do
+  not need Machine settings first.
+- **Paste a token** walks through creating a fine-grained GitHub PAT: the exact page, which
+  owner and repos to pick, and the two permissions Marvin needs.
+
 ## 2026-09-15 — Workspace UI and updates you can follow
 
 ### Added

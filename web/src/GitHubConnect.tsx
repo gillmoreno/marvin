@@ -133,9 +133,25 @@ export function GitHubAuth({ dest, configured, onDone }: { dest: "user" | "machi
     );
   }
   if (pat) {
+    const machine = dest === "machine";
     return (
       <div className="github-setup">
-        <p className="small">Fine-grained PAT. {dest === "machine" ? "The repos this machine will touch." : "Your repos, if you want your name on commits."} Contents read/write, pull requests.</p>
+        <p className="small">
+          A fine-grained personal access token. {machine
+            ? "This is the shared account the machine uses to clone, push, and open pull requests."
+            : "Only if you want your name on the git author line. Skip this otherwise."}
+        </p>
+        <ol className="dim small">
+          <li>
+            <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">github.com/settings/personal-access-tokens/new</a>
+            {" — "}or GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → <b>Generate new token</b>.
+          </li>
+          <li>Name it <code>Marvin</code>. Resource owner: you, or the organization that owns the repos.</li>
+          <li>Repository access: <b>Only select repositories</b>, then pick {machine ? "the repos this machine will touch" : "the repos you want your name on"}.</li>
+          <li>Permissions → Repository: <b>Contents</b> Read and write, <b>Pull requests</b> Read and write. Generate.</li>
+          <li>Copy the <code>github_pat_…</code> string and paste it here. GitHub shows it once.</li>
+        </ol>
+        <p className="dim small">A classic token from <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener noreferrer">github.com/settings/tokens/new</a> with the <code>repo</code> scope also works.</p>
         <div className="row">
           <input type="password" placeholder="github_pat_… or ghp_…" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" spellCheck={false} />
           <button type="button" disabled={busy || token.trim().length < 20} onClick={() => void savePat()}>save token</button>

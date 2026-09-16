@@ -443,6 +443,43 @@ button.ghost { background: transparent; }
 .join-key input { min-width: 0; flex: 1; padding: 7px; }
 .join-key button { min-height: 32px; padding: 0 9px; }
 
+/* First-run setup: no workspace chrome until GitHub + a coding agent exist. */
+.setup-rail-copy { margin: 58px 8px 0; color: #8e969d; font-size: 13px; line-height: 1.55; }
+.setup-count { margin-top: 22px; padding: 0 8px; color: #f0ad3e; font-size: 12px; font-weight: 650; }
+.setup-eyebrow { color: #a66b15; font-size: 12px; font-weight: 650; }
+.setup-main > h1 { margin: 4px 0 10px; font-size: 39px; line-height: 1.08; letter-spacing: -.04em; font-weight: 650; }
+.setup-lead { max-width: 38em; margin: 0 0 36px; color: #697078; }
+.setup-steps { display: grid; gap: 16px; max-width: 720px; }
+.setup-step { padding: 22px 24px; background: #fff; border: 1px solid #d9dadd; border-radius: 12px; box-shadow: var(--shadow); }
+.setup-step-head { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; }
+.setup-num { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #1d2227; font-size: 12px; font-weight: 700; }
+.setup-step.done .setup-num { background: #278b5d; }
+.setup-step.wait .setup-num { color: #697078; background: #d9dadd; }
+.setup-step h2 { margin: 0; color: #1d2227; font-size: 18px; font-weight: 650; text-transform: none; letter-spacing: 0; }
+.setup-step-head p { margin: 3px 0 0; color: #697078; font-size: 13px; }
+.setup-tag { padding: 3px 8px; color: #697078; border: 1px solid #d9dadd; border-radius: 999px; font-size: 11px; }
+.setup-step.done .setup-tag { color: #278b5d; border-color: #b7dcc8; }
+.setup-body { margin: 18px 0 0 40px; }
+.setup-body > p { margin: 0; }
+.setup-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+.setup-body .btns { display: contents; }
+.setup-actions .github-setup, .setup-actions .github-flow, .setup-license { flex: 1 1 100%; }
+.setup-license { margin-top: 4px; }
+.setup-license textarea { width: 100%; min-height: 4.5rem; padding: 8px 10px; resize: vertical; }
+.setup-note { margin: 10px 0 0; color: #697078; font-size: 12px; }
+.setup-waiting { max-width: 520px; padding: 28px; background: #fff; border: 1px solid #d9dadd; border-radius: 12px; }
+.setup-waiting p { margin: 0; color: #1d2227; }
+.setup-waiting button { margin-top: 16px; color: #fff; background: #1d2227; }
+.setup-main button:not(.ghost):not(.join-link) { color: #fff; background: #1d2227; }
+.setup-main button.ghost { color: #697078; background: transparent; border: 1px solid #d9dadd; }
+.setup-main button.ghost:hover { color: #1d2227; border-color: #aeb3b6; }
+.setup-main input, .setup-main select, .setup-main textarea { color: #1d2227; background: #f7f8f8; border-color: #d9dadd; }
+.setup-main select, .setup-main input { min-height: 40px; padding: 0 10px; }
+.setup-main a { color: #1d2227; }
+.setup-main .github-code { color: #1d2227; border-color: #d9dadd; }
+.setup-main .github-setup, .setup-main .github-flow { margin-top: 8px; }
+.setup-main .error { color: #b42318; }
+
 /* Sign-in uses the same dark rail and light work surface. */
 .login-workspace { min-height: 100dvh; display: grid; grid-template-columns: minmax(300px,38%) 1fr; background: #eef0f1; }
 .login-rail { min-height: 100dvh; padding: 40px clamp(30px,5vw,72px); display: flex; flex-direction: column; justify-content: space-between; color: #f5f3ee; background: #191d20; }
@@ -527,6 +564,11 @@ button.ghost { background: transparent; }
   .join-machine { padding: 24px 0 0; border-left: 0; border-top: 1px solid #d6d8da; }
   .join-main-head h1 { font-size: 34px; }
   .join-main-head .join-primary { display: none; }
+  .setup-rail-copy, .setup-count { display: none; }
+  .setup-main > h1 { font-size: 32px; }
+  .setup-step-head { grid-template-columns: 28px 1fr; }
+  .setup-tag { display: none; }
+  .setup-body { margin-left: 0; }
   .login-workspace { display: block; padding: 0 18px 60px; }
   .login-rail { min-height: auto; margin: 0 -18px 42px; padding: 20px 22px 32px; }
   .login-rail > div:last-child { margin: 55px 0 0; }

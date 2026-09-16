@@ -7,7 +7,7 @@ images. After that the VM stays on that snapshot until someone updates it.
 
 Settings → **This machine** (admin) compares the running image (`MARVIN_GIT_SHA`) to GitHub
 `MARVIN_GIT_REF` (default `main`). When it is behind, the panel lists the commit subjects and an
-**Update now** button. The project workspace shows the same status before anyone joins a room.
+**Update now** button. After the machine is ready, the project workspace shows the same status before anyone joins a room.
 **What changed** reads the human-friendly entries in `product-updates.json` from the target branch;
 commit subjects are only the fallback when a release has no product note.
 

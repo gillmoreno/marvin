@@ -171,8 +171,8 @@ function AppLinks({ links, onOpen }: { links: { label: string; url: string }[]; 
   );
 }
 
-/** Join screen. Password mode without a session shows the login form; everyone else hits the three-step gate
- * (machine GitHub + an agent required; personal GitHub optional). none mode still asks for a display name. */
+/** Join screen. Password mode without a session shows the login form; everyone else hits setup, then projects.
+ * Machine GitHub and a coding agent are required; personal GitHub is optional. none mode still asks for a display name. */
 function JoinScreen({ onJoin, error }: { onJoin: (room: string, name: string | null) => void; error: string | null }) {
   const { me, setMe } = useContext(MeContext);
   const [name, setName] = useState(localStorage.getItem("marvin.name") ?? "");

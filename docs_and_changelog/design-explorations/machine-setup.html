@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marvin · machine setup wireframe</title>
+<style>
+  :root {
+    --bg: #eef0f1;
+    --fg: #1d2227;
+    --dim: #697078;
+    --line: #d9dadd;
+    --ok: #278b5d;
+    --warn: #a66b15;
+    --amber: #f0ad3e;
+    --rail: #191d20;
+    --rail-fg: #f5f3ee;
+    --font: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font); letter-spacing: -.006em; }
+  button, select, input { font: inherit; }
+  button { cursor: pointer; }
+  .wire { min-height: 100%; display: grid; grid-template-columns: 244px 1fr; }
+  .rail { min-height: 100vh; padding: 30px 20px 22px; color: var(--rail-fg); background: var(--rail); }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 0 8px; font-size: 18px; letter-spacing: .11em; }
+  .brand i { width: 23px; height: 23px; border: 1px solid rgba(240,173,62,.5); border-radius: 50%; display: grid; place-items: center; position: relative; }
+  .brand i::after { content: ""; width: 7px; height: 7px; background: var(--amber); border-radius: 50%; }
+  .rail p { margin: 58px 8px 0; color: #8e969d; font-size: 13px; line-height: 1.55; }
+  .rail .count { margin-top: 22px; padding: 0 8px; color: var(--amber); font-size: 12px; font-weight: 650; }
+  .main { padding: 48px clamp(28px, 6vw, 76px) 90px; }
+  .eyebrow { color: var(--warn); font-size: 12px; font-weight: 650; }
+  .eyebrow.ready { color: var(--ok); }
+  h1 { margin: 4px 0 10px; font-size: 39px; line-height: 1.08; letter-spacing: -.04em; font-weight: 650; }
+  .lead { max-width: 38em; margin: 0 0 36px; color: var(--dim); }
+  .steps { display: grid; gap: 16px; max-width: 720px; }
+  .step { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; box-shadow: 0 1px 1px rgba(20,30,35,.04), 0 8px 24px rgba(20,30,35,.05); }
+  .step[hidden] { display: none; }
+  .step-head { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; }
+  .num { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: #1d2227; color: #fff; font-size: 12px; font-weight: 700; }
+  .step.done .num { background: var(--ok); }
+  .step.wait .num { background: #d9dadd; color: #697078; }
+  .step h2 { margin: 0; font-size: 18px; }
+  .step .why { margin: 3px 0 0; color: var(--dim); font-size: 13px; }
+  .tag { padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: 11px; }
+  .step.done .tag { color: var(--ok); border-color: #b7dcc8; }
+  .body { margin: 18px 0 0 40px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .primary { min-height: 40px; padding: 0 16px; background: #1d2227; color: #fff; border: 0; border-radius: 8px; }
+  .ghost { min-height: 40px; padding: 0 14px; background: transparent; color: var(--dim); border: 1px solid var(--line); border-radius: 8px; }
+  .link { background: none; border: 0; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; padding: 0; min-height: auto; }
+  select, input { min-height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #f7f8f8; }
+  input { min-width: 240px; }
+  .code { margin: 12px 0; padding: 12px 14px; font: 600 22px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em; border: 1px dashed var(--line); display: inline-block; }
+  .note { margin: 10px 0 0; color: var(--dim); font-size: 12px; }
+  .waiting { max-width: 520px; padding: 28px; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+  .states { position: sticky; top: 0; z-index: 3; display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 16px; background: #fff7e8; border-bottom: 1px solid #e8cf9f; font-size: 12px; }
+  .states b { margin-right: 6px; }
+  .states button { min-height: 28px; padding: 0 10px; border: 1px solid #d9dadd; background: #fff; border-radius: 999px; }
+  .states button.on { background: #1d2227; color: #fff; border-color: #1d2227; }
+  .projects { display: grid; gap: 10px; max-width: 720px; }
+  .project { display: flex; align-items: center; min-height: 72px; padding: 14px 16px; background: #fff; border: 1px solid #d5d7d9; border-radius: 10px; }
+  .project b { flex: 1; }
+  .dot { width: 8px; height: 8px; margin-right: 10px; background: var(--ok); border-radius: 50%; }
+  .compact { display: grid; gap: 8px; max-width: 280px; margin-top: 28px; }
+  .compact div { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+  .okdot { color: var(--ok); }
+  @media (max-width: 800px) {
+    .wire { display: block; }
+    .rail { min-height: auto; padding: 18px 20px; }
+    .rail p, .rail .count { display: none; }
+    .main { padding: 28px 18px 80px; }
+    h1 { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+  <div class="states">
+    <b>Wireframe states</b>
+    <button type="button" class="on" data-go="empty">Nothing connected</button>
+    <button type="button" data-go="github">GitHub done</button>
+    <button type="button" data-go="agent">Agent done first</button>
+    <button type="button" data-go="ready">Both done → projects</button>
+    <button type="button" data-go="wait">Participant waiting</button>
+  </div>
+
+  <div class="wire" id="app"></div>
+
+<script>
+const AGENTS = {
+  grok: { label: "Grok", how: "Sign in with a grok.com subscription, or paste an xAI API key." },
+  claude: { label: "Claude Code", how: "Paste an Anthropic API key." },
+  cursor: { label: "Cursor", how: "Paste a Cursor API key." },
+  codex: { label: "Codex", how: "Paste an OpenAI API key." },
+};
+
+function brand(copy) {
+  return `<aside class="rail">
+    <div class="brand"><i></i><b>Marvin</b></div>
+    ${copy}
+  </aside>`;
+}
+
+function stepGithub(state) {
+  const done = state.github;
+  return `<section class="step ${done ? "done" : ""}">
+    <div class="step-head">
+      <span class="num">${done ? "✓" : "1"}</span>
+      <div>
+        <h2>Machine GitHub</h2>
+        <p class="why">The shared account this machine uses to clone, branch, and open pull requests.</p>
+      </div>
+      <span class="tag">${done ? "@acme-marvin" : "Required"}</span>
+    </div>
+    <div class="body">
+      ${done ? `<p>Connected as <b>@acme-marvin</b>.</p>` : `
+        <div class="row">
+          <button class="primary" data-act="github">Connect GitHub</button>
+          <button class="ghost" data-act="pat">Paste a token</button>
+        </div>
+        ${state.pat ? `<p class="note">Fine-grained PAT with Contents read/write and Pull requests.</p>
+        <div class="row"><input placeholder="github_pat_…"><button class="primary" data-act="github">Save token</button></div>` : ""}
+        ${state.code ? `<p class="note">GitHub should show this exact code.</p><div class="code">9R4T-2LQM</div>` : ""}
+      `}
+    </div>
+  </section>`;
+}
+
+function stepAgent(state) {
+  const done = state.agent;
+  const locked = !state.github && !state.agentFirst;
+  const agent = AGENTS[state.pick];
+  return `<section class="step ${done ? "done" : locked ? "wait" : ""}">
+    <div class="step-head">
+      <span class="num">${done ? "✓" : "2"}</span>
+      <div>
+        <h2>Coding agent</h2>
+        <p class="why">At least one agent this machine can talk to. Rooms can pick another later.</p>
+      </div>
+      <span class="tag">${done ? agent.label : locked ? "After GitHub" : "Required"}</span>
+    </div>
+    ${locked && !done ? `<p class="body note">Connect GitHub first. Then choose an agent here.</p>` : `
+    <div class="body">
+      ${done ? `<p>Default agent is <b>${agent.label}</b>.</p>` : `
+        <div class="row">
+          <select data-pick>
+            <option value="grok" ${state.pick === "grok" ? "selected" : ""}>Grok</option>
+            <option value="claude" ${state.pick === "claude" ? "selected" : ""}>Claude Code</option>
+            <option value="cursor" ${state.pick === "cursor" ? "selected" : ""}>Cursor</option>
+            <option value="codex" ${state.pick === "codex" ? "selected" : ""}>Codex</option>
+          </select>
+          ${state.pick === "grok"
+            ? `<button class="primary" data-act="agent">Sign in with Grok</button><button class="ghost">Paste API key</button>`
+            : `<input placeholder="API key"><button class="primary" data-act="agent">Save ${agent.label}</button>`}
+        </div>
+        <p class="note">${agent.how}</p>
+      `}
+    </div>`}
+  </section>`;
+}
+
+function render(state) {
+  const buttons = document.querySelectorAll(".states [data-go]");
+  buttons.forEach((b) => b.classList.toggle("on", b.dataset.go === state.view));
+
+  if (state.view === "wait") {
+    document.getElementById("app").innerHTML = `
+      ${brand(`<p>An administrator has to finish opening this machine.</p>`)}
+      <main class="main">
+        <div class="eyebrow">Waiting</div>
+        <h1>This machine is not open yet.</h1>
+        <div class="waiting">
+          <p>It still needs a shared GitHub account and a coding agent. Ask an administrator. There is nothing to join until both are connected.</p>
+        </div>
+      </main>`;
+    return;
+  }
+
+  if (state.github && state.agent && state.view === "ready") {
+    document.getElementById("app").innerHTML = `
+      ${brand(`<p>Projects, sessions, and settings stay hidden until setup is finished. After that, this rail becomes navigation.</p>
+        <div class="count">Ready</div>`)}
+      <main class="main">
+        <div class="eyebrow ready">Marvin is ready</div>
+        <h1>Projects</h1>
+        <p class="lead">The two required connections now sit as quiet status on the right. Personal GitHub stays optional.</p>
+        <div class="projects">
+          <div class="project"><span class="dot"></span><b>dev</b><span>marvin</span></div>
+          <div class="project"><span class="dot"></span><b>shop-demo</b><span>2 repos</span></div>
+        </div>
+        <aside class="compact">
+          <div class="okdot">✓ Machine GitHub · @acme-marvin</div>
+          <div class="okdot">✓ Coding agent · ${AGENTS[state.pick].label}</div>
+          <div>Your GitHub · Optional</div>
+        </aside>
+      </main>`;
+    return;
+  }
+
+  const left = 2 - Number(state.github) - Number(state.agent);
+  document.getElementById("app").innerHTML = `
+    ${brand(`<p>Projects, sessions, and machine settings are not here yet. This page exists only to open the machine.</p>
+      <div class="count">${left} required ${left === 1 ? "step" : "steps"} left</div>`)}
+    <main class="main">
+      <div class="eyebrow">Open this machine</div>
+      <h1>Two things before anyone can work here.</h1>
+      <p class="lead">A shared GitHub account, then one coding agent. Until both are connected, there is no project list and no settings.</p>
+      <div class="steps">
+        ${stepGithub(state)}
+        ${stepAgent(state)}
+      </div>
+    </main>`;
+}
+
+const state = { view: "empty", github: false, agent: false, pick: "grok", pat: false, code: false, agentFirst: false };
+
+function apply(view) {
+  state.view = view;
+  state.pat = false;
+  state.code = false;
+  if (view === "empty") { state.github = false; state.agent = false; state.agentFirst = false; }
+  if (view === "github") { state.github = true; state.agent = false; state.agentFirst = false; }
+  if (view === "agent") { state.github = false; state.agent = true; state.agentFirst = true; }
+  if (view === "ready") { state.github = true; state.agent = true; state.agentFirst = false; }
+  render(state);
+}
+
+document.querySelector(".states").addEventListener("click", (e) => {
+  const go = e.target.closest("[data-go]");
+  if (go) apply(go.dataset.go);
+});
+
+document.getElementById("app").addEventListener("click", (e) => {
+  const act = e.target.closest("[data-act]");
+  if (!act) return;
+  if (act.dataset.act === "pat") { state.pat = true; state.code = false; render(state); }
+  if (act.dataset.act === "github") { state.github = true; state.code = false; state.pat = false; state.view = state.agent ? "ready" : "github"; render(state); }
+  if (act.dataset.act === "agent") { state.agent = true; state.view = state.github ? "ready" : "agent"; render(state); }
+});
+
+document.getElementById("app").addEventListener("change", (e) => {
+  if (e.target.matches("[data-pick]")) { state.pick = e.target.value; render(state); }
+});
+
+render(state);
+</script>
+</body>
+</html>

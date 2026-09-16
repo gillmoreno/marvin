@@ -84,7 +84,7 @@ edge-ps:
 
 # ---------- Images (see deploy/k8s/README.md)
 # Override REGISTRY with your own: `make image REGISTRY=ghcr.io/<owner>`. CI pushes the same names with GITHUB_TOKEN.
-REGISTRY ?= ghcr.io/$(shell git config --get remote.origin.url 2>/dev/null | sed -E 's#.*[:/]([^/]+)/[^/]+$$#\1#' | tr 'A-Z' 'a-z' | grep . || echo owner)
+REGISTRY ?= ghcr.io/$(shell git config --get remote.origin.url 2>/dev/null | sed -E 's|.*[:/]([^/]+)/[^/]+$$|\1|' | tr 'A-Z' 'a-z' | grep . || echo owner)
 IMAGE ?= $(REGISTRY)/marvin
 STT_IMAGE ?= $(REGISTRY)/marvin-stt
 TAG ?= $(shell date +%Y%m%d-%H%M%S)

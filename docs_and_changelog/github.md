@@ -3,12 +3,14 @@
 Marvin commits, pushes and opens pull requests on behalf of the people in the room. People are known by their
 **Marvin login** (email, or SSO). GitHub is how the *machine* talks to repos, not how a person proves who they are.
 
-The join page is three steps. The first two are required and admin-only; the third is optional and never blocks Join.
+Until the two required connections exist, Marvin is a dedicated setup page — not a locked projects list.
+Projects, sessions, and machine settings stay hidden. Personal GitHub appears only after the machine is ready,
+and never blocks Join.
 
 | Step | Who | Required? |
 |---|---|---|
 | This machine’s GitHub | Admin, once | Yes. One shared account for the box. |
-| A coding agent | Admin, once | Yes. Grok sign-in or one API key is enough. |
+| A coding agent | Admin, once | Yes. Pick an agent, then sign in or paste a key. |
 | Your GitHub | Anyone | No. Only if you want your name on the git author line. |
 
 Roadmap item 7 (`roadmap.md`). Decided in `decisions-log.md` (2026-09-12 direction, 2026-09-13: ship the shared
@@ -19,29 +21,35 @@ a pasted PAT, or `GITHUB_TOKEN`.
 
 1. Sign in with Marvin. Password mode asks for **email**. The join page says *You’re logged in as* that email
    (or the SSO name).
-2. If the box is not ready, Join and the project list stay locked. Participants see “Waiting on an admin” on the
-   two required rows. The optional GitHub row is still there.
-3. **Your GitHub** is skippable. Alex with no GitHub joins. A programmer who wants the author line to be theirs
-   connects (device flow, or **paste a token**). Disconnect returns their turns to the machine account.
-4. Settings → GitHub is the same two accounts later (change / disconnect), not the first-run surface.
+2. If the box is not ready, the workspace does not appear. Admins get two sequential steps: machine GitHub,
+   then a coding-agent picker. Participants see a waiting page.
+3. **Your GitHub** is skippable and only shows on the ready projects page. Alex with no GitHub joins. A
+   programmer who wants the author line to be theirs connects (device flow, or **paste a token**). Disconnect
+   returns their turns to the machine account.
+4. Settings → GitHub and Settings → Coding agents are how you change those later, not the first-run surface.
 
-`GET /api/setup` is what the join page polls: `ready` is true only when the machine GitHub and a coding agent
+`GET /api/setup` is what the setup page polls: `ready` is true only when the machine GitHub and a coding agent
 are set. Personal GitHub is reported and ignored for `ready`.
 
 ## What an admin does once
 
-On a fresh box the join page is the place. Settings still works if you need to change it later.
+On a fresh box the setup page is the place. Settings still works if you need to change it later.
 
 **This machine’s GitHub.** One account every room uses to clone, push and open PRs. Author is the Marvin
 identity who asked; committer is `marvin[bot]`. Three ways in:
 
-- **Create a GitHub App** (Enterprise, Settings or the join gate). Marvin POSTs a manifest to
-  GitHub; you name the app, create it, then install it on the org and pick repos. Hourly
-  installation tokens replace a shared PAT. Join-gate repo list is what the install can see.
-  Redirects land on `/api/github/app/callback` and `/api/github/app/install`.
+- **Create a GitHub App** (Enterprise). On a fresh box, **Create a GitHub App** on the setup
+  page asks for the license string if this machine does not have one yet; after save, GitHub
+  opens. Later, Settings → Enterprise is the same paste. Marvin POSTs a manifest to GitHub;
+  you name the app, create it, then install it on the org and pick repos. Hourly installation
+  tokens replace a shared PAT. Redirects land on `/api/github/app/callback` and
+  `/api/github/app/install`.
 
-- **Paste a token** (fine-grained PAT, Contents read/write + pull requests, the repos this machine will touch).
-  No OAuth App, no client id. This is also the escape hatch when GitHub’s device confirmation page is blank.
+- **Paste a token.** Fine-grained PAT, no OAuth App, no client id. The setup form links to
+  [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)
+  and lists the clicks: name `Marvin`, pick the org or your account, **Only select repositories**,
+  Contents read/write + Pull requests read/write, copy `github_pat_…`. A classic token with `repo`
+  also works. This is also the escape hatch when GitHub’s device confirmation page is blank.
 - **Connect this machine** (device flow). Needs the OAuth App client id below. The link Marvin opens already
   contains the user code (`verification_uri_complete`, or `?user_code=`). GitHub must show *that* code; if the
   page is blank or shows a different one, cancel and paste a token instead.
