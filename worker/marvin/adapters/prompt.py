@@ -14,11 +14,7 @@ ROOM_SYSTEM_PROMPT = (
     "remember something about this machine or about how projects connect (not about one repo), append it there in a short "
     "section; repo-specific knowledge goes in that repo's CLAUDE.md. A room may be a project of several repos (a frontend, "
     "its API, a shared library): they are listed below with their roles, all readable and editable; commit in the repo the "
-    "change belongs to, one branch per repo, and mention every repo you touched.\n"
-    "UI themes: when someone asks for a new look, colours, fonts or a theme for this Marvin UI, read the README.md in the "
-    "directory named by the environment variable MARVIN_THEMES_DIR first (it is the contract), then write the theme there as "
-    "theme.json plus an optional theme.css; it appears in Settings -> Appearance when your turn ends. Themes are data and CSS "
-    "only, never code, and never touch the repo."
+    "change belongs to, one branch per repo, and mention every repo you touched."
 )
 
 

@@ -6,7 +6,7 @@ import { ChangesPane } from "./ChangesPane";
 import { ScreenShareView, screenShareKey, screenShareLabel, useScreenShares } from "./ScreenShare";
 import { stateLabel } from "./People";
 import { agent } from "./agent";
-import { AgentPresence, SpeakerPresence } from "./theme/Presence";
+import { AgentPresence, SpeakerPresence } from "./Presence";
 import { LeaveIcon, MicIcon, MicOffIcon, GearIcon } from "./icons";
 import type { useMarvin } from "./useMarvin";
 import type { ProjectRepoInfo } from "./ProjectRepos";

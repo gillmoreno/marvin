@@ -7,14 +7,19 @@ images. After that the VM stays on that snapshot until someone updates it.
 
 Settings → **This machine** (admin) compares the running image (`MARVIN_GIT_SHA`) to GitHub
 `MARVIN_GIT_REF` (default `main`). When it is behind, the panel lists the commit subjects and an
-**Update this machine** button.
+**Update now** button. The project workspace shows the same status before anyone joins a room.
+**What changed** reads the human-friendly entries in `product-updates.json` from the target branch;
+commit subjects are only the fallback when a release has no product note.
 
-Update runs `deploy/edge/update.sh` on the checkout: `git fetch` + `reset --hard` to `origin/<ref>`,
-rebuild the sandbox image, `docker compose … up -d --build`. `.env` is untracked and is left alone
-(passwords, LiveKit keys, session secret). Rooms disconnect for the length of the build.
+The button starts a sibling container (`marvin-update`), not a child of the worker. Compose rebuilds
+the worker mid-update; if the script ran inside the worker it would die with the container and leave
+the page on “worker unreachable”. The sibling writes `/work/state/update.log` and `update.json`.
+Settings reads those files from the web container even while the worker is down. Stay on that page:
+the step line and the log are what is actually happening.
 
-The worker can do this because the checkout is mounted at the same host path (`MARVIN_INSTALL_DIR`)
-and it already has the host Docker socket.
+`deploy/edge/update.sh` does `git fetch` + `reset --hard` to `origin/<ref>`, rebuilds the sandbox
+image, then `docker compose … up -d --build`. `.env` is untracked and is left alone (passwords,
+LiveKit keys, session secret). Rooms disconnect for the length of the build. That is expected.
 
 A laptop `make up` / Vite loop has no checkout mount. The panel still shows the commits; the button
 stays off. Use `git pull` there.

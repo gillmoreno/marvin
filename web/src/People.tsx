@@ -3,7 +3,7 @@ import type { Participant } from "livekit-client";
 import { AGENT_IDENTITY } from "./protocol";
 import { agent } from "./agent";
 import { rolesOf } from "./auth";
-import { AgentPresence, SpeakerPresence, type AgentState } from "./theme/Presence";
+import { AgentPresence, SpeakerPresence, type AgentState } from "./Presence";
 
 export function People({ agentState }: { agentState: AgentState }) {
   const participants = useParticipants();

@@ -2,6 +2,29 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-15 — Workspace UI and updates you can follow
+
+### Added
+- The join screen puts projects first, with compact machine-readiness checks,
+  update availability, **What changed**, and **Update now** in a narrow rail.
+- Human-readable product updates live in `product-updates.json` and appear
+  inside Marvin rather than requiring people to read commit messages.
+
+### Changed
+- Sign-in, project selection, the room, and Settings now use one fixed
+  Workspace design: a dark navigation rail with quiet light work surfaces.
+
+### Fixed
+- Settings → Update no longer runs `update.sh` inside the worker. Compose was
+  killing that process mid-rebuild (exit 137), so the page only showed
+  “worker unreachable”. A sibling container writes `update.log`; the web
+  process serves it even while the worker is down. Docs: `updates.md`.
+
+### Removed
+- Built-in and custom themes, the Appearance picker, theme API, sandbox theme
+  mounts, and theme-writing agent instructions. Marvin now has one maintained
+  visual system.
+
 ## 2026-09-14 — Company pack: SSO, audit, GitHub App, AWS AMI
 
 ### Added

@@ -8,16 +8,11 @@ import { JoinGate } from "./JoinGate";
 import { Workspace } from "./Workspace";
 import { SettingsPanel } from "./Settings";
 import { agent, loadAgentName } from "./agent";
-import { RoomAndMachine, useRoomInfo, useHarnesses, useModels } from "./RoomSettings";
+import { RoomAndMachine, useRoomInfo } from "./RoomSettings";
 import { Gutter, useColumns } from "./Columns";
 import { SlidersIcon } from "./icons";
 import { MeContext, fetchMe, login, type Me } from "./auth";
-import { ThemeProvider, useTheme } from "./theme/ThemeContext";
-import { AgentPresence } from "./theme/Presence";
-import { stateLabel } from "./People";
 import { MobileRoom, useIsMobile } from "./Mobile";
-import { useParticipants, useSpeakingParticipants } from "@livekit/components-react";
-import { AGENT_IDENTITY } from "./protocol";
 
 type Join = { serverUrl: string; token: string; room: string; relayOnly: boolean };
 
@@ -38,11 +33,7 @@ async function fetchToken(room: string, name: string | null): Promise<Join> {
 }
 
 export default function App() {
-  return (
-    <ThemeProvider>
-      <Shell />
-    </ThemeProvider>
-  );
+  return <Shell />;
 }
 
 function Shell() {
@@ -50,11 +41,7 @@ function Shell() {
   const [join, setJoin] = useState<Join | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deviceError, setDeviceError] = useState<string | null>(null);
-  const themes = useTheme();
   useEffect(() => { void fetchMe().then(setMe); }, []);
-  // Custom themes are only listed once signed in: re-read the list when the identity changes.
-  const signedIn = Boolean(me?.identity);
-  useEffect(() => { if (signedIn) void themes.refresh(); }, [signedIn, themes.refresh]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!me) return <div className="join"><p className="hint">loading…</p></div>;
   const ctx = { me, setMe };
   if (!join) {
@@ -92,69 +79,6 @@ function Shell() {
   );
 }
 
-/** The status rail across the top of the room (shown by themes that want it, e.g. Control Room). */
-function Rail({ roomName, state, info }: { roomName: string; state: "offline" | "idle" | "thinking" | "waiting_approval"; info: ReturnType<typeof useRoomInfo>["info"] }) {
-  const speaking = useSpeakingParticipants().filter((p) => p.identity !== AGENT_IDENTITY);
-  const people = useParticipants().filter((p) => p.identity !== AGENT_IDENTITY).length;
-  const [t0] = useState(() => Date.now());
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
-  const s = Math.floor((now - t0) / 1000);
-  const clock = `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-  const { harnesses } = useHarnesses();
-  const { models } = useModels(roomName, info?.harness, info?.model);
-  const [git, setGit] = useState<{ branch: string | null; base: string | null } | null>(null);
-  useEffect(() => {
-    fetch(`/api/changes?room=${encodeURIComponent(roomName)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j?.branch) setGit({ branch: j.branch, base: j.base ?? null }); })
-      .catch(() => {});
-  }, [roomName]);
-  const branch = git?.branch ?? info?.repos?.[0]?.branch;
-  const base = git?.base?.replace(/@[0-9a-f]+$/i, "");
-  const harness = harnesses.find((h) => h.id === info?.harness)?.label ?? info?.harness;
-  const model = models.find((m) => m.id === (info?.model ?? ""))?.label ?? info?.model;
-  return (
-    <header className="rail">
-      <div className="rail-cell rail-room">{agent.name} <span className="room">#{roomName}</span></div>
-      <div className="rail-cell"><span className="rail-state">{stateLabel(state)}</span></div>
-      <div className="rail-cell rail-scope"><AgentPresence state={state} className="rail-presence" label={`${agent.name} is ${stateLabel(state)}`} /></div>
-      {branch && (
-        <div className="rail-cell rail-hide-m">
-          <span className="rail-k">branch</span> {branch}
-          {base && base !== branch && <><span className="dim"> → </span>{base}</>}
-        </div>
-      )}
-      {(harness || model) && (
-        <div className="rail-cell rail-hide-m">
-          {harness && <><span className="rail-k">harness</span> {harness}</>}
-          {harness && model && <span className="dim"> · </span>}
-          {model}
-        </div>
-      )}
-      <div className="rail-cell rail-hide-m rail-live">
-        <span className="rail-k">live</span>
-        <span className={`dot ${speaking.length ? "idle" : "offline"}`} />
-        {speaking.length ? speaking.map((p) => p.name || p.identity).join(", ") : `${people} in the room`}
-      </div>
-      <div className="rail-cell rail-clock" title="time in this session">{clock}</div>
-    </header>
-  );
-}
-
-/** One line under the people list when a custom theme just appeared (the agent wrote it during the last turn). */
-function FreshTheme() {
-  const th = useTheme();
-  if (!th.fresh) return null;
-  return (
-    <p className="fresh-theme">
-      New theme <b>{th.fresh.name}</b>
-      <button type="button" onClick={() => th.choose(th.fresh!.id)}>try it</button>
-      <button type="button" className="ghost" onClick={th.dismissFresh}>later</button>
-    </p>
-  );
-}
-
 function deviceHint(source: string, reason: string): string {
   if (/NotAllowed|PermissionDenied/i.test(reason)) {
     return `Chrome blocked the ${source}. Click the icon left of the address bar, set ${source === "microphone" ? "Microphone" : "Screen"} to Allow, then reload.`;
@@ -173,8 +97,6 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
   const last = marvin.turns[marvin.turns.length - 1];
   const refreshKey = marvin.turns.length * 2 + (last?.result ? 1 : 0); // re-read git when a turn starts and when it ends
   const mobile = useIsMobile();
-  const themes = useTheme();
-  useEffect(() => { void themes.refresh(); }, [refreshKey, themes.refresh]); // a turn just ended: the agent may have written a theme
   const repos = roomInfoForSettings.info?.repos ?? [];
   const settings = showSettings && <SettingsPanel room={roomName} onClose={() => setShowSettings(false)} extra={<RoomAndMachine room={roomName} info={roomInfoForSettings.info} reload={roomInfoForSettings.reload} />} />;
   if (mobile) {
@@ -188,14 +110,12 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
   }
   return (
     <div className="layout" data-state={marvin.state} style={columns.style}>
-      <Rail roomName={roomName} state={marvin.state} info={roomInfoForSettings.info} />
       <aside className="left">
         <div className="left-head">
           <h1>{agent.name} <span className="room">#{roomName}</span></h1>
         </div>
         <div className="left-body">
           <People agentState={marvin.state} />
-          <FreshTheme />
           <AppLinks links={marvin.appLinks} onOpen={setWanted} />
         </div>
         {deviceError && <p className="error devhint">{deviceError}</p>}
@@ -277,28 +197,35 @@ function LoginScreen({ agentName, onLogin, notice }: { agentName: string; onLogi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <form
-      className="join"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!email || !password) return;
-        setBusy(true);
-        setError(null);
-        login(email, password)
-          .then((m) => { localStorage.setItem("marvin.name", email); onLogin(m); })
-          .catch((err) => setError(String(err instanceof Error ? err.message : err)))
-          .finally(() => setBusy(false));
-      }}
-    >
-      <h1>Marvin</h1>
-      <p>A voice room with a coding agent in it. Say "{agentName}" to talk to it.</p>
-      <label>Email <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus autoComplete="username" /></label>
-      <label>
-        Room password <span className="hint small">(the admin password also works)</span>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
-      </label>
-      <button type="submit" disabled={busy || !email || !password}>{busy ? "signing in…" : "Sign in"}</button>
-      {(error || notice) && <p className="error">{error ?? notice}</p>}
-    </form>
+    <main className="login-workspace">
+      <aside className="login-rail">
+        <div className="login-brand"><span><i /></span><b>Marvin</b></div>
+        <div><h1>A workspace you can talk to.</h1><p>Join your team’s coding room and say “{agentName}” when you need the agent.</p></div>
+      </aside>
+      <form
+        className="join login-card"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!email || !password) return;
+          setBusy(true);
+          setError(null);
+          login(email, password)
+            .then((m) => { localStorage.setItem("marvin.name", email); onLogin(m); })
+            .catch((err) => setError(String(err instanceof Error ? err.message : err)))
+            .finally(() => setBusy(false));
+        }}
+      >
+        <span className="login-ready">Secure machine access</span>
+        <h1>Welcome back</h1>
+        <p>Sign in to open your projects.</p>
+        <label>Email <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus autoComplete="username" /></label>
+        <label>
+          Room password
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+        </label>
+        <button type="submit" disabled={busy || !email || !password}>{busy ? "Signing in…" : "Sign in"}</button>
+        {(error || notice) && <p className="error">{error ?? notice}</p>}
+      </form>
+    </main>
   );
 }

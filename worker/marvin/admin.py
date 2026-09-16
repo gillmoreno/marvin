@@ -16,7 +16,6 @@ from marvin.export import Exporter
 from marvin.license import LicenseStore
 from marvin.room.manager import RoomManager
 from marvin import notes as notes_mod
-from marvin.themes import ThemeStore
 from marvin.update import Install
 
 log = logging.getLogger("marvin.admin")
@@ -29,9 +28,8 @@ def who(req: web.Request) -> str:
     return f"{user} [{roles}]" if roles else user
 
 
-def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None, licenses: LicenseStore | None = None, access: Access | None = None, audit: Audit | None = None, exporter: Exporter | None = None) -> web.Application:
+def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None, licenses: LicenseStore | None = None, access: Access | None = None, audit: Audit | None = None, exporter: Exporter | None = None) -> web.Application:
     app = web.Application()
-    themes = themes or ThemeStore(None)
     install = install or Install.from_env()
     licenses = licenses or LicenseStore(None, secret="dev")
     access = access or Access(None, "dev")
@@ -404,43 +402,6 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
     async def ports(req: web.Request) -> web.Response:
         return web.json_response({"ports": mgr.ports()})
 
-    # -- UI themes: custom ones under <state>/themes (the agent writes them), plus the machine default ---------------
-    async def list_themes(req: web.Request) -> web.Response:
-        return web.json_response(themes.describe())
-
-    async def theme_css(req: web.Request) -> web.Response:
-        css = themes.css(req.match_info["id"])
-        if css is None:
-            return web.json_response({"error": "no such theme, or it is invalid"}, status=404)
-        return web.Response(text=css, content_type="text/css", headers={"Cache-Control": "no-cache"})
-
-    async def put_default_theme(req: web.Request) -> web.Response:
-        if not _is_admin(req):
-            return web.json_response({"error": "admin role required"}, status=403)
-        body = await req.json()
-        theme_id = body.get("id")
-        try:
-            themes.set_default(str(theme_id) if theme_id else None)
-        except ValueError as e:
-            return web.json_response({"error": str(e)}, status=400)
-        log.info("%s sets the default theme to %s", who(req), theme_id or "(app default)")
-        return web.json_response(themes.describe())
-
-    async def delete_theme(req: web.Request) -> web.Response:
-        if not _is_admin(req):
-            return web.json_response({"error": "admin role required"}, status=403)
-        try:
-            themes.delete(req.match_info["id"])
-        except KeyError:
-            return web.json_response({"error": "no such theme"}, status=404)
-        log.info("%s deletes theme %s", who(req), req.match_info["id"])
-        return web.json_response(themes.describe())
-
-    app.router.add_get("/themes", list_themes)
-    app.router.add_put("/themes/default", put_default_theme)
-    app.router.add_get("/themes/{id}/theme.css", theme_css)
-    app.router.add_delete("/themes/{id}", delete_theme)
-
     app.router.add_get("/rooms", rooms)
     app.router.add_post("/rooms", create_room)
     app.router.add_patch("/rooms/{name}", patch_room)
@@ -620,8 +581,8 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, themes
     return app
 
 
-async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090, github: GitHubConnect | None = None, themes: ThemeStore | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None, licenses: LicenseStore | None = None, access: Access | None = None, audit: Audit | None = None, exporter: Exporter | None = None) -> web.AppRunner:
-    runner = web.AppRunner(make_admin_app(mgr, github, themes, harness_creds, install, licenses, access, audit, exporter))
+async def serve_admin(mgr: RoomManager, host: str = "127.0.0.1", port: int = 8090, github: GitHubConnect | None = None, harness_creds: HarnessCreds | None = None, install: Install | None = None, licenses: LicenseStore | None = None, access: Access | None = None, audit: Audit | None = None, exporter: Exporter | None = None) -> web.AppRunner:
+    runner = web.AppRunner(make_admin_app(mgr, github, harness_creds, install, licenses, access, audit, exporter))
     await runner.setup()
     await web.TCPSite(runner, host, port).start()
     log.info("admin api on http://%s:%d", host, port)

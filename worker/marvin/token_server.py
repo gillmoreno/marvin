@@ -14,6 +14,7 @@ from marvin.auth import ADMIN, COOKIE, Auth, Identity, cookie_kwargs
 from marvin.config import load_config
 from marvin.ports import AppsRouting
 from marvin.room.protocol import AGENT_IDENTITY
+from marvin.update import Install
 
 KEY = os.environ.get("LIVEKIT_API_KEY", "devkey")
 SECRET = os.environ.get("LIVEKIT_API_SECRET", "secret")
@@ -33,10 +34,8 @@ PROXIED = (
     "/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/models", "/api/harnesses", "/api/notes",
     "/api/setup",
     "/api/github/me", "/api/github/connect", "/api/github/connect/{flow}", "/api/github/config", "/api/github/machine", "/api/github/repos",
-    "/api/themes", "/api/themes/default", "/api/themes/{id}", "/api/themes/{id}/theme.css",  # reading is for everyone signed in; default/delete are writes (admin)
     "/api/harness-creds", "/api/harness-creds/default", "/api/harness-creds/{id}",
     "/api/harness-creds/grok/login", "/api/harness-creds/grok/login/{flow}",
-    "/api/update",
     "/api/license",
     "/api/access",
     "/api/sessions",
@@ -90,7 +89,7 @@ async def proxy_admin(req: web.Request) -> web.Response:
                 body = await r.read()
                 return web.Response(status=r.status, body=body, content_type=r.content_type)
     except Exception as e:
-        return web.json_response({"error": f"worker admin unreachable: {e}"}, status=503)
+        return web.json_response({"error": _update_downtime_hint() or f"worker admin unreachable: {e}"}, status=503)
 
 
 async def token(req: web.Request) -> web.Response:
@@ -169,6 +168,53 @@ async def health(req: web.Request) -> web.Response:
     return web.Response(text="ok")
 
 
+def _update_downtime_hint() -> str | None:
+    """While an update is rebuilding the worker, every proxied route 503s — say why, not just 'unreachable'."""
+    try:
+        prog = Install.from_env().progress()
+    except Exception:
+        return None
+    if not prog.get("applying"):
+        return None
+    step = prog.get("step") or "in progress"
+    return f"An update is running ({step}). The worker restarts; that is expected. Settings → This machine shows the log."
+
+
+async def update_status(req: web.Request) -> web.Response:
+    """GET /api/update from the state volume so Settings still has a log after the worker is killed."""
+    ident = identity_of(req)
+    if ident is None:
+        return web.json_response({"error": "not signed in"}, status=401)
+    if not ident.is_admin:
+        return web.json_response({"error": "admin role required"}, status=403)
+    inst = Install.from_env()
+    local = inst.progress()
+    headers = {"X-Marvin-User": ident.id, "X-Marvin-Roles": ",".join(sorted(ident.roles))}
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=8)) as cs:
+            async with cs.get(f"{ADMIN_URL}/update", headers=headers) as r:
+                if r.status == 200:
+                    remote = await r.json()
+                    remote["worker_up"] = True
+                    remote["applying"] = bool(local.get("applying") or remote.get("applying"))
+                    remote["step"] = local.get("step") or remote.get("step")
+                    if local.get("log"):
+                        remote["log"] = local["log"]
+                    else:
+                        remote.setdefault("log", "")
+                    if local.get("last_error") and not remote.get("last_error"):
+                        remote["last_error"] = local["last_error"]
+                    if local.get("started_at") and not remote.get("started_at"):
+                        remote["started_at"] = local["started_at"]
+                    return web.json_response(remote)
+    except Exception:
+        pass
+    body = inst.snapshot(worker_up=False)
+    if local.get("applying"):
+        body["note"] = _update_downtime_hint()
+    return web.json_response(body)
+
+
 def make_app(auth: Auth | None = None) -> web.Application:
     app = web.Application()
     app["auth"] = auth or Auth.from_env()
@@ -176,6 +222,8 @@ def make_app(auth: Auth | None = None) -> web.Application:
     app.router.add_post("/api/login", login)
     app.router.add_post("/api/logout", logout)
     app.router.add_get("/api/token", token)
+    app.router.add_get("/api/update", update_status)
+    app.router.add_route("*", "/api/update", proxy_admin)
     for route in PROXIED:
         app.router.add_route("*", route, proxy_admin)
     app.router.add_get("/api/agent", agent)

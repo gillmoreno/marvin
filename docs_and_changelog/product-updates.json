@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "releases": [
+    {
+      "id": "2026-09-15-workspace-and-clear-updates",
+      "date": "2026-09-15",
+      "title": "A focused workspace",
+      "summary": "Projects, machine readiness, and updates now live in one calm workspace.",
+      "changes": [
+        {
+          "title": "Projects come first",
+          "description": "Open a project from the main workspace while machine setup stays in a compact status rail."
+        },
+        {
+          "title": "One consistent design",
+          "description": "Sign-in, projects, rooms, and settings now share the same focused visual system."
+        },
+        {
+          "title": "What changed",
+          "description": "Read plain-language release notes before you update the machine."
+        },
+        {
+          "title": "Live update progress",
+          "description": "See each update step and the latest install log while the worker restarts."
+        },
+        {
+          "title": "Clear restart status",
+          "description": "The room tells you when an update is running instead of showing a raw connection error."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-14-company-controls",
+      "date": "2026-09-14",
+      "title": "Company controls",
+      "summary": "Connect company identity, review signed sessions, and keep audit copies in systems you control.",
+      "changes": [
+        {
+          "title": "Company sign-in",
+          "description": "Connect your identity provider and choose which email domains can enter this machine."
+        },
+        {
+          "title": "Session history",
+          "description": "Review signed session records and choose how long they stay on the machine."
+        },
+        {
+          "title": "Audit delivery",
+          "description": "Send session records to your own S3 bucket or webhook."
+        },
+        {
+          "title": "GitHub App",
+          "description": "Connect repositories with a GitHub App while preserving the person who requested each change."
+        }
+      ]
+    }
+  ]
+}

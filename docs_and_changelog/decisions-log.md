@@ -141,3 +141,19 @@ this file is the "why we did it this way" layer on top.
   at close, export only to *their* S3 or webhook. AWS: Packer AMI + Terraform
   `ami_id`; Cosign skipped. Out: SAML, SCIM, Helm, gVisor, GPU STT,
   `viewer`/`approver`. Plan: `ee-company-pilot.md`.
+
+## 2026-09-15
+
+- **Appliance update is a sibling container, not a child of the worker.**
+  `docker compose up --build` recreates the worker; a script running in that
+  process dies (137) and Settings only saw 503. `marvin-update` shares the
+  socket, the checkout, and `marvin_work`. The token server reads
+  `update.json` / `update.log` from the volume so the page has a live log
+  while the worker is gone. GitHub compare is skipped while applying (rate
+  limit). Write-up: `updates.md`.
+- **One Workspace design, no theme platform.** The Workspace prototype won:
+  projects are the primary surface, machine readiness and personal GitHub are
+  compact, and updates are visible before joining. Custom themes made visual
+  quality impossible to maintain and distracted from the core workflow, so
+  the picker, loader, API, sandbox mounts, and agent theme skill are removed.
+  Presence remains a fixed product component.

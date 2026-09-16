@@ -48,12 +48,21 @@ async def test_describe_lists_commits_behind(tmp_path):
             ]}
         return None
 
-    inst = Install(root, "abc123def456", "main", "https://github.com/gillmoreno/marvin.git", tmp_path / "update.json", fetch=fetch)
+    inst = Install(
+        root,
+        "abc123def456",
+        "main",
+        "https://github.com/gillmoreno/marvin.git",
+        tmp_path / "update.json",
+        fetch=fetch,
+        release_fetch=lambda: {"releases": [{"id": "today", "title": "Clear updates"}]},
+    )
     d = await inst.describe()
     assert d["behind"] is True and d["can_apply"] is True
     assert d["latest_short"] == "fff0001"
     assert d["commits"][0]["message"] == "Immediate feedback on Send"
     assert d["latest_message"] == "Immediate feedback on Send"
+    assert d["product_updates"][0]["title"] == "Clear updates"
 
 
 async def test_describe_current_is_not_behind(tmp_path):
@@ -67,6 +76,20 @@ async def test_describe_current_is_not_behind(tmp_path):
     inst = Install(root, sha[:7], "main", "https://github.com/gillmoreno/marvin.git", tmp_path / "update.json", fetch=fetch)
     d = await inst.describe()
     assert d["behind"] is False and d["commits"] == []
+
+
+async def test_describe_caches_github_check(tmp_path):
+    root = _tree(tmp_path)
+    calls: list[str] = []
+
+    async def fetch(path: str):
+        calls.append(path)
+        return {"sha": "abc123def456", "commit": {"message": "same"}}
+
+    inst = Install(root, "abc123def456", "main", "https://github.com/gillmoreno/marvin.git", tmp_path / "update.json", fetch=fetch)
+    await inst.describe()
+    await inst.describe()
+    assert calls == ["/commits/main"]
 
 
 async def test_start_runs_script_once(tmp_path):
@@ -95,3 +118,33 @@ async def test_start_runs_script_once(tmp_path):
     assert ran[0][0][1].endswith("deploy/edge/update.sh")
     st = json.loads((tmp_path / "update.json").read_text())
     assert st["applying"] is False and st["error"] is None
+
+
+def test_progress_reads_log_and_step(tmp_path):
+    inst = Install(None, "abc1234", "main", "https://github.com/gillmoreno/marvin.git", tmp_path / "update.json")
+    inst._write_state(applying=True, step="building sandbox", error=None)
+    inst.log_path().write_text("a\n" * 60 + "tail-line\n")
+    p = inst.progress()
+    lines = p["log"].splitlines()
+    assert p["applying"] is True and p["step"] == "building sandbox"
+    assert lines[-1] == "tail-line" and len(lines) == 50
+
+
+async def test_describe_skips_github_while_applying(tmp_path):
+    root = _tree(tmp_path)
+    called: list[str] = []
+
+    async def fetch(path: str):
+        called.append(path)
+        raise AssertionError("github should be skipped while applying")
+
+    inst = Install(root, "abc", "main", "https://github.com/gillmoreno/marvin.git", tmp_path / "update.json", fetch=fetch)
+    inst._write_state(applying=True, step="fetching")
+    inst.log_path().write_text("pulling origin/main\n")
+    d = await inst.describe()
+    assert d["applying"] is True and d["step"] == "fetching"
+    assert d["can_apply"] is False
+    assert "pulling" in d["log"]
+    assert called == []
+    snap = inst.snapshot(worker_up=False)
+    assert snap["worker_up"] is False and snap["applying"] is True

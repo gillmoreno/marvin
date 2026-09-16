@@ -1,8 +1,10 @@
 """Appliance updates: compare this install to GitHub and apply `deploy/edge/update.sh`.
 
 The worker image is a snapshot. Settings shows the commits on `MARVIN_GIT_REF` that are not in
-`MARVIN_GIT_SHA`, and an admin can pull + rebuild without SSH. The checkout must be mounted at the
-same host path (`MARVIN_INSTALL_DIR`) so compose bind mounts still resolve. Docs: updates.md.
+`MARVIN_GIT_SHA`. Apply runs in a sibling container (`marvin-update`) so compose can recreate
+this worker; the web process keeps serving `update.log` from the state volume. The checkout must
+be mounted at the same host path (`MARVIN_INSTALL_DIR`) so compose bind mounts still resolve.
+Docs: updates.md.
 """
 from __future__ import annotations
 
@@ -11,9 +13,11 @@ import json
 import logging
 import os
 import re
+import subprocess
 import time
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import quote
 
 import httpx
 
@@ -21,6 +25,7 @@ log = logging.getLogger("marvin.update")
 
 DEFAULT_REPO = "https://github.com/gillmoreno/marvin.git"
 SCRIPT = "deploy/edge/update.sh"
+UPDATER = "marvin-update"
 _GITHUB = re.compile(
     r"(?:github\.com[:/])(?P<owner>[^/]+)/(?P<repo>[^/.]+)(?:\.git)?/?$",
     re.I,
@@ -50,6 +55,7 @@ class Install:
         state_path: Path,
         *,
         fetch: Callable[[str], Any] | None = None,
+        release_fetch: Callable[[], Any] | None = None,
         runner: Callable[[list[str], Path], Any] | None = None,
     ) -> None:
         self.root = root
@@ -58,8 +64,11 @@ class Install:
         self.repo_url = repo_url
         self.state_path = state_path
         self._fetch = fetch
+        self._release_fetch = release_fetch
         self._runner = runner
         self._task: asyncio.Task | None = None
+        self._release_cache: tuple[float, list[dict[str, Any]]] | None = None
+        self._describe_cache: tuple[float, dict[str, Any]] | None = None
 
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> Install:
@@ -107,6 +116,54 @@ class Install:
         cur.update(kw)
         self.state_path.write_text(json.dumps(cur))
 
+    def log_path(self) -> Path:
+        return self.state_path.with_name("update.log")
+
+    def progress(self) -> dict[str, Any]:
+        """What Settings can show without the worker or GitHub: the file the updater writes."""
+        st = self._state()
+        text = ""
+        p = self.log_path()
+        if p.exists():
+            try:
+                text = "\n".join(p.read_text(errors="replace").splitlines()[-50:])
+            except OSError:
+                text = ""
+        return {
+            "applying": bool(st.get("applying")),
+            "step": st.get("step"),
+            "log": text,
+            "last_error": st.get("error"),
+            "started_at": st.get("started_at"),
+            "finished_at": st.get("finished_at"),
+            "sha": st.get("sha") or self.sha,
+        }
+
+    def snapshot(self, *, worker_up: bool = False) -> dict[str, Any]:
+        """Status the page can render from disk alone (token server uses this when the worker is down)."""
+        prog = self.progress()
+        applying = bool(prog["applying"])
+        sha = prog.get("sha")
+        return {
+            "sha": sha,
+            "short": _short(sha) or None,
+            "ref": self.ref,
+            "repo": self.repo_url,
+            "latest": None,
+            "latest_short": None,
+            "latest_message": None,
+            "behind": False,
+            "commits": [],
+            "can_apply": self.can_apply() and not applying,
+            "applying": applying,
+            "step": prog.get("step"),
+            "log": prog.get("log") or "",
+            "last_error": prog.get("last_error"),
+            "started_at": prog.get("started_at"),
+            "finished_at": prog.get("finished_at"),
+            "worker_up": worker_up,
+        }
+
     async def github_json(self, path: str) -> dict[str, Any] | None:
         if self._fetch:
             return await _maybe_await(self._fetch(path))
@@ -125,9 +182,44 @@ class Install:
             log.exception("github %s", path)
             return None
 
+    async def product_updates(self) -> list[dict[str, Any]]:
+        """Human-readable notes from the target ref. Cached because Settings checks periodically."""
+        if self._release_cache and time.time() - self._release_cache[0] < 300:
+            return self._release_cache[1]
+        if self._release_fetch:
+            raw = await _maybe_await(self._release_fetch())
+        elif self._fetch:
+            # Tests that stub GitHub commit calls should not unexpectedly reach the network.
+            raw = None
+        else:
+            slug = github_slug(self.repo_url)
+            if not slug:
+                return []
+            url = (
+                f"https://raw.githubusercontent.com/{slug[0]}/{slug[1]}/"
+                f"{quote(self.ref, safe='')}/docs_and_changelog/product-updates.json"
+            )
+            try:
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    response = await client.get(url, headers={"User-Agent": "marvin-update"})
+                raw = response.json() if response.status_code == 200 else None
+            except Exception:
+                log.exception("product updates from %s", url)
+                raw = None
+        releases = raw.get("releases") if isinstance(raw, dict) else None
+        out = [release for release in releases[:3] if isinstance(release, dict)] if isinstance(releases, list) else []
+        self._release_cache = (time.time(), out)
+        return out
+
     async def describe(self) -> dict[str, Any]:
-        st = self._state()
-        applying = bool(st.get("applying"))
+        out = self.snapshot(worker_up=True)
+        # Do not call GitHub while applying: the UI polls every couple of seconds and we already
+        # burned the unauthenticated rate limit during the last update.
+        if out["applying"]:
+            return out
+        if self._describe_cache and time.time() - self._describe_cache[0] < 300:
+            out.update(self._describe_cache[1])
+            return out
         latest = None
         latest_message = None
         commits: list[dict[str, str]] = []
@@ -146,30 +238,62 @@ class Install:
         behind = bool(latest and self.sha and not latest.startswith(self.sha) and not self.sha.startswith(latest))
         if latest and not self.sha:
             behind = True
-        return {
-            "sha": self.sha,
-            "short": _short(self.sha) or None,
-            "ref": self.ref,
-            "repo": self.repo_url,
+        remote = {
             "latest": latest,
             "latest_short": _short(latest) or None,
             "latest_message": latest_message,
             "behind": behind,
             "commits": commits,
-            "can_apply": self.can_apply(),
-            "applying": applying,
-            "last_error": st.get("error"),
-            "finished_at": st.get("finished_at"),
+            "product_updates": await self.product_updates() if behind else [],
         }
+        self._describe_cache = (time.time(), remote)
+        out.update(remote)
+        return out
 
     def start(self) -> dict[str, Any]:
         if not self.can_apply():
             raise RuntimeError("this process is not an appliance checkout (MARVIN_INSTALL_DIR)")
         if self._state().get("applying"):
             raise RuntimeError("an update is already running")
-        self._write_state(applying=True, error=None, started_at=time.time(), finished_at=None)
-        self._task = asyncio.get_running_loop().create_task(self._run(), name="marvin-update")
-        return {"started": True}
+        try:
+            self.log_path().write_text("starting updater\n")
+        except OSError:
+            pass
+        self._write_state(applying=True, error=None, step="starting", started_at=time.time(), finished_at=None)
+        if self._runner:
+            self._task = asyncio.get_running_loop().create_task(self._run(), name="marvin-update")
+            return {"started": True}
+        self._launch_detached()
+        return {"started": True, "detached": True}
+
+    def _launch_detached(self) -> None:
+        """A sibling container runs update.sh. Compose will kill *this* worker; the sibling keeps writing the log."""
+        if self.root is None:
+            raise RuntimeError("no install dir")
+        image = os.environ.get("MARVIN_IMAGE") or "marvin:local"
+        sandbox = os.environ.get("MARVIN_SANDBOX_IMAGE") or "marvin-sandbox:local"
+        subprocess.run(["docker", "rm", "-f", UPDATER], capture_output=True)
+        cmd = [
+            "docker", "run", "--rm", "-d", "--name", UPDATER,
+            "-v", "/var/run/docker.sock:/var/run/docker.sock",
+            "-v", f"{self.root}:{self.root}",
+            "-v", "marvin_work:/work",
+            "-e", f"MARVIN_GIT_REF={self.ref}",
+            "-e", f"MARVIN_INSTALL_DIR={self.root}",
+            "-e", "MARVIN_STATE_DIR=/work/state",
+            "-e", f"MARVIN_SANDBOX_IMAGE={sandbox}",
+            "-w", str(self.root),
+            "--entrypoint", "bash",
+            image,
+            str(self.root / SCRIPT),
+        ]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            err = (r.stderr or r.stdout or "docker run failed").strip()[:2000]
+            self._write_state(applying=False, error=err, step="failed", finished_at=time.time())
+            raise RuntimeError(err)
+        self._write_state(updater=(r.stdout or "").strip(), step="updater running")
+        log.info("update: started %s", UPDATER)
 
     async def _run(self) -> None:
         assert self.root is not None
@@ -186,11 +310,11 @@ class Install:
                 out, _ = await proc.communicate()
                 if proc.returncode != 0:
                     raise RuntimeError((out or b"").decode(errors="replace")[-2000:] or f"exit {proc.returncode}")
-            self._write_state(applying=False, error=None, finished_at=time.time())
+            self._write_state(applying=False, error=None, step="ready", finished_at=time.time())
             log.info("update: finished")
         except Exception as e:
             log.exception("update failed")
-            self._write_state(applying=False, error=str(e)[:2000], finished_at=time.time())
+            self._write_state(applying=False, error=str(e)[:2000], step="failed", finished_at=time.time())
 
 
 async def _maybe_await(val: Any) -> Any:

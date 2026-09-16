@@ -19,7 +19,6 @@ from marvin.ports import AppsRouting
 from marvin.room.manager import RoomManager
 from marvin.sandbox import Sandbox, SandboxConfig, SandboxError
 from marvin.stt import make_stt
-from marvin.themes import ThemeStore
 
 log = logging.getLogger("marvin")
 
@@ -37,13 +36,8 @@ async def run(args: argparse.Namespace) -> None:
         config = Config(rooms=())
     if args.sandbox:
         os.environ["MARVIN_SANDBOX"] = args.sandbox
-    # UI themes: custom ones live under <state>/themes, written from Settings or by the agent in any room (marvin.themes).
-    themes = ThemeStore(args.state_dir)
-    themes.install_docs()
-    if not themes.enabled:
-        log.info("themes: no --state-dir, custom themes are off (the built-in ones still work)")
     try:
-        sandbox = Sandbox(SandboxConfig.from_env(), state_dir=args.state_dir, themes_dir=themes.dir)
+        sandbox = Sandbox(SandboxConfig.from_env(), state_dir=args.state_dir)
         await sandbox.check()  # daemon reachable, image present; a clear message instead of every room failing later
     except (SandboxError, ValueError) as e:
         raise SystemExit(f"sandbox: {e}") from None
@@ -73,12 +67,12 @@ async def run(args: argparse.Namespace) -> None:
         repos_dir=args.repos_dir,
         state_dir=args.state_dir,
         routing=AppsRouting.from_env(),
-        session_kwargs=dict(url=args.url, api_key=args.api_key, api_secret=args.api_secret, stt=stt, agent_name=args.name, state_dir=args.state_dir, sandbox=sandbox, git_identity=GitIdentity(args.state_dir, github), themes=themes, harness_creds=harness_creds, audit=audit),
+        session_kwargs=dict(url=args.url, api_key=args.api_key, api_secret=args.api_secret, stt=stt, agent_name=args.name, state_dir=args.state_dir, sandbox=sandbox, git_identity=GitIdentity(args.state_dir, github), harness_creds=harness_creds, audit=audit),
     )
     await mgr.start_all()
     harness_creds.on_grok_session = lambda: asyncio.create_task(mgr.reload_harness("grok"))
     log.info("serving %d room(s): %s", len(mgr.sessions), ", ".join(sorted(mgr.sessions)) or "(none yet; create one from the UI)")
-    runner = await serve_admin(mgr, host=args.admin_host, port=args.admin_port, github=github, themes=themes, harness_creds=harness_creds, licenses=licenses, access=access, audit=audit, exporter=exporter) if args.admin_port else None
+    runner = await serve_admin(mgr, host=args.admin_host, port=args.admin_port, github=github, harness_creds=harness_creds, licenses=licenses, access=access, audit=audit, exporter=exporter) if args.admin_port else None
 
     async def tick_audit() -> None:
         while True:

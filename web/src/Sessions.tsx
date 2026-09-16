@@ -32,7 +32,7 @@ export function SessionsSection() {
   };
   const when = (t: number | null) => t ? new Date(t * 1000).toLocaleString() : "open";
   return (
-    <section>
+    <section id="settings-sessions">
       <h3>Sessions</h3>
       <p className="dim small">Each meeting is a hash-chained log on this machine. Export (S3 / webhook) is below in Enterprise if you set it.</p>
       {admin && (

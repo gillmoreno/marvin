@@ -4,9 +4,9 @@ import { useIsAdmin } from "./auth";
 import { AccountSection } from "./RoomSettings";
 import { GitHubSection } from "./GitHubConnect";
 import { HarnessSection } from "./HarnessConnect";
-import { ThemeSection } from "./theme/ThemeSection";
 import { AccessSection } from "./AccessSection";
 import { ExportSection, SessionsSection } from "./Sessions";
+import { MachineUpdate } from "./MachineUpdate";
 
 /** Sleep the whole machine (scale to zero). Only meaningful on the cluster, where /power is served by the gate. */
 export function PowerSection() {
@@ -27,88 +27,6 @@ export function PowerSection() {
       <p className="dim small">State: <b>{state}</b>. Sleeping scales everything to zero (volumes stay), which drops the GPU node and its cost. The URL then shows a Wake button.</p>
       <div className="btns"><button className="danger" onClick={() => void sleep()}>put {agent.name} to sleep</button></div>
       {msg && <p className="status ok">{msg}</p>}
-    </section>
-  );
-}
-
-type UpdateInfo = {
-  short: string | null;
-  latest_short: string | null;
-  latest_message: string | null;
-  ref: string;
-  repo: string;
-  behind: boolean;
-  commits: { sha: string; message: string }[];
-  can_apply: boolean;
-  applying: boolean;
-  last_error: string | null;
-};
-
-function UpdateSection() {
-  const admin = useIsAdmin();
-  const [info, setInfo] = useState<UpdateInfo | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const load = () =>
-    fetch("/api/update")
-      .then(async (r) => {
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error ?? r.statusText);
-        setInfo(j);
-        setErr(null);
-      })
-      .catch((e) => setErr(String(e instanceof Error ? e.message : e)));
-  useEffect(() => {
-    if (!admin) return;
-    void load();
-    const t = window.setInterval(() => void load(), info?.applying ? 2000 : 30000);
-    return () => window.clearInterval(t);
-  }, [admin, info?.applying]);
-  if (!admin) return null;
-  const apply = async () => {
-    if (!confirm("Update this machine? Everyone in every room is disconnected for a few minutes while images rebuild. Login passwords stay.")) return;
-    setBusy(true);
-    const r = await fetch("/api/update", { method: "POST" });
-    const j = await r.json().catch(() => ({}));
-    setBusy(false);
-    if (!r.ok) { setErr(j.error ?? r.statusText); return; }
-    void load();
-  };
-  return (
-    <section>
-      <h3>This machine</h3>
-      {!info && !err && <p className="dim small">checking for updates…</p>}
-      {info && (
-        <>
-          <p className="small">
-            Running <code>{info.short ?? "unknown"}</code>
-            {info.latest_short ? <> · {info.ref} is <code>{info.latest_short}</code></> : null}
-            {info.latest_message ? <> — {info.latest_message}</> : null}
-          </p>
-          {info.behind && info.commits.length > 0 && (
-            <ul className="small">
-              {info.commits.map((c) => (
-                <li key={c.sha}><code>{c.sha}</code> {c.message}</li>
-              ))}
-            </ul>
-          )}
-          {info.behind && info.can_apply && !info.applying && (
-            <p className="dim small">Those commits are on GitHub and not on this VM yet. Update pulls them and rebuilds. Rooms drop until it is back.</p>
-          )}
-          {!info.behind && <p className="dim small">This machine is on the latest <code>{info.ref}</code>.</p>}
-          {info.behind && !info.can_apply && (
-            <p className="dim small">This copy cannot self-update (no appliance checkout). On a VM, Settings shows the button. From a shell: <code>make update</code>.</p>
-          )}
-          {info.applying && <p className="status ok">Updating… the page may stop responding; reload in a few minutes.</p>}
-          <div className="btns">
-            <button type="button" disabled={!info.behind || !info.can_apply || info.applying || busy} onClick={() => void apply()}>
-              {busy || info.applying ? "updating…" : "update this machine"}
-            </button>
-          </div>
-        </>
-      )}
-      {info?.last_error && <p className="status bad">{info.last_error}</p>}
-      {err && <p className="error small">{err}</p>}
     </section>
   );
 }
@@ -222,7 +140,13 @@ function AppPreviewsSection() {
   );
 }
 
-export function SettingsPanel({ onClose, extra, room }: { onClose: () => void; extra?: React.ReactNode; room?: string }) {
+export function SettingsPanel({ onClose, extra, room, focus }: { onClose: () => void; extra?: React.ReactNode; room?: string; focus?: string }) {
+  const admin = useIsAdmin();
+  useEffect(() => {
+    if (!focus) return;
+    const frame = requestAnimationFrame(() => document.getElementById(focus)?.scrollIntoView({ block: "start" }));
+    return () => cancelAnimationFrame(frame);
+  }, [focus]);
   return (
     <div className="modal-back settings-screen" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -242,8 +166,7 @@ export function SettingsPanel({ onClose, extra, room }: { onClose: () => void; e
           <ExportSection />
           <AppPreviewsSection />
           <LicenseSection />
-          <UpdateSection />
-          <ThemeSection />
+          {admin && <section className="settings-update"><h3>This machine</h3><MachineUpdate /></section>}
           <PowerSection />
         </div>
       </div>

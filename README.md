@@ -223,7 +223,9 @@ on every push to `main`.
 ## Contributing
 
 `make test` runs the worker tests (44, no audio hardware needed). `cd web && pnpm exec tsc --noEmit && pnpm build`
-checks the UI. Changes to features go with a note in `docs_and_changelog/CHANGELOG.md`.
+checks the UI. Changes to features update both the engineering record in
+`docs_and_changelog/CHANGELOG.md` and the in-product copy in
+`docs_and_changelog/product-updates.json`.
 
 Except for `ee/`, this repository is MIT. `ee/` is the Marvin Enterprise
 license (same split as GitLab / PostHog: source visible; production use needs

@@ -279,3 +279,21 @@ async def test_tls_ask_only_allows_preview_hosts(monkeypatch):
         assert j["name"]
         assert j["public_host"] == "marvin.example.com"
         assert j["preview_pattern"] == "https://p{port}.marvin.example.com"
+
+
+async def test_update_status_reads_state_when_worker_is_down(tmp_path, monkeypatch):
+    monkeypatch.setenv("MARVIN_STATE_DIR", str(tmp_path))
+    (tmp_path / "update.json").write_text(json.dumps({"applying": True, "step": "building sandbox"}))
+    (tmp_path / "update.log").write_text("building sandbox now\n")
+    monkeypatch.setattr(token_server, "ADMIN_URL", "http://127.0.0.1:1")
+    async with await client(Auth("header", admin_users="root")) as c:
+        assert (await c.get("/api/update", headers={"X-Forwarded-User": "pat"})).status == 403
+        r = await c.get("/api/update", headers={"X-Forwarded-User": "root"})
+        assert r.status == 200
+        j = await r.json()
+        assert j["applying"] is True and j["worker_up"] is False
+        assert j["step"] == "building sandbox"
+        assert "building sandbox now" in (j["log"] or "")
+        rooms = await c.get("/api/rooms", headers={"X-Forwarded-User": "root"})
+        assert rooms.status == 503
+        assert "update" in (await rooms.json())["error"].lower()

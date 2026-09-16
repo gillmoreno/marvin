@@ -50,7 +50,6 @@ DEFAULT_FORWARD_ENV: tuple[str, ...] = (
     "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_AGENT_SDK_VERSION", "CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING", "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
     "GIT_CONFIG_GLOBAL", "GH_CONFIG_DIR", "MARVIN_TURN_FILE", "MARVIN_STATE_DIR",
     "GROK_HOME",  # Grok subscription session (~/.grok/auth.json) written by Settings → Coding agents
-    "MARVIN_THEMES_DIR",  # where the agent writes UI themes (marvin.themes); mounted at the same path
     "TERM", "LANG", "LC_ALL",
 )
 _NAME_RE = re.compile(r"[^a-z0-9-]+")
@@ -135,14 +134,12 @@ class SandboxError(RuntimeError):
 class Sandbox:
     """Manages the containers; `for_room` hands a harness the bits it needs (exec prefix, CLI wrapper)."""
 
-    def __init__(self, cfg: SandboxConfig, *, state_dir: str | None, notes_path: Path | None = None, themes_dir: Path | None = None) -> None:
+    def __init__(self, cfg: SandboxConfig, *, state_dir: str | None, notes_path: Path | None = None) -> None:
         self.cfg = cfg
         if cfg.enabled and not state_dir:
             raise SandboxError("MARVIN_SANDBOX=docker needs --state-dir / MARVIN_STATE_DIR (per-room HOME and CLI wrappers live there)")
         self.state_dir = Path(state_dir) if state_dir else None
         self.notes_path = notes_path if notes_path is not None else Path.home() / ".claude" / "CLAUDE.md"
-        # UI themes the agent may write (marvin.themes): a shared, writable directory visible from every room.
-        self.themes_dir = themes_dir if themes_dir is not None else (self.state_dir / "themes" if self.state_dir else None)
 
     # -- naming ------------------------------------------------------------------
     @staticmethod
@@ -158,8 +155,7 @@ class Sandbox:
 
     # -- what a room mounts --------------------------------------------------------
     def mounts_for(self, cfg: RoomConfig) -> list[Mount]:
-        """Extra mounts first, then whatever they do not already cover: repo, linked repos, HOME, the themes directory,
-        machine notes (ro)."""
+        """Extra mounts first, then whatever they do not already cover: repo, linked repos, HOME, machine notes (ro)."""
         out = list(self.cfg.mounts)
 
         def add(m: Mount) -> None:
@@ -172,8 +168,6 @@ class Sandbox:
             add(Mount(p, p))
         home = str(self.home_dir(cfg.name))
         add(Mount(home, home))
-        if self.themes_dir is not None:
-            add(Mount(str(self.themes_dir), str(self.themes_dir)))
         if self.notes_path.exists() and not self.notes_covered():
             # Nested on purpose: HOME is the room's own directory, the notes file is the worker's, mounted read-only over it.
             out.append(Mount(str(self.notes_path), f"{home}/.claude/CLAUDE.md", ro=True))
@@ -283,8 +277,6 @@ exec {shlex.quote(self.cfg.docker)} exec -i -w "$PWD" -e HOME={shlex.quote(str(s
         name = self.container_name(cfg.name)
         home = self.home_dir(cfg.name)
         (home / ".claude").mkdir(parents=True, exist_ok=True)
-        if self.themes_dir is not None:
-            self.themes_dir.mkdir(parents=True, exist_ok=True)  # a bind mount of a missing dir would be created root-owned
         self.link_notes(cfg.name)
         want = self.signature(cfg)
         rc, out = await self._docker("inspect", "--format", '{{index .Config.Labels "marvin.sig"}} {{.State.Running}}', name)

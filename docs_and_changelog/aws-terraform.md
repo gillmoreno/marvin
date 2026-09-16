@@ -58,8 +58,8 @@ Stop the instance to stop compute. Keep the Elastic IP so DNS does not move (~$3
 address either way). `terraform destroy` releases the IP and deletes the SSM parameters.
 
 After the box is up, new code on GitHub does **not** appear until an admin uses Settings → This
-machine → Update (or `make update` on the VM). Terraform apply again would replace the instance.
-See `updates.md`.
+machine → Update (or `make update` on the VM). Stay on that page; the log is the progress. Terraform
+apply again would replace the instance. See `updates.md`.
 
 ## Cost (order of magnitude)
 

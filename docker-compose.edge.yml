@@ -110,6 +110,7 @@ services:
       MARVIN_GIT_REF: ${MARVIN_GIT_REF:-main}
       MARVIN_GIT_REPO: ${MARVIN_GIT_REPO:-https://github.com/gillmoreno/marvin.git}
       MARVIN_INSTALL_DIR: ${MARVIN_INSTALL_DIR:-}
+      MARVIN_IMAGE: ${MARVIN_IMAGE:-marvin:local}   # sibling updater (`marvin-update`) runs this image, not the worker
       MARVIN_LICENSE_KEY: ${MARVIN_LICENSE_KEY:-}   # optional override; Settings → Enterprise is the usual place
       MARVIN_ALLOWED_EMAIL_DOMAINS: ${MARVIN_ALLOWED_EMAIL_DOMAINS:-}
       MARVIN_ALLOW_LIST: ${MARVIN_ALLOW_LIST:-}

@@ -1,13 +1,12 @@
-// Voice presence: who is speaking and what Marvin is doing, drawn the way the theme asks (dot, oscilloscope, VU bars,
-// ink underline, radial orb, ring). The app owns the drawing and the audio level; the theme picks the variant and
-// colours it through `--presence` and `--glow`. `--level` (0..1) is kept live on the element for theme CSS to use.
+// Voice presence: who is speaking and what Marvin is doing. The Workspace design uses one restrained
+// oscilloscope for Marvin and a dot for people; `--level` (0..1) keeps both responsive to audio.
 import { useEffect, useRef } from "react";
 import { useIsSpeaking } from "@livekit/components-react";
 import type { Participant } from "livekit-client";
-import { useTheme } from "./ThemeContext";
-import type { AgentVariant, SpeakerVariant } from "./themes";
 
 export type AgentState = "offline" | "idle" | "thinking" | "waiting_approval";
+type AgentVariant = "dot" | "ring" | "scope" | "bars" | "ink" | "orb";
+type SpeakerVariant = AgentVariant;
 type Variant = AgentVariant | SpeakerVariant;
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -27,7 +26,7 @@ function useLoop(ref: React.RefObject<HTMLElement | null>, active: boolean, leve
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const target = active ? Math.max(0, Math.min(1, level(now / 1000))) : 0;
-      cur += (target - cur) * Math.min(1, dt * (target > cur ? 18 : 6)); // fast attack, slow release
+      cur += (target - cur) * Math.min(1, dt * (target > cur ? 18 : 6));
       e.style.setProperty("--level", cur.toFixed(3));
       draw?.(cur, now / 1000);
       if (active || cur > 0.005) raf = requestAnimationFrame(tick);
@@ -39,8 +38,6 @@ function useLoop(ref: React.RefObject<HTMLElement | null>, active: boolean, leve
   }, [ref, active, level, draw]);
 }
 
-// -- drawings --------------------------------------------------------------------------------------------------------
-
 function Scope({ level, active, state }: { level: (t: number) => number; active: boolean; state?: AgentState }) {
   const ref = useRef<HTMLSpanElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -50,7 +47,10 @@ function Scope({ level, active, state }: { level: (t: number) => number; active:
     const dpr = window.devicePixelRatio || 1;
     const w = c.clientWidth, h = c.clientHeight;
     if (!w || !h) return;
-    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+      c.width = Math.round(w * dpr);
+      c.height = Math.round(h * dpr);
+    }
     const g = c.getContext("2d");
     if (!g) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -61,7 +61,6 @@ function Scope({ level, active, state }: { level: (t: number) => number; active:
     g.lineJoin = "round";
     const mid = h / 2;
     if (l < 0.02) {
-      // quiet: a hairline with ticks
       g.globalAlpha = 0.55;
       g.beginPath(); g.moveTo(0, mid); g.lineTo(w, mid); g.stroke();
       g.globalAlpha = 0.35;
@@ -74,13 +73,14 @@ function Scope({ level, active, state }: { level: (t: number) => number; active:
     const amp = (h / 2 - 2) * l;
     for (let x = 0; x <= w; x += 2) {
       const p = x / w;
-      const env = Math.sin(p * Math.PI); // fades at both ends
+      const env = Math.sin(p * Math.PI);
       const y = structured
-        ? Math.sign(Math.sin(p * 40 + t * 8)) * amp * env * (0.6 + 0.4 * Math.sin(t * 3 + p * 6)) // square-ish: "computing"
+        ? Math.sign(Math.sin(p * 40 + t * 8)) * amp * env * (0.6 + 0.4 * Math.sin(t * 3 + p * 6))
         : (Math.sin(p * 22 + t * 9) * 0.6 + Math.sin(p * 47 - t * 13) * 0.3 + Math.sin(p * 9 + t * 4) * 0.4) * amp * env;
       x === 0 ? g.moveTo(x, mid + y) : g.lineTo(x, mid + y);
     }
-    g.shadowColor = color; g.shadowBlur = 6 * l;
+    g.shadowColor = color;
+    g.shadowBlur = 6 * l;
     g.stroke();
     g.shadowBlur = 0;
   });
@@ -121,7 +121,10 @@ function Ink({ level, active, state }: { level: (t: number) => number; active: b
       const dash = 100;
       p.style.strokeDasharray = `${dash}`;
       p.style.strokeDashoffset = String(dash - ((t * 45) % (dash * 1.4)));
-    } else { p.style.strokeDasharray = ""; p.style.strokeDashoffset = ""; }
+    } else {
+      p.style.strokeDasharray = "";
+      p.style.strokeDashoffset = "";
+    }
   });
   return <span ref={ref} className="presence-draw"><svg viewBox="0 0 100 10" preserveAspectRatio="none"><path ref={path} d="M0 5 L100 5" /></svg></span>;
 }
@@ -131,20 +134,20 @@ function Orb({ level, active, state }: { level: (t: number) => number; active: b
   const g = useRef<SVGGElement>(null);
   const N = 36;
   useLoop(ref, active, level, (l, t) => {
-    const grp = g.current;
-    if (!grp) return;
-    const working = state === "thinking", waiting = state === "waiting_approval";
-    const rot = working ? t * 40 : t * 4;
-    grp.setAttribute("transform", `rotate(${waiting ? 0 : rot % 360} 50 50)`);
-    const ticks = grp.children;
-    for (let i = 0; i < ticks.length; i++) {
+    const group = g.current;
+    if (!group) return;
+    const working = state === "thinking";
+    const waiting = state === "waiting_approval";
+    group.setAttribute("transform", `rotate(${waiting ? 0 : ((working ? t * 40 : t * 4) % 360)} 50 50)`);
+    for (let i = 0; i < group.children.length; i++) {
       const a = (i / N) * Math.PI * 2;
       const wave = working ? (i % 3 === 0 ? 1 : 0.35) * (0.6 + 0.4 * Math.sin(t * 6 + i)) : waiting ? 0.55 : 0.35 + 0.65 * Math.abs(Math.sin(i * 0.9 + t * 3.5));
       const len = 4 + (working ? 10 : 12) * l * wave + (waiting ? 4 : 0);
-      const r0 = 30, r1 = r0 + len;
-      const e = ticks[i] as SVGLineElement;
-      e.setAttribute("x1", (50 + Math.cos(a) * r0).toFixed(2)); e.setAttribute("y1", (50 + Math.sin(a) * r0).toFixed(2));
-      e.setAttribute("x2", (50 + Math.cos(a) * r1).toFixed(2)); e.setAttribute("y2", (50 + Math.sin(a) * r1).toFixed(2));
+      const line = group.children[i] as SVGLineElement;
+      line.setAttribute("x1", (50 + Math.cos(a) * 30).toFixed(2));
+      line.setAttribute("y1", (50 + Math.sin(a) * 30).toFixed(2));
+      line.setAttribute("x2", (50 + Math.cos(a) * (30 + len)).toFixed(2));
+      line.setAttribute("y2", (50 + Math.sin(a) * (30 + len)).toFixed(2));
     }
   });
   return (
@@ -171,45 +174,39 @@ function Drawing({ variant, ...rest }: { variant: Variant; level: (t: number) =>
     case "bars": return <Bars {...rest} />;
     case "ink": return <Ink {...rest} />;
     case "orb": return <Orb {...rest} />;
-    default: return <Simple {...rest} />; // dot, ring: CSS does the work from --level
+    default: return <Simple {...rest} />;
   }
 }
 
-// -- the two public elements -------------------------------------------------------------------------------------------
-
 const agentLevel: Record<AgentState, (t: number) => number> = {
   offline: () => 0,
-  idle: (t) => 0.06 + 0.05 * Math.sin(t * 1.2), // breathing
+  idle: (t) => 0.06 + 0.05 * Math.sin(t * 1.2),
   thinking: (t) => 0.55 + 0.35 * Math.abs(Math.sin(t * 2.6)) * (0.7 + 0.3 * Math.sin(t * 11)),
   waiting_approval: () => 0.5,
 };
 
-/** Marvin's state. `variant` defaults to what the theme asks for. */
 export function AgentPresence({ state, className = "", variant, label }: { state: AgentState; className?: string; variant?: AgentVariant; label?: string }) {
-  const theme = useTheme();
-  const v: AgentVariant = variant ?? theme.active.presence?.agent ?? "dot";
+  const selected: AgentVariant = variant ?? "scope";
   return (
-    <span className={`presence ${className}`.trim()} data-kind="agent" data-variant={v} data-state={state} data-active={state !== "offline" || undefined} title={label} aria-label={label}>
-      <Drawing variant={v} level={agentLevel[state]} active={state !== "offline"} state={state} />
+    <span className={`presence ${className}`.trim()} data-kind="agent" data-variant={selected} data-state={state} data-active={state !== "offline" || undefined} title={label} aria-label={label}>
+      <Drawing variant={selected} level={agentLevel[state]} active={state !== "offline"} state={state} />
     </span>
   );
 }
 
-/** A person: lit while they speak, with their real audio level (plus a little life when LiveKit reports a flat level). */
 export function SpeakerPresence({ participant, className = "", variant }: { participant: Participant; className?: string; variant?: SpeakerVariant }) {
-  const theme = useTheme();
   const speaking = useIsSpeaking(participant);
-  const v: SpeakerVariant = variant ?? theme.active.presence?.speaker ?? "dot";
+  const selected: SpeakerVariant = variant ?? "dot";
   const ref = useRef(participant);
   ref.current = participant;
   const level = useRef((t: number) => {
-    const real = ref.current.audioLevel || 0; // 0..1, updated by the server's active-speaker events
-    const synth = 0.45 + 0.3 * Math.sin(t * 9) * Math.sin(t * 2.3);
-    return Math.max(real * 1.6, synth * 0.9);
+    const real = ref.current.audioLevel || 0;
+    const synthetic = 0.45 + 0.3 * Math.sin(t * 9) * Math.sin(t * 2.3);
+    return Math.max(real * 1.6, synthetic * 0.9);
   }).current;
   return (
-    <span className={`presence ${className}`.trim()} data-kind="speaker" data-variant={v} data-active={speaking || undefined}>
-      <Drawing variant={v} level={level} active={speaking} />
+    <span className={`presence ${className}`.trim()} data-kind="speaker" data-variant={selected} data-active={speaking || undefined}>
+      <Drawing variant={selected} level={level} active={speaking} />
     </span>
   );
 }
