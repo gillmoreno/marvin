@@ -231,7 +231,7 @@ function AgentConnect({ onSaved, onCancel }: { onSaved: () => void; onCancel?: (
 
   const finish = async (next: HarnessStatus) => {
     setStatus(next);
-    if (pick && next.default_source !== "env") {
+    if (pick) {
       const response = await fetch("/api/harness-creds/default", {
         method: "PUT",
         headers: { "content-type": "application/json" },

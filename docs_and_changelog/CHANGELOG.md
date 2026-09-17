@@ -2,6 +2,13 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-17 — Coding agents lead with Grok
+
+### Changed
+- Settings → Coding agents opens on Grok. Sign in with grok.com is the first action; an API key is a secondary paste. Other providers are under Add another.
+- When Grok is the only connected agent, it becomes the default for rooms that do not pin one.
+- The default picker is no longer locked by `MARVIN_HARNESS=claude-code` in `.env`. Claude Code stays the built-in default in code. Settings wins; the environment only seeds a default when Settings has not picked one.
+
 ## 2026-09-17 — Enterprise settings lock
 
 ### Changed

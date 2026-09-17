@@ -66,7 +66,7 @@ def test_wrong_secret_drops_key(tmp_path, monkeypatch):
     assert json.loads((tmp_path / "harness.json").read_text())["keys"] == {}
 
 
-def test_default_harness_settings_vs_env(tmp_path, monkeypatch):
+def test_default_harness_settings_win_over_env(tmp_path, monkeypatch):
     c = creds(tmp_path, monkeypatch)
     assert c.status()["default_source"] == "builtin"
     c.set_default_harness("grok")
@@ -74,7 +74,50 @@ def test_default_harness_settings_vs_env(tmp_path, monkeypatch):
     assert c.status()["default_source"] == "settings"
     monkeypatch.setenv("MARVIN_HARNESS", "codex")
     c2 = HarnessCreds(str(tmp_path), secret="s3")
-    assert c2.status()["default_harness"] == "codex" and c2.status()["default_source"] == "env"
+    assert c2.status()["default_harness"] == "grok" and c2.status()["default_source"] == "settings"
+
+
+def test_stock_claude_env_is_not_an_override(tmp_path, monkeypatch):
+    c = creds(tmp_path, monkeypatch, MARVIN_HARNESS="claude-code")
+    assert c.status()["default_harness"] == "claude-code" and c.status()["default_source"] == "builtin"
+
+
+def test_env_seeds_when_settings_empty(tmp_path, monkeypatch):
+    c = creds(tmp_path, monkeypatch, MARVIN_HARNESS="codex")
+    assert c.status()["default_harness"] == "codex" and c.status()["default_source"] == "env"
+    c.set_default_harness("grok")
+    assert c.status()["default_harness"] == "grok" and c.status()["default_source"] == "settings"
+
+
+def test_only_grok_becomes_default(tmp_path, monkeypatch):
+    c = creds(tmp_path, monkeypatch, MARVIN_HARNESS="claude-code")
+    c.put_grok_session(json.dumps({"ok": True}))
+    st = c.status()
+    assert st["default_harness"] == "grok" and st["default_source"] == "settings"
+
+
+def test_grok_does_not_steal_default_when_other_key_exists(tmp_path, monkeypatch):
+    c = creds(tmp_path, monkeypatch)
+    c.put_key("anthropic", "sk-ant-abcdefghijklmnopqrstuvwxyz")
+    assert c.status()["default_harness"] == "claude-code"
+    c.put_grok_session(json.dumps({"ok": True}))
+    assert c.status()["default_harness"] == "claude-code"
+
+
+def test_forget_only_grok_clears_default(tmp_path, monkeypatch):
+    c = creds(tmp_path, monkeypatch)
+    c.put_grok_session(json.dumps({"ok": True}))
+    assert c.status()["default_harness"] == "grok"
+    c.forget_grok_session()
+    assert c.status()["default_source"] == "builtin"
+
+
+def test_existing_only_grok_is_adopted_on_load(tmp_path, monkeypatch):
+    c = creds(tmp_path, monkeypatch)
+    c.put_grok_session(json.dumps({"ok": True}))
+    c.set_default_harness(None)
+    loaded = HarnessCreds(str(tmp_path), secret="s3")
+    assert loaded.status()["default_harness"] == "grok" and loaded.status()["default_source"] == "settings"
 
 
 def test_install_home_writes_grok_session(tmp_path, monkeypatch):
@@ -124,6 +167,7 @@ async def test_grok_login_fake_runner(tmp_path, monkeypatch):
     assert flow.user_code == "WXYZ-7788" and flow.status == "connected"
     assert json.loads(c.grok_auth_json()) == {"ok": True}
     assert c.status()["providers"][1]["subscription_set"] is True  # xai is second
+    assert c.status()["default_harness"] == "grok" and c.status()["default_source"] == "settings"
 
 
 class _Mgr:

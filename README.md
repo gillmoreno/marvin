@@ -89,7 +89,8 @@ long-lived session bound to one repo; `send(prompt)` streams `HarnessEvent`s (`t
   profiles for Claude Code (`claude-acp`), Codex CLI (`codex`), Cursor CLI (`cursor`), Gemini CLI (`gemini`),
   OpenCode (`opencode`), Grok Build (`grok`) and GitHub Copilot CLI (`copilot`). Install the CLI you want in the
   image, give it its credentials, then pick it per room (`harness:` in `rooms.yaml` or the picker in the room header)
-  or as the worker default (`MARVIN_HARNESS`). Details, verification status and limitations:
+  or as the machine default in Settings → Coding agents (`MARVIN_HARNESS` is only a seed when Settings has no value).
+  Details, verification status and limitations:
   [`docs_and_changelog/harnesses.md`](docs_and_changelog/harnesses.md).
 
 ## Layout

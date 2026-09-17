@@ -15,8 +15,25 @@ export type Harness = { id: string; label: string };
 export type Status = { providers: Provider[]; default_harness: string; default_source: "env" | "settings" | "builtin"; harnesses: Harness[] };
 type Flow = { flow: string; user_code: string; verification_uri: string; expires_in: number; status: string; error?: string | null };
 
-export function KeyForm({ p, onSaved }: { p: Provider; onSaved: (s: Status) => void }) {
-  const [open, setOpen] = useState(!p.key_set);
+const SHORT: Record<string, string> = {
+  anthropic: "Claude",
+  xai: "Grok",
+  openai: "Codex",
+  google: "Gemini",
+  cursor: "Cursor",
+  copilot: "Copilot",
+};
+
+function shortLabel(p: Provider) {
+  return SHORT[p.id] ?? p.label;
+}
+
+function isConnected(p: Provider) {
+  return p.key_set || p.subscription_set;
+}
+
+export function KeyForm({ p, onSaved, startOpen }: { p: Provider; onSaved: (s: Status) => void; startOpen?: boolean }) {
+  const [open, setOpen] = useState(startOpen ?? !p.key_set);
   const [value, setValue] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -123,10 +140,37 @@ export function GrokLogin({ onSaved }: { onSaved: (s: Status) => void }) {
   );
 }
 
+function GrokBlock({ grok, onSaved, onDisconnect }: { grok: Provider; onSaved: (s: Status) => void; onDisconnect: () => void }) {
+  const [paste, setPaste] = useState(false);
+  return (
+    <Block title="Grok">
+      {grok.subscription_set ? (
+        <>
+          <Text tone="ok">Signed in with grok.com.</Text>
+          <Actions><Button variant="ghost" onClick={onDisconnect}>Disconnect</Button></Actions>
+        </>
+      ) : (
+        <>
+          <Text>Use your grok.com subscription. An API key is billed at xAI rates instead.</Text>
+          <GrokLogin onSaved={onSaved} />
+        </>
+      )}
+      {grok.key_set ? (
+        <KeyForm p={grok} onSaved={onSaved} />
+      ) : paste ? (
+        <KeyForm p={grok} startOpen onSaved={(s) => { setPaste(false); onSaved(s); }} />
+      ) : (
+        <Actions><Button variant="ghost" onClick={() => setPaste(true)}>Paste an API key</Button></Actions>
+      )}
+    </Block>
+  );
+}
+
 export function HarnessSection() {
   const admin = useIsAdmin();
   const [status, setStatus] = useState<Status | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
   const load = () => fetch("/api/harness-creds").then((r) => r.json()).then((j) => { if (j.error) setErr(j.error); else { setStatus(j); setErr(null); } }).catch(() => {});
   useEffect(() => { if (admin) void load(); }, [admin]);
   if (!admin) {
@@ -148,34 +192,51 @@ export function HarnessSection() {
     const j = await r.json();
     if (r.ok) setStatus(j); else setErr(j.error ?? r.statusText);
   };
+  const grok = status?.providers.find((p) => p.subscription === "grok");
+  const others = status?.providers.filter((p) => p.id !== grok?.id) ?? [];
+  const otherConnected = others.filter(isConnected);
+  const unused = others.filter((p) => !isConnected(p));
+  const addingP = unused.find((p) => p.id === adding);
   return (
     <Card>
       <h3>Coding agents</h3>
-      <Text>Who Marvin talks to. Set it here — a key or a subscription — not in an environment file. Rooms without a pinned harness use the default.</Text>
+      <Text>Who Marvin talks to. Rooms use this unless a room picks another.</Text>
       {status === null && !err && <Text>Checking…</Text>}
+      {status && grok && <GrokBlock grok={grok} onSaved={setStatus} onDisconnect={() => void disconnectGrok()} />}
       {status && (
         <>
           <Fields>
-            <Field label="Default agent" wide>
-              <Select value={status.default_harness === "claude-code" ? "" : status.default_harness} disabled={status.default_source === "env"} onChange={(e) => void setDefault(e.target.value)}>
-                <option value="">Claude Code (built-in default)</option>
-                {status.harnesses.filter((h) => h.id !== "claude-code").map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
+            <Field label="Default for rooms" wide>
+              <Select value={status.default_harness} onChange={(e) => void setDefault(e.target.value)}>
+                {status.harnesses.map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
               </Select>
             </Field>
           </Fields>
-          {status.default_source === "env" && <Text>Default is <code>MARVIN_HARNESS</code> from the environment.</Text>}
-          <Text>OpenCode uses whichever of the keys above it is configured for; there is no separate OpenCode secret.</Text>
-          {status.providers.map((p) => (
-            <Block key={p.id} title={`${p.label} · ${p.harnesses.join(", ")}`}>
+          {status.default_source === "env" && <Text>From the environment. Change it here to store it on this machine.</Text>}
+          {status.default_harness === "opencode" && <Text>OpenCode uses whichever key you have connected. There is no separate OpenCode secret.</Text>}
+          {otherConnected.map((p) => (
+            <Block key={p.id} title={shortLabel(p)}>
               {p.note && <Text>{p.note}</Text>}
-              {p.subscription === "grok" && (
-                p.subscription_set
-                  ? <Text>Grok subscription: <b>signed in</b> · <a href="#" onClick={(e) => { e.preventDefault(); void disconnectGrok(); }}>disconnect</a></Text>
-                  : <GrokLogin onSaved={setStatus} />
-              )}
               <KeyForm p={p} onSaved={setStatus} />
             </Block>
           ))}
+          {unused.length > 0 && (
+            <>
+              <Text>Add another</Text>
+              <Actions>
+                {unused.map((p) => (
+                  <Button key={p.id} variant="ghost" onClick={() => setAdding(p.id)}>{shortLabel(p)}</Button>
+                ))}
+              </Actions>
+            </>
+          )}
+          {addingP && (
+            <Block title={shortLabel(addingP)}>
+              {addingP.note && <Text>{addingP.note}</Text>}
+              <KeyForm p={addingP} startOpen onSaved={(s) => { setAdding(null); setStatus(s); }} />
+              <Actions><Button variant="ghost" onClick={() => setAdding(null)}>Cancel</Button></Actions>
+            </Block>
+          )}
         </>
       )}
       {err && <Text tone="bad">{err}</Text>}

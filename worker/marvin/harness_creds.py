@@ -1,8 +1,9 @@
 """Machine credentials for coding-agent harnesses, set from Settings (not .env).
 
 Each provider is an API key and, for Grok, an optional subscription login (`grok login --device-auth`).
-Keys and the Grok session file are Fernet-encrypted in <state_dir>/harness.json. The environment remains
-an override: if ANTHROPIC_API_KEY (etc.) is already set, it wins and the UI says "from the environment".
+Keys and the Grok session file are Fernet-encrypted in <state_dir>/harness.json. API keys still honour an
+environment override. The default harness is chosen in Settings; MARVIN_HARNESS only seeds it when Settings
+has no value, and MARVIN_HARNESS=claude-code is ignored (that is already the built-in default).
 """
 from __future__ import annotations
 
@@ -59,9 +60,9 @@ PROVIDERS: tuple[Provider, ...] = (
         steps=(
             "Open console.x.ai → API Keys.",
             "Create an API key and copy the xai-… string.",
-            "Paste it here. Or skip this and Sign in with Grok below, which uses your grok.com subscription.",
+            "Paste it here.",
         ),
-        note="Sign in with Grok uses the same account as grok.com. An API key is billed at xAI API rates instead.",
+        note="An API key is billed at xAI API rates. Sign in with Grok uses your grok.com subscription instead.",
         subscription="grok",
     ),
     Provider(
@@ -108,6 +109,15 @@ PROVIDERS: tuple[Provider, ...] = (
 _BY_ID = {p.id: p for p in PROVIDERS}
 
 
+def _operator_harness_override() -> str | None:
+    """MARVIN_HARNESS as a seed, not a lock. Restating the built-in default does nothing."""
+    from marvin.adapters import registry
+    raw = os.environ.get("MARVIN_HARNESS", "").strip() or None
+    if not raw or raw == registry.DEFAULT_HARNESS:
+        return None
+    return raw
+
+
 def get_provider(pid: str) -> Provider:
     try:
         return _BY_ID[pid]
@@ -152,19 +162,20 @@ def parse_device_output(text: str) -> tuple[str | None, str | None]:
 
 
 class HarnessCreds:
-    """<state_dir>/harness.json. Env vars are the override; stored keys fill the gaps. No restart after save."""
+    """<state_dir>/harness.json. Stored Settings win for the default harness; env seeds when unset."""
 
     def __init__(self, state_dir: str | None, secret: str, *, runner: Callable[..., asyncio.Task] | None = None) -> None:
         self.path = Path(state_dir) / "harness.json" if state_dir else None
         self.state_dir = Path(state_dir) if state_dir else None
         self._fernet = Fernet(base64.urlsafe_b64encode(hashlib.sha256(("marvin-harness:" + secret).encode()).digest()))
         self._data: dict = self._load()
-        self._env_default = os.environ.get("MARVIN_HARNESS", "").strip() or None
+        self._env_default = _operator_harness_override()
         self._we_set_harness = False
         self._runner = runner  # tests inject a fake grok login
         self._flows: dict[str, GrokFlow] = {}
         self.on_grok_session: Callable[[], None] | None = None  # RoomManager reloads grok rooms
         self.activate()
+        self._adopt_only_connected(only_if_unset=True)
 
     def _load(self) -> dict:
         if not self.path or not self.path.exists():
@@ -215,6 +226,7 @@ class HarnessCreds:
         self._data["keys"][pid] = {"enc": self._encrypt(key), "set_at": time.time()}
         self._save()
         self.activate()
+        self._adopt_only_connected()
 
     def forget_key(self, pid: str) -> None:
         get_provider(pid)
@@ -225,6 +237,7 @@ class HarnessCreds:
         if not stored_now and os.environ.get(env) and env in getattr(self, "_we_set_env", set()):
             os.environ.pop(env, None)
             self._we_set_env.discard(env)
+        self._release_default_if_unconnected()
 
     # -- grok session -----------------------------------------------------------
     def grok_auth_json(self) -> str | None:
@@ -244,6 +257,7 @@ class HarnessCreds:
         self._save()
         self.activate()
         self.install_all_homes()
+        self._adopt_only_connected()
         if self.on_grok_session:
             try:
                 self.on_grok_session()
@@ -254,6 +268,7 @@ class HarnessCreds:
         if self._data["sessions"].pop("grok", None) is not None:
             self._save()
             self.install_all_homes()
+        self._release_default_if_unconnected()
 
     def set_default_harness(self, hid: str | None) -> None:
         from marvin.adapters import registry
@@ -265,6 +280,44 @@ class HarnessCreds:
             self._data["settings"].pop("default_harness", None)
         self._save()
         self.activate()
+
+    def _provider_connected(self, p: Provider) -> bool:
+        if p.subscription == "grok" and self.grok_auth_json():
+            return True
+        if self.get_key(p.id):
+            return True
+        env_val = os.environ.get(p.env_var, "").strip()
+        we = getattr(self, "_we_set_env", set())
+        return bool(env_val and p.env_var not in we)
+
+    def _connected_providers(self) -> list[Provider]:
+        return [p for p in PROVIDERS if self._provider_connected(p)]
+
+    def _adopt_only_connected(self, *, only_if_unset: bool = False) -> None:
+        """If exactly one provider is connected, rooms should use it."""
+        connected = self._connected_providers()
+        if len(connected) != 1:
+            return
+        hid = connected[0].harnesses[0]
+        stored = (self._data.get("settings") or {}).get("default_harness")
+        if stored == hid:
+            return
+        if only_if_unset and stored:
+            return
+        self.set_default_harness(hid)
+
+    def _release_default_if_unconnected(self) -> None:
+        stored = (self._data.get("settings") or {}).get("default_harness")
+        if not stored:
+            return
+        connected = self._connected_providers()
+        covered = {h for p in connected for h in p.harnesses}
+        if stored in covered:
+            return
+        if len(connected) == 1:
+            self.set_default_harness(connected[0].harnesses[0])
+        else:
+            self.set_default_harness(None)
 
     # -- what the rest of Marvin sees ------------------------------------------
     def env(self) -> dict[str, str]:
@@ -308,11 +361,12 @@ class HarnessCreds:
                 os.environ[k] = v
                 self._we_set_env.add(k)
         stored = (self._data.get("settings") or {}).get("default_harness")
-        if self._env_default:
-            return
         if stored:
             os.environ["MARVIN_HARNESS"] = stored
             self._we_set_harness = True
+        elif self._env_default:
+            os.environ["MARVIN_HARNESS"] = self._env_default
+            self._we_set_harness = False
         elif self._we_set_harness:
             os.environ.pop("MARVIN_HARNESS", None)
             self._we_set_harness = False
@@ -340,10 +394,10 @@ class HarnessCreds:
             providers.append(rec)
         from marvin.adapters import registry
         stored = (self._data.get("settings") or {}).get("default_harness")
-        if self._env_default:
-            default, default_source = self._env_default, "env"
-        elif stored:
+        if stored:
             default, default_source = stored, "settings"
+        elif self._env_default:
+            default, default_source = self._env_default, "env"
         else:
             default, default_source = registry.DEFAULT_HARNESS, "builtin"
         return {

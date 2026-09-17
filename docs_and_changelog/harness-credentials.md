@@ -6,16 +6,18 @@ The design principle is the same as GitHub's client id: if it can be entered in 
 
 ## What a person sees
 
-Settings → **Coding agents** (admin). For each provider Marvin knows (Anthropic, xAI/Grok, OpenAI, Gemini,
-Cursor, Copilot):
+Settings → **Coding agents** (admin). Grok is first: **Sign in with Grok** (device-code flow,
+`grok login --device-auth`) or a pasted xAI API key as a fallback. A tab opens on accounts.x.ai;
+type the code; Marvin stores `~/.grok/auth.json`. That is your grok.com subscription, not an API
+key billed at API rates.
 
-- a short "open this page, click this, paste that" list with a link to the vendor's exact console;
-- an API-key field, masked, validated (prefix + length), stored encrypted;
-- for **Grok only**: **Sign in with Grok**, the device-code flow (`grok login --device-auth`). A tab opens
-  on accounts.x.ai; type the code; Marvin stores `~/.grok/auth.json`. That is your grok.com subscription,
-  not an API key billed at API rates.
+When Grok is the only connected agent, it becomes the default for rooms that do not pin one.
 
-The default harness for rooms that do not pin one is a select at the top of the same panel. No restart.
+Everyone else (Claude, Codex, Gemini, Cursor, Copilot) is under **Add another**: a short
+"open this page, click this, paste that" list, then a masked API-key field.
+
+The default for rooms is a select on the same panel. No restart. Claude Code is the built-in
+default when nothing is connected; it is not set from `.env`.
 
 Non-admins see a one-line "an admin connects the agents here".
 
@@ -42,11 +44,15 @@ path as clean as xAI's.
 
 A copied state dir without the session secret is not a copied credential.
 
-When a harness process starts, environment variables already set on the worker **win** (automation /
-image-baked installs). Otherwise the stored key is forwarded (`DEFAULT_FORWARD_ENV`). The Grok session
-is written into each room HOME as `.grok/auth.json` (`GROK_HOME`); Grok hot-reloads that file.
+API keys already set on the worker **win** over a stored key (automation / image-baked installs).
+Otherwise the stored key is forwarded (`DEFAULT_FORWARD_ENV`). The Grok session is written into each
+room HOME as `.grok/auth.json` (`GROK_HOME`); Grok hot-reloads that file.
 
-The UI says where the current value comes from: "from the environment" or "set here".
+The **default harness** is the other way around: a value stored in Settings wins. `MARVIN_HARNESS`
+only seeds the default when Settings has not picked one, and `MARVIN_HARNESS=claude-code` is ignored
+(that is already the built-in default). The picker is never locked by `.env`.
+
+The UI says where a key comes from: "from the environment" or "set here".
 
 ## The sandbox image must include the CLI
 

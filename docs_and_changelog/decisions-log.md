@@ -187,3 +187,7 @@ this file is the "why we did it this way" layer on top.
   sessions, audit, Enterprise, and this machine share that one map. Tailwind is for layout only; no
   preflight, no Material, no shadcn — those would restyle the rail. Claude's frontend-design plugin
   is for throwaway look explorations, not product chrome. Agents follow `.cursor/skills/marvin-ui`.
+- **Coding-agent default lives in Settings, not `.env`.** Claude Code stays the built-in default in
+  code. `MARVIN_HARNESS=claude-code` used to lock the picker and hide a live Grok sign-in. Settings
+  now wins; the env var is an optional seed when nothing is stored, and restating `claude-code`
+  is ignored. Signing in with Grok (or pasting its only key) makes it the room default.

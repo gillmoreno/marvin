@@ -2,6 +2,26 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-17-coding-agents-grok-first",
+      "date": "2026-09-17",
+      "title": "Coding agents lead with Grok",
+      "summary": "Settings → Coding agents opens on Grok. If that is the only agent you have connected, rooms use it. The default is no longer locked by an environment file.",
+      "changes": [
+        {
+          "title": "Grok is at the top",
+          "description": "Sign in with grok.com is the first thing on the page. A signed-in session says so in green. An API key is a secondary paste, not a form waiting next to every vendor."
+        },
+        {
+          "title": "The only agent becomes the default",
+          "description": "If Grok is the only agent connected, new rooms use Grok. You can still pick another default."
+        },
+        {
+          "title": "Settings picks the default, not .env",
+          "description": "Claude Code is still the built-in default when nobody is connected. A leftover MARVIN_HARNESS=claude-code line no longer locks the picker."
+        }
+      ]
+    },
+    {
       "id": "2026-09-17-enterprise-settings-lock",
       "date": "2026-09-17",
       "title": "Enterprise settings lock when there is no license",

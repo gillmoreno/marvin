@@ -14,8 +14,10 @@ the admin API and the UI only deal in profile ids.
 
 ## Choosing the harness
 
-- Worker default: `--harness <id>` / `MARVIN_HARNESS=<id>` (default `claude-code`). An unknown id falls back to
-  `claude-code` with a warning rather than taking every room down.
+- Worker default: Settings → Coding agents. Claude Code is the built-in default when nothing is stored.
+  `MARVIN_HARNESS=<id>` / `--harness <id>` only seed that default when Settings has no value;
+  `MARVIN_HARNESS=claude-code` is ignored. An unknown id falls back to `claude-code` with a warning
+  rather than taking every room down. When Grok is the only connected agent, it becomes the default.
 - Per room: `harness: <id>` in `rooms.yaml`, or the harness picker in the room header (next to the model picker),
   which calls `PATCH /rooms/{name}` with `{"harness": "<id>"}` (`""` clears the pin). Pins persist in
   `<state_dir>/rooms.json` like model pins.
