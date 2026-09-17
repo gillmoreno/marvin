@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { useIsAdmin } from "./auth";
 import { RepoAdder, RepoList, toApi, type ProjectRepoInfo, type RepoEntry } from "./ProjectRepos";
-import { SettingsPanel } from "./Settings";
 
 export type RoomInfo = { name: string; repo: string; git_url: string | null; branch: string | null; static: boolean; live: boolean; repos: ProjectRepoInfo[] };
 
 /** Projects on this machine, plus a form to create one from one or more repos (your GitHub, a folder here, or a URL). */
-export function RoomPicker({ value, onPick, locked }: { value: string; onPick: (room: string) => void; locked?: boolean }) {
+export function RoomPicker({ value, onPick, locked, onOpenSettings }: {
+  value: string;
+  onPick: (room: string) => void;
+  locked?: boolean;
+  onOpenSettings?: () => void;
+}) {
   const admin = useIsAdmin(); // creating projects (and cloning repos) is admin-only; the token server enforces it
   const [rooms, setRooms] = useState<RoomInfo[] | null>(null);
   const [creating, setCreating] = useState(false);
@@ -14,7 +18,6 @@ export function RoomPicker({ value, onPick, locked }: { value: string; onPick: (
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [entries, setEntries] = useState<RepoEntry[]>([]);
-  const [showSettings, setShowSettings] = useState(false);
 
   const refresh = () => {
     fetch("/api/rooms").then((r) => r.json()).then((j) => setRooms(j.rooms ?? [])).catch(() => setRooms([]));
@@ -73,12 +76,11 @@ export function RoomPicker({ value, onPick, locked }: { value: string; onPick: (
           <label>Project name <input value={name} onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void create(); } }} pattern="[a-z0-9][a-z0-9-]{0,39}" required autoFocus /></label>
           <div className="dim small">Repos in this project. The first is where the agent starts; all are readable and editable. A frontend and its API, a service and its shared library, one repo, or none yet.</div>
           <RepoList entries={entries} onChange={setEntries} />
-          <RepoAdder exclude={entries} onAdd={(e) => setEntries((cur) => [...cur, e])} onConnectGitHub={() => setShowSettings(true)} />
+          <RepoAdder exclude={entries} onAdd={(e) => setEntries((cur) => [...cur, e])} onConnectGitHub={onOpenSettings} />
           <button type="button" onClick={() => void create()} disabled={busy}>{busy ? (entries.some((e) => e.git_url) ? "cloning…" : "creating…") : "create and join"}</button>
           {error && <p className="error">{error}</p>}
         </div>
       )}
-      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

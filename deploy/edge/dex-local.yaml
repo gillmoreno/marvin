@@ -1,0 +1,24 @@
+# Local-only IdP for `make sso-dev`. Not for a machine other people reach.
+issuer: http://127.0.0.1:8088/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+oauth2:
+  skipApprovalScreen: true
+enablePasswordDB: true
+staticPasswords:
+  - email: maria@acme.com
+    hash: "$2y$10$qt909KVwYlemS6kp0hRHlOruPtPeIKqZFy2r4fM.8dlB2GbScllQq"
+    username: maria
+    userID: "11111111-1111-1111-1111-111111111111"
+  - email: alex@acme.com
+    hash: "$2y$10$Na5iNZ9bItOYgAFB0Pe2Mu2R.obOPOSOqXOhDilbR7umR5dT4f.Ey"
+    username: alex
+    userID: "22222222-2222-2222-2222-222222222222"
+staticClients:
+  - id: marvin
+    redirectURIs:
+      - http://127.0.0.1:8088/oauth2/callback
+    name: Marvin
+    secret: marvin-local

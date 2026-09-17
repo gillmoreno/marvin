@@ -25,6 +25,7 @@ deploy/aws/terraform.tfvars
 license-private.pem
 *license-private*
 .oauth2-proxy.env
+.sso-dev/
 
 # ONNX Runtime telemetry droppings (a timestamp + UUID). Also set ORT_DISABLE_TELEMETRY=1 on the worker.
 :memory:.ses

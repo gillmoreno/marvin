@@ -2,13 +2,49 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-17 — Company name under Marvin
+
+### Changed
+- The sidebar is one reusable rail (`Sidebar`) on every page.
+- On an Enterprise machine the company name sits under Marvin, as the gold badge. There is no company line without a license.
+- Collapse is a chevron to the right of Marvin. The company badge sits under Marvin, left-aligned.
+- Projects and Settings keep their labels when the rail is open.
+
+## 2026-09-16 — One sidebar, and projects are pages
+
+### Changed
+- Projects, the room, setup, and Settings share the same sidebar (Marvin, Projects, Settings, who you are).
+- The sidebar can be collapsed to icons. This browser remembers the choice.
+- A project is an address (`/projects/dev`). Settings stays `/settings`. The browser Back button leaves a room the same way it leaves Settings.
+
+## 2026-09-16 — Enterprise mark and Back from Settings
+
+### Added
+- A licensed machine shows a gold company badge next to Marvin (projects rail, setup, the room, and Settings).
+- Settings is a real address (`/settings`, `/settings/github`, …). The browser Back button, and a Back link in the header, leave it the way a page would.
+
+## 2026-09-16 — Settings is a guided Sign-in page
+
+### Changed
+- The projects rail has one **Settings** item. Sessions live inside that page, not as a second button that opened the same place.
+- Settings is one pane at a time, with a dark rail: Sign-in, GitHub, coding agents, sessions,
+  audit, Enterprise, this machine.
+- Sign-in walks through the identity provider (Entra, Okta, Google, GitHub, Keycloak, or a
+  local test login): the clicks, the redirect URL to copy, then issuer / client / secret.
+- Admins can open Settings from the setup page, so company sign-in and the license are
+  reachable before the machine is ready.
+- `make sso-dev` puts Dex + Caddy on `http://127.0.0.1:8088` in front of the host Vite / token
+  loop so SSO can be tried without a real tenant. `maria@acme.com` / `maria` is admin;
+  `alex@acme.com` / `alex` is a participant.
+
 ## 2026-09-16 — Setup is a hard gate
 
 ### Changed
 - A fresh machine is a dedicated setup page until it has a shared GitHub account and at least
-  one coding agent. Projects, sessions, and settings stay hidden. Participants see a waiting
-  page. After both connections exist, the projects workspace comes back with those two as
-  quiet status; personal GitHub stays optional.
+  one coding agent. Projects and sessions stay hidden. Admins can still open Settings to
+  connect company sign-in or paste a license. Participants see a waiting page. After both
+  connections exist, the projects workspace comes back with those two as quiet status;
+  personal GitHub stays optional.
 - **Create a GitHub App** on that setup page accepts the Enterprise license there, so you do
   not need Machine settings first.
 - **Paste a token** walks through creating a fine-grained GitHub PAT: the exact page, which

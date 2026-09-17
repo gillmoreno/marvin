@@ -1,0 +1,61 @@
+# Local SSO in front of the host Vite + token loop. Not the appliance.
+#   make sso-dev
+# Then open http://127.0.0.1:8088
+#   maria@acme.com / maria   (admin)
+#   alex@acme.com  / alex    (participant)
+#
+# Token must be header mode on :8081:
+#   MARVIN_AUTH=header MARVIN_ADMIN_USERS=maria@acme.com MARVIN_TOKEN_PORT=8081
+# Vite stays on http://127.0.0.1:5174 (behind Caddy). Do not sign in on :5174.
+
+services:
+  caddy:
+    image: caddy:2.10
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./deploy/edge/Caddyfile.sso-dev:/etc/caddy/Caddyfile:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on: [dex, oauth2-proxy]
+    restart: unless-stopped
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.42.1
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    volumes:
+      - ./deploy/edge/dex-local.yaml:/etc/dex/config.yaml:ro
+    restart: unless-stopped
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.8.1
+    environment:
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_OIDC_ISSUER_URL: http://127.0.0.1:8088/dex
+      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "true"
+      OAUTH2_PROXY_LOGIN_URL: http://127.0.0.1:8088/dex/auth
+      OAUTH2_PROXY_REDEEM_URL: http://dex:5556/dex/token
+      OAUTH2_PROXY_OIDC_JWKS_URL: http://dex:5556/dex/keys
+      OAUTH2_PROXY_PROFILE_URL: http://dex:5556/dex/userinfo
+      OAUTH2_PROXY_VALIDATE_URL: http://dex:5556/dex/userinfo
+      OAUTH2_PROXY_CLIENT_ID: marvin
+      OAUTH2_PROXY_CLIENT_SECRET: marvin-local
+      OAUTH2_PROXY_REDIRECT_URL: http://127.0.0.1:8088/oauth2/callback
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+      OAUTH2_PROXY_UPSTREAMS: static://202
+      OAUTH2_PROXY_COOKIE_SECURE: "false"
+      OAUTH2_PROXY_COOKIE_SECRET: "0123456789abcdef0123456789abcdef"
+      OAUTH2_PROXY_WHITELIST_DOMAINS: 127.0.0.1:8088
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_USER_ID_CLAIM: email
+      OAUTH2_PROXY_INSECURE_OIDC_ALLOW_UNVERIFIED_EMAIL: "true"
+      OAUTH2_PROXY_SCOPE: openid email profile
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
+      OAUTH2_PROXY_APPROVAL_PROMPT: auto
+      OAUTH2_PROXY_PREFER_EMAIL_TO_USER: "true"
+    extra_hosts:
+      - "127.0.0.1:host-gateway"
+    depends_on: [dex]
+    restart: unless-stopped

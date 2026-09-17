@@ -161,6 +161,20 @@ this file is the "why we did it this way" layer on top.
 ## 2026-09-16
 
 - **Required setup is its own page.** The two required connections (machine GitHub, then a coding agent)
-  are a hard gate, not a locked projects rail. Until both exist, nobody sees Projects, Sessions, or
-  Settings. Participants get a waiting page. Personal GitHub stays optional and only appears after the
-  machine is ready. Write-up: `github.md`.
+  are a hard gate, not a locked projects rail. Until both exist, nobody sees Projects or Sessions.
+  Admins can open Settings from that page (license, company sign-in). Participants get a waiting page.
+  Personal GitHub stays optional and only appears after the machine is ready. Write-up: `github.md`.
+- **Local SSO is a thin edge in front of the host loop.** Dex + Caddy + oauth2-proxy on
+  `http://127.0.0.1:8088` (`make sso-dev`), token server `MARVIN_AUTH=header`. Caddy proxies `/api` to
+  the token port so identity headers are not dropped by Vite. Not the appliance compose. Settings →
+  Sign-in is a provider-guided form (including a Local test chip) instead of a flat field dump.
+- **Settings is history, not a trap overlay.** People reach for the browser Back button (“turn back
+  the page”). Opening Settings `pushState`s `/settings` or `/settings/<pane>`; changing panes
+  `replaceState`s so Back leaves Settings entirely. A Back link in the header does the same.
+  Licensed machines show a gold company badge (from `GET /api/license`, which any signed-in user
+  may read) so Enterprise is visible without opening Settings.
+- **One shell, history for every page.** The projects rail is the product chrome (`web/src/shell`):
+  one `Sidebar` — Brand (Marvin, company badge under it when licensed, chevron to the right of Marvin),
+  Projects, Settings, profile. The room no longer has a second sidebar. Addresses:
+  `/projects`, `/projects/<name>`, `/settings`, `/settings/<pane>`. Opening a project
+  `pushState`s; Back (or Projects) leaves it. Settings is the same main column, not an overlay.

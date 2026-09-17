@@ -48,6 +48,21 @@ export function LicensePaste({ onValid }: { onValid?: (info: LicenseInfo) => voi
   );
 }
 
+/** Whether this machine has a valid Enterprise license. Safe for anyone signed in (GET /api/license). */
+export function useEnterprise() {
+  const [info, setInfo] = useState<{ ee: boolean; company: string | null } | null>(null);
+  useEffect(() => {
+    fetch("/api/license")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const body = await response.json() as LicenseInfo;
+        setInfo({ ee: Boolean(body.ee || body.valid), company: body.company });
+      })
+      .catch(() => {});
+  }, []);
+  return info;
+}
+
 export function LicenseSection() {
   const admin = useIsAdmin();
   const [info, setInfo] = useState<LicenseInfo | null>(null);
@@ -64,6 +79,7 @@ export function LicenseSection() {
       .catch((cause) => setErr(String(cause instanceof Error ? cause.message : cause)));
   useEffect(() => { if (admin) void load(); }, [admin]);
   if (!admin) return null;
+  if (!info && !err) return <section><h3>Enterprise</h3><p className="small">checking…</p></section>;
   const clear = async () => {
     if (!confirm("Remove the license key from this machine? Enterprise features turn off. The free core stays.")) return;
     setBusy(true);

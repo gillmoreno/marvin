@@ -4,8 +4,8 @@ Marvin commits, pushes and opens pull requests on behalf of the people in the ro
 **Marvin login** (email, or SSO). GitHub is how the *machine* talks to repos, not how a person proves who they are.
 
 Until the two required connections exist, Marvin is a dedicated setup page — not a locked projects list.
-Projects, sessions, and machine settings stay hidden. Personal GitHub appears only after the machine is ready,
-and never blocks Join.
+Projects and sessions stay hidden. Admins can still open Settings (company sign-in, license). Personal
+GitHub appears only after the machine is ready, and never blocks Join.
 
 | Step | Who | Required? |
 |---|---|---|
@@ -26,7 +26,8 @@ a pasted PAT, or `GITHUB_TOKEN`.
 3. **Your GitHub** is skippable and only shows on the ready projects page. Alex with no GitHub joins. A
    programmer who wants the author line to be theirs connects (device flow, or **paste a token**). Disconnect
    returns their turns to the machine account.
-4. Settings → GitHub and Settings → Coding agents are how you change those later, not the first-run surface.
+4. Settings → GitHub and Settings → Coding agents are how you change those later. Admins can open Settings
+   from the setup rail for company sign-in or a license.
 
 `GET /api/setup` is what the setup page polls: `ready` is true only when the machine GitHub and a coding agent
 are set. Personal GitHub is reported and ignored for `ready`.

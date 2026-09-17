@@ -125,10 +125,11 @@ Without `MARVIN_DOMAIN`, Caddy serves `:443` with an internal CA (browser warnin
 ### Single sign-on (`make edge-oidc-up`)
 
 Adds `oauth2-proxy` (profile `oidc`) and switches to `deploy/edge/Caddyfile.oidc` and `MARVIN_AUTH=header`.
-Usual place for the issuer, client id/secret and cookie secret: Settings → **Sign-in and notice**
-(Enterprise). That writes `.oauth2-proxy.env` (mode 0600, gitignored) next to the checkout.
+Usual place for the issuer, client id/secret and cookie secret: Settings → **Sign-in**.
+Pick the provider; the page lists the clicks and the redirect URL to paste. That writes
+`.oauth2-proxy.env` (mode 0600, gitignored) next to the checkout.
 `make edge-oidc-up` seeds the file from `.env` only if it does not exist yet. Register the
-redirect URL `https://<MARVIN_DOMAIN>/oauth2/callback` at the provider.
+redirect URL `https://<MARVIN_DOMAIN>/oauth2/callback` at the provider (Settings copies it).
 
 Provider notes (details in the [oauth2-proxy provider docs](https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/)):
 
@@ -143,7 +144,7 @@ Provider notes (details in the [oauth2-proxy provider docs](https://oauth2-proxy
   configuration → add **groups** claim (security groups; object ids). Issuer
   `https://login.microsoftonline.com/<tenant-id>/v2.0`. Paste issuer, client id and secret
   in Settings. Admin groups in Marvin are those object ids (or `MARVIN_ADMIN_GROUPS`).
-- **GitHub**: `OAUTH2_PROXY_PROVIDER=github` with `OAUTH2_PROXY_GITHUB_ORG`/`_TEAM`; teams arrive as groups.
+- **GitHub**: pick GitHub on Settings → Sign-in (`OAUTH2_PROXY_PROVIDER=github`). Teams arrive as groups.
 - **Keycloak / Authentik / Zitadel**: standard OIDC; make sure the `groups` scope/claim is mapped.
 
 ### Kubernetes
@@ -158,6 +159,22 @@ NetworkPolicy. Without SSO, use `MARVIN_AUTH=password` with the passwords in the
 Four terminals, `MARVIN_AUTH=none` (the default in `.env.example`), everything on localhost. To exercise roles
 locally, set `MARVIN_AUTH=password`, `MARVIN_ROOM_PASSWORD`, `MARVIN_ADMIN_PASSWORD` in `.env`, restart the token
 server only (`make token`), and log in twice from two browser profiles.
+
+### Local single sign-on (`make sso-dev`)
+
+A fake company login in front of the host Vite + token loop. Dex is the IdP; Caddy + oauth2-proxy sit on
+`http://127.0.0.1:8088`. This is not the appliance (`make edge-oidc-up`).
+
+1. Keep Vite on `http://127.0.0.1:5174` and the worker as usual.
+2. Restart the token server in header mode: `make token-sso` (port 8081, `MARVIN_ADMIN_USERS=maria@acme.com`).
+3. `make sso-dev` (Docker Compose when the daemon is up; otherwise Dex, Caddy, and oauth2-proxy
+   run on the host).
+4. Open **http://127.0.0.1:8088** — not :5174. Caddy sends `/api` to the token server so identity headers survive.
+5. Sign in as `maria@acme.com` / `maria` (admin) or `alex@acme.com` / `alex` (participant).
+
+Settings → Sign-in → **Local test** fills the issuer and secret. Saving still needs an Enterprise license (the
+compose file already has the Dex client, so a save is optional for this laptop loop). `make sso-dev-down` stops
+Dex and Caddy; put the token server back on `MARVIN_AUTH=none` for the unsigned-in four-terminal loop.
 
 ## Still open
 

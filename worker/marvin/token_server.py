@@ -45,7 +45,7 @@ PROXIED = (
     "/api/github/app/callback",
     "/api/github/app/install",
 )
-ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config", "/api/github/machine", "/api/github/app", "/api/harness-creds", "/api/update", "/api/license", "/api/access", "/api/export")
+ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config", "/api/github/machine", "/api/github/app", "/api/harness-creds", "/api/update", "/api/access", "/api/export")
 # Self-service: every signed-in user may write here, because it only touches their own record (keyed by X-Marvin-User).
 SELF_SERVICE_PREFIXES = ("/api/github/",)
 

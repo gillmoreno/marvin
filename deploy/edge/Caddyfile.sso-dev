@@ -1,0 +1,59 @@
+# Local SSO in front of the four-terminal Vite loop. `make sso-dev`.
+# Browser → :8088 → oauth2-proxy / Dex; /api goes to the host token server, the UI to Vite.
+
+{
+	admin off
+}
+
+http://127.0.0.1:8088 {
+	request_header -X-Forwarded-User
+	request_header -X-Forwarded-Email
+	request_header -X-Forwarded-Preferred-Username
+	request_header -X-Forwarded-Groups
+
+	handle /dex* {
+		reverse_proxy dex:5556
+	}
+
+	handle /oauth2/* {
+		reverse_proxy oauth2-proxy:4180 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	handle /api* {
+		forward_auth oauth2-proxy:4180 {
+			uri /oauth2/auth
+			header_up X-Real-IP {remote_host}
+			copy_headers {
+				X-Auth-Request-User>X-Forwarded-User
+				X-Auth-Request-Email>X-Forwarded-Email
+				X-Auth-Request-Preferred-Username>X-Forwarded-Preferred-Username
+				X-Auth-Request-Groups>X-Forwarded-Groups
+			}
+			@unauthorized status 401
+			handle_response @unauthorized {
+				redir * /oauth2/start?rd={scheme}://{http.request.hostport}{uri} 302
+			}
+		}
+		reverse_proxy host.docker.internal:8081
+	}
+
+	handle {
+		forward_auth oauth2-proxy:4180 {
+			uri /oauth2/auth
+			header_up X-Real-IP {remote_host}
+			copy_headers {
+				X-Auth-Request-User>X-Forwarded-User
+				X-Auth-Request-Email>X-Forwarded-Email
+				X-Auth-Request-Preferred-Username>X-Forwarded-Preferred-Username
+				X-Auth-Request-Groups>X-Forwarded-Groups
+			}
+			@unauthorized status 401
+			handle_response @unauthorized {
+				redir * /oauth2/start?rd={scheme}://{http.request.hostport}{uri} 302
+			}
+		}
+		reverse_proxy host.docker.internal:5174
+	}
+}

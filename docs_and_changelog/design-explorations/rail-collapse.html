@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Marvin · five ways to collapse the sidebar</title>
+<style>
+  :root {
+    --rail: #191d20;
+    --rail-line: #080a0c;
+    --rail-dim: #8e969d;
+    --rail-on: #282e32;
+    --gold: #f0ad3e;
+    --ink: #1d2227;
+    --paper: #eef0f1;
+    --white: #fff;
+    --line: #d9dadd;
+    --dim: #697078;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background: #d8dbde;
+    font: 14px/1.45 "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+  }
+  .page { padding: 28px 24px 48px; }
+  .page > h1 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
+  .page > p { margin: 6px 0 22px; color: var(--dim); max-width: 62em; }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  @media (max-width: 1400px) {
+    .row { display: flex; overflow-x: auto; padding-bottom: 8px; }
+    .card { flex: 0 0 300px; }
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #c9cccf;
+    border-radius: 12px;
+    box-shadow: 0 1px 1px rgba(20,30,35,.04), 0 8px 24px rgba(20,30,35,.05);
+  }
+  .card > header { padding: 14px 14px 12px; border-bottom: 1px solid var(--line); }
+  .card > header b { display: block; font-size: 13px; }
+  .card > header span { display: block; margin-top: 4px; color: var(--dim); font-size: 11px; line-height: 1.4; }
+  .stage {
+    position: relative;
+    height: 420px;
+    overflow: hidden;
+    background: var(--paper);
+    border-radius: 0 0 12px 12px;
+  }
+
+  .mini { display: grid; grid-template-columns: 132px minmax(0, 1fr); height: 100%; }
+  .mini.is-icons { grid-template-columns: 44px minmax(0, 1fr); }
+  .mini.is-gone { grid-template-columns: 0 minmax(0, 1fr); }
+  .mini.is-overlay { grid-template-columns: minmax(0, 1fr); }
+
+  .rail {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    color: #f5f3ee;
+    background: var(--rail);
+    border-right: 1px solid var(--rail-line);
+    overflow: hidden;
+  }
+  .brand { display: flex; align-items: center; gap: 7px; margin: 14px 10px 0; font-size: 12px; letter-spacing: .08em; white-space: nowrap; }
+  .mark {
+    width: 16px; height: 16px; flex: none;
+    border: 1px solid rgba(240,173,62,.5); border-radius: 50%;
+    box-shadow: inset 0 0 0 4px var(--rail), inset 0 0 0 7px var(--gold);
+  }
+  .brand em {
+    display: inline-flex; height: 14px; padding: 0 5px; align-items: center;
+    color: #1c160d; background: linear-gradient(180deg, #f6c56a, #e9a83e);
+    border-radius: 999px; font-size: 7px; font-style: normal; font-weight: 750; letter-spacing: .06em;
+  }
+  .rail nav { display: flex; flex-direction: column; gap: 3px; margin: 22px 8px 0; }
+  .rail nav a {
+    display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0 8px;
+    color: var(--rail-dim); border-radius: 6px; font-size: 11px; text-decoration: none; white-space: nowrap;
+  }
+  .rail nav a.on { color: #fff; background: var(--rail-on); }
+  .rail nav svg { width: 13px; height: 13px; flex: none; }
+  .who {
+    display: grid; grid-template-columns: auto 1fr; gap: 7px; align-items: center;
+    margin-top: auto; padding: 10px 10px 0; border-top: 1px solid rgba(255,255,255,.09);
+  }
+  .ava { width: 20px; height: 20px; display: grid; place-items: center; color: #1c160d; background: var(--gold); border-radius: 50%; font-size: 7px; font-weight: 800; }
+  .who small { display: block; color: #858c92; font-size: 8px; }
+  .who b { font-size: 10px; }
+
+  .work { min-width: 0; padding: 16px 14px; }
+  .work i { display: block; color: #278b5d; font-size: 9px; font-style: normal; font-weight: 650; }
+  .work h2 { margin: 2px 0 10px; font-size: 18px; letter-spacing: -.03em; }
+  .proj { height: 44px; padding: 10px 10px 0; background: #fff; border: 1px solid #d5d7d9; border-radius: 8px; font-size: 11px; }
+  .proj b { display: block; }
+  .proj span { color: var(--dim); font-size: 9px; }
+
+  .mini.is-icons .brand b, .mini.is-icons .brand em, .mini.is-icons .rail-label,
+  .mini.is-icons .who div, .mini.is-icons .bottom-toggle .rail-label { display: none; }
+  .mini.is-icons .brand, .mini.is-icons .who, .mini.is-icons nav a, .mini.is-icons .bottom-toggle { justify-content: center; padding-left: 0; padding-right: 0; }
+  .mini.is-icons nav { margin-left: 4px; margin-right: 4px; }
+  .mini.is-icons nav a { width: 28px; margin: 0 auto; padding: 0; }
+
+  .bottom-toggle {
+    display: flex; align-items: center; gap: 8px; width: calc(100% - 16px); min-height: 28px;
+    margin: 8px 8px 10px; padding: 0 8px; color: var(--rail-dim); background: transparent;
+    border: 0; border-radius: 6px; font: inherit; font-size: 11px; cursor: pointer;
+  }
+  .bottom-toggle:hover { color: #fff; }
+
+  .seam, .edge { display: none; }
+  .kind-seam .seam {
+    display: grid; place-items: center;
+    position: absolute; top: 50%; left: 132px; z-index: 3;
+    width: 16px; height: 36px; margin-top: -18px; margin-left: -8px;
+    color: var(--rail-dim); background: var(--rail); border: 1px solid #3a4044; border-radius: 8px;
+    cursor: pointer;
+  }
+  .kind-seam .mini.is-icons .seam { left: 44px; }
+  .kind-seam .seam:hover { color: #fff; }
+  .kind-seam .bottom-toggle { display: none; }
+
+  .kind-gone .edge {
+    display: block;
+    position: absolute; inset: 0 auto 0 0; z-index: 2; width: 10px;
+    background: var(--rail); cursor: pointer;
+  }
+  .edge:hover { background: #2a3034; }
+  .kind-gone .mini.is-gone .rail { display: none; }
+  .header-show {
+    display: none; margin: 0 0 10px; padding: 0; color: var(--ink); background: transparent;
+    border: 0; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer;
+  }
+  .kind-gone .mini.is-gone .header-show { display: inline-flex; align-items: center; gap: 6px; }
+
+  .kind-hover .hint { position: absolute; right: 10px; top: 10px; color: var(--dim); font-size: 10px; }
+  .pin {
+    display: none; margin: 8px 8px 10px; padding: 0; color: var(--rail-dim); background: transparent;
+    border: 0; font: inherit; font-size: 10px; cursor: pointer;
+  }
+  .kind-hover .pin { display: block; text-align: center; }
+  .mini.is-pinned .pin { color: var(--gold); }
+
+  .burger {
+    display: none; width: 26px; height: 26px; margin-bottom: 10px; color: var(--ink);
+    background: #fff; border: 1px solid var(--line); border-radius: 6px; cursor: pointer;
+  }
+  .kind-overlay .burger { display: grid; place-items: center; }
+  .kind-overlay .rail {
+    position: absolute; inset: 0 auto 0 0; z-index: 4; width: 132px;
+    transform: translateX(-105%); box-shadow: 12px 0 28px rgba(0,0,0,.18);
+  }
+  .kind-overlay .mini.is-open .rail { transform: translateX(0); }
+  .scrim { display: none; position: absolute; inset: 0; z-index: 3; background: rgba(15,18,20,.28); }
+  .kind-overlay .mini.is-open .scrim { display: block; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mini { transition: grid-template-columns .2s ease; }
+    .kind-overlay .rail { transition: transform .2s ease; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Five ways to collapse the sidebar</h1>
+  <p>Same Marvin rail in each. Click around. Nothing here is wired to the app — pick the one that feels right, or name the mix.</p>
+  <div class="row">
+
+    <section class="card kind-bottom">
+      <header>
+        <b>1 · Bottom control</b>
+        <span>What you have now. “Collapse” sits under your name. The rail shrinks to icons.</span>
+      </header>
+      <div class="stage" data-kind="bottom"></div>
+    </section>
+
+    <section class="card kind-seam">
+      <header>
+        <b>2 · Seam tab</b>
+        <span>A chevron on the join between rail and page. The control lives on the edge, not in the menu.</span>
+      </header>
+      <div class="stage" data-kind="seam"></div>
+    </section>
+
+    <section class="card kind-gone">
+      <header>
+        <b>3 · Hide completely</b>
+        <span>The rail leaves. A thin dark edge, or “Show sidebar” in the page, brings it back.</span>
+      </header>
+      <div class="stage" data-kind="gone"></div>
+    </section>
+
+    <section class="card kind-hover">
+      <header>
+        <b>4 · Hover to open</b>
+        <span>Stays as icons. Hover expands it. Pin keeps it open so it stops collapsing when you leave.</span>
+      </header>
+      <div class="stage" data-kind="hover"></div>
+    </section>
+
+    <section class="card kind-overlay">
+      <header>
+        <b>5 · Overlay drawer</b>
+        <span>The page is always full width. A menu button slides the rail over the work, then it goes away.</span>
+      </header>
+      <div class="stage" data-kind="overlay"></div>
+    </section>
+
+  </div>
+</div>
+
+<template id="mini-tpl">
+  <div class="mini">
+    <aside class="rail">
+      <div class="brand"><i class="mark"></i><b>Marvin</b><em>ACME.COM</em></div>
+      <nav>
+        <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg><span class="rail-label">Projects</span></a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.5 1A8 8 0 0 0 15 6l-.4-2.6h-4L10 6a8 8 0 0 0-1.5 1L6 6 4 9.4 6 11a7 7 0 0 0 0 2l-2 1.6L6 18l2.5-1A8 8 0 0 0 10 18l.5 2.6h4L15 18a8 8 0 0 0 1.5-1l2.5 1 2-3.4-2-1.6a7 7 0 0 0 0-1Z"/></svg><span class="rail-label">Settings</span></a>
+      </nav>
+      <div class="who"><span class="ava">MA</span><div><b>maria</b><small>Administrator</small></div></div>
+      <button type="button" class="bottom-toggle" data-act="toggle"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 6 9 12l6 6"/></svg><span class="rail-label">Collapse</span></button>
+      <button type="button" class="pin" data-act="pin">Pin open</button>
+    </aside>
+    <button type="button" class="seam" data-act="toggle" aria-label="Collapse sidebar"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 6 9 12l6 6"/></svg></button>
+    <button type="button" class="edge" data-act="toggle" aria-label="Show sidebar" hidden></button>
+    <div class="scrim" data-act="close"></div>
+    <div class="work">
+      <button type="button" class="burger" data-act="toggle" aria-label="Open sidebar">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 8h14M5 12h14M5 16h14"/></svg>
+      </button>
+      <button type="button" class="header-show" data-act="toggle">Show sidebar</button>
+      <i>Marvin is ready</i>
+      <h2>Projects</h2>
+      <div class="proj"><b>dev</b><span>marvin</span></div>
+    </div>
+  </div>
+</template>
+
+<script>
+  const tpl = document.getElementById("mini-tpl");
+
+  function setOpen(mini, kind, open, pinned) {
+    mini.classList.toggle("is-icons", kind !== "gone" && kind !== "overlay" && !open);
+    mini.classList.toggle("is-gone", kind === "gone" && !open);
+    mini.classList.toggle("is-open", kind === "overlay" && open);
+    mini.classList.toggle("is-pinned", Boolean(pinned));
+    const edge = mini.querySelector(".edge");
+    const seam = mini.querySelector(".seam");
+    const bottom = mini.querySelector(".bottom-toggle");
+    const label = bottom.querySelector(".rail-label");
+    const chev = (el, left) => { el.querySelector("path").setAttribute("d", left ? "M15 6 9 12l6 6" : "m9 6 6 6-6 6"); };
+    if (kind === "gone") {
+      edge.hidden = open;
+      label.textContent = open ? "Hide" : "Show sidebar";
+    } else if (kind === "overlay") {
+      edge.hidden = true;
+      label.textContent = "Close";
+    } else {
+      edge.hidden = true;
+      label.textContent = open ? "Collapse" : "Expand";
+      chev(bottom, open);
+      chev(seam, open);
+    }
+    mini.querySelector(".pin").textContent = pinned ? "Pinned" : "Pin open";
+  }
+
+  for (const stage of document.querySelectorAll(".stage")) {
+    const kind = stage.dataset.kind;
+    stage.append(tpl.content.cloneNode(true));
+    const mini = stage.querySelector(".mini");
+    let open = kind !== "hover" && kind !== "overlay";
+    let pinned = false;
+    setOpen(mini, kind, open, pinned);
+
+    const toggle = () => {
+      open = !open;
+      if (!open) pinned = false;
+      setOpen(mini, kind, open, pinned);
+    };
+
+    stage.addEventListener("click", (event) => {
+      const act = event.target.closest("[data-act]")?.dataset.act;
+      if (act === "toggle") toggle();
+      if (act === "close") { open = false; setOpen(mini, kind, open, pinned); }
+      if (act === "pin") {
+        pinned = !pinned;
+        open = true;
+        setOpen(mini, kind, open, pinned);
+      }
+    });
+
+    if (kind === "hover") {
+      mini.addEventListener("mouseenter", () => { open = true; setOpen(mini, kind, open, pinned); });
+      mini.addEventListener("mouseleave", () => {
+        if (pinned) return;
+        open = false;
+        setOpen(mini, kind, open, pinned);
+      });
+    }
+  }
+</script>
+</body>
+</html>

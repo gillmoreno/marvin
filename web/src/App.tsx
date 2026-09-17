@@ -6,13 +6,15 @@ import { Transcript } from "./Transcript";
 import { useMarvin } from "./useMarvin";
 import { JoinGate } from "./JoinGate";
 import { Workspace } from "./Workspace";
-import { SettingsPanel } from "./Settings";
+import { SettingsPage } from "./Settings";
 import { agent, loadAgentName } from "./agent";
 import { RoomAndMachine, useRoomInfo } from "./RoomSettings";
 import { Gutter, useColumns } from "./Columns";
-import { SlidersIcon } from "./icons";
 import { MeContext, fetchMe, login, type Me } from "./auth";
 import { MobileRoom, useIsMobile } from "./Mobile";
+import { useEnterprise } from "./License";
+import { useAppNav } from "./nav";
+import { AppNavProvider, AppShell, useProfile } from "./shell";
 
 type Join = { serverUrl: string; token: string; room: string; relayOnly: boolean };
 
@@ -38,44 +40,92 @@ export default function App() {
 
 function Shell() {
   const [me, setMe] = useState<Me | null>(null); // null until /api/me answered
-  const [join, setJoin] = useState<Join | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [deviceError, setDeviceError] = useState<string | null>(null);
   useEffect(() => { void fetchMe().then(setMe); }, []);
   if (!me) return <div className="join"><p className="hint">loading…</p></div>;
-  const ctx = { me, setMe };
-  if (!join) {
-    const onJoin = (room: string, name: string | null) =>
-      fetchToken(room, name)
-        .then((j) => { setError(null); setJoin(j); })
-        .catch((e) => {
-          setError(String(e instanceof Error ? e.message : e));
-          if (e instanceof Unauthorized) setMe({ ...me, identity: null }); // back to the login screen
-        });
+  return (
+    <MeContext.Provider value={{ me, setMe }}>
+      <JoinOrRoom me={me} setMe={setMe} />
+    </MeContext.Provider>
+  );
+}
+
+function JoinOrRoom({ me, setMe }: { me: Me; setMe: (m: Me) => void }) {
+  const [name, setName] = useState(localStorage.getItem("marvin.name") ?? "");
+  const [agentName, setAgentName] = useState(agent.name);
+  const [join, setJoin] = useState<Join | null>(null);
+  useEffect(() => { void loadAgentName().then(setAgentName); }, []);
+  if (me.auth === "password" && !me.identity) return <LoginScreen agentName={agentName} onLogin={setMe} notice={null} />;
+  if (me.auth === "header" && !me.identity) return <SsoRequiredScreen />;
+  return (
+    <AppNavProvider hasRoom={Boolean(join)}>
+      <SignedIn me={me} setMe={setMe} name={name} setName={setName} agentName={agentName} join={join} setJoin={setJoin} />
+    </AppNavProvider>
+  );
+}
+
+function SignedIn({ me, setMe, name, setName, agentName, join, setJoin }: {
+  me: Me;
+  setMe: (m: Me) => void;
+  name: string;
+  setName: (name: string) => void;
+  agentName: string;
+  join: Join | null;
+  setJoin: (join: Join | null) => void;
+}) {
+  const nav = useAppNav();
+  const [error, setError] = useState<string | null>(null);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (nav.page === "projects") {
+      setJoin(null);
+      return;
+    }
+    if (nav.page !== "room" || !nav.room) return;
+    if (join?.room === nav.room) return;
+    let cancelled = false;
+    fetchToken(nav.room, me.auth === "none" ? name : null)
+      .then((next) => { if (!cancelled) { setError(null); setJoin(next); } })
+      .catch((cause) => {
+        if (cancelled) return;
+        setError(String(cause instanceof Error ? cause.message : cause));
+        setJoin(null);
+        if (cause instanceof Unauthorized) setMe({ ...me, identity: null });
+        nav.goProjects();
+      });
+    return () => { cancelled = true; };
+  }, [nav.page, nav.room, me.auth, name]);
+
+  if (join && (nav.page === "room" || nav.page === "settings")) {
     return (
-      <MeContext.Provider value={ctx}>
-        <JoinScreen onJoin={onJoin} error={error} />
-      </MeContext.Provider>
+      <LiveKitRoom
+        serverUrl={join.serverUrl}
+        token={join.token}
+        connect
+        audio
+        video={false}
+        connectOptions={join.relayOnly ? { rtcConfig: { iceTransportPolicy: "relay" } } : undefined}
+        onDisconnected={() => {
+          setJoin(null);
+          if (nav.page === "room") nav.goProjects();
+        }}
+        onMediaDeviceFailure={(failure) => setDeviceError(failure ? deviceHint("microphone", String(failure)) : null)}
+      >
+        <Room roomName={join.room} deviceError={deviceError} setDeviceError={setDeviceError} />
+        <RoomAudioRenderer />
+      </LiveKitRoom>
     );
   }
+
   return (
-    <MeContext.Provider value={ctx}>
-    <LiveKitRoom
-      serverUrl={join.serverUrl}
-      token={join.token}
-      connect
-      audio
-      video={false}
-      // Behind a VPN/firewall that only allows hostnames, just LiveKit's TURN hostname is reachable: skip the unroutable direct candidates.
-      connectOptions={join.relayOnly ? { rtcConfig: { iceTransportPolicy: "relay" } } : undefined}
-      onDisconnected={() => setJoin(null)}
-      // The `audio` prop asks for the mic at join; a denied prompt or a site-level block lands here, not in the toggle.
-      onMediaDeviceFailure={(failure) => setDeviceError(failure ? deviceHint("microphone", String(failure)) : null)}
-    >
-      <Room roomName={join.room} deviceError={deviceError} setDeviceError={setDeviceError} />
-      <RoomAudioRenderer />
-    </LiveKitRoom>
-    </MeContext.Provider>
+    <JoinGate
+      onJoin={(room) => nav.openProject(room)}
+      error={error}
+      needsName={me.auth === "none"}
+      name={name}
+      setName={setName}
+      agentName={agentName}
+    />
   );
 }
 
@@ -88,68 +138,87 @@ function deviceHint(source: string, reason: string): string {
 }
 
 function Room({ roomName, deviceError, setDeviceError }: { roomName: string; deviceError: string | null; setDeviceError: (s: string | null) => void }) {
+  const nav = useAppNav();
   const marvin = useMarvin();
   const columns = useColumns();
+  const ee = useEnterprise();
+  const profile = useProfile();
   const [side, setSide] = useState<"marvin" | "transcript">("transcript"); // the live transcript is the default view
   const [wanted, setWanted] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
   const roomInfoForSettings = useRoomInfo(roomName, 0);
   const last = marvin.turns[marvin.turns.length - 1];
   const refreshKey = marvin.turns.length * 2 + (last?.result ? 1 : 0); // re-read git when a turn starts and when it ends
   const mobile = useIsMobile();
   const repos = roomInfoForSettings.info?.repos ?? [];
-  const settings = showSettings && <SettingsPanel room={roomName} onClose={() => setShowSettings(false)} extra={<RoomAndMachine room={roomName} info={roomInfoForSettings.info} reload={roomInfoForSettings.reload} />} />;
+  const settings = (
+    <SettingsPage
+      room={roomName}
+      pane={nav.settingsPane}
+      onPane={nav.setSettingsPane}
+      extra={<RoomAndMachine room={roomName} info={roomInfoForSettings.info} reload={roomInfoForSettings.reload} />}
+    />
+  );
+
   if (mobile) {
     return (
-      <div className="layout" data-state={marvin.state} data-mobile="">
-        <MobileRoom roomName={roomName} marvin={marvin} repos={repos} refreshKey={refreshKey} onSettings={() => setShowSettings(true)} />
-        {deviceError && <p className="error devhint">{deviceError}</p>}
-        {settings}
-      </div>
+      <AppShell ee={ee} section={nav.page === "settings" ? "settings" : "projects"} profile={profile} onProjects={nav.goProjects} onSettings={() => nav.openSettings()} room={nav.page === "room"}>
+        {nav.page === "settings" ? settings : (
+          <div className="layout" data-state={marvin.state} data-mobile="">
+            <MobileRoom roomName={roomName} marvin={marvin} repos={repos} refreshKey={refreshKey} onSettings={() => nav.openSettings()} />
+            {deviceError && <p className="error devhint">{deviceError}</p>}
+          </div>
+        )}
+      </AppShell>
     );
   }
+
+  if (nav.page === "settings") {
+    return (
+      <AppShell ee={ee} section="settings" profile={profile} onProjects={nav.goProjects} onSettings={() => nav.openSettings()}>
+        {settings}
+      </AppShell>
+    );
+  }
+
   return (
-    <div className="layout" data-state={marvin.state} style={columns.style}>
-      <aside className="left">
-        <div className="left-head">
-          <h1>{agent.name} <span className="room">#{roomName}</span></h1>
-        </div>
-        <div className="left-body">
-          <People agentState={marvin.state} />
-          <AppLinks links={marvin.appLinks} onOpen={setWanted} />
-        </div>
-        {deviceError && <p className="error devhint">{deviceError}</p>}
-        <StartAudio label="Click to hear the room" />
-        <div className="left-foot">
-          <button type="button" className="settings-btn" onClick={() => setShowSettings(true)} aria-label="settings" title="settings"><SlidersIcon /></button>
+    <AppShell ee={ee} section="projects" profile={profile} onProjects={nav.goProjects} onSettings={() => nav.openSettings()} room>
+      <div className="room-workspace" data-state={marvin.state}>
+        <header className="room-bar">
+          <b>#{roomName}</b>
+          {deviceError && <p className="error devhint">{deviceError}</p>}
+          <StartAudio label="Click to hear the room" />
           <span className="sp" />
-          <ControlBar
-            variation="minimal"
-            controls={{ microphone: true, camera: false, screenShare: true, leave: true, chat: false }}
-            onDeviceError={({ source, error }) => setDeviceError(deviceHint(source, `${error.name} ${error.message}`))}
-          />
+          <div className="room-controls">
+            <ControlBar
+              variation="minimal"
+              controls={{ microphone: true, camera: false, screenShare: true, leave: true, chat: false }}
+              onDeviceError={({ source, error }) => setDeviceError(deviceHint(source, `${error.name} ${error.message}`))}
+            />
+          </div>
+        </header>
+        <div className="room-layout" style={columns.style}>
+          <main className="center">
+            <Workspace room={roomName} repos={repos} appLinks={marvin.appLinks} refreshKey={refreshKey} send={marvin.send} wanted={wanted} onShown={() => setWanted(null)} />
+          </main>
+          <Gutter side="right" resize={columns.resize} reset={columns.reset} />
+          <aside className="right">
+            <People agentState={marvin.state} />
+            <AppLinks links={marvin.appLinks} onOpen={setWanted} />
+            <div className="side-tabs">
+              <button
+                className={`${side === "marvin" ? "on" : ""} ${side !== "marvin" && marvin.state === "thinking" ? "busy" : ""} ${marvin.state === "waiting_approval" ? "attention" : ""}`.trim()}
+                onClick={() => setSide("marvin")}
+                title={marvin.state === "thinking" ? `${agent.name} is working` : marvin.state === "waiting_approval" ? `${agent.name} is waiting for an approval` : undefined}
+              >
+                <span className={`dot ${marvin.state}`} /> {agent.name}
+              </button>
+              <button className={side === "transcript" ? "on" : ""} onClick={() => setSide("transcript")}>Transcript</button>
+            </div>
+            {side === "marvin" ? <MarvinPane marvin={marvin} room={roomName} /> : <Transcript lines={marvin.transcript} />}
+          </aside>
         </div>
-      </aside>
-      <Gutter side="left" resize={columns.resize} reset={columns.reset} />
-      <main className="center">
-        <Workspace room={roomName} repos={repos} appLinks={marvin.appLinks} refreshKey={refreshKey} send={marvin.send} wanted={wanted} onShown={() => setWanted(null)} />
-      </main>
-      <Gutter side="right" resize={columns.resize} reset={columns.reset} />
-      <aside className="right">
-        <div className="side-tabs">
-          <button
-            className={`${side === "marvin" ? "on" : ""} ${side !== "marvin" && marvin.state === "thinking" ? "busy" : ""} ${marvin.state === "waiting_approval" ? "attention" : ""}`.trim()}
-            onClick={() => setSide("marvin")}
-            title={marvin.state === "thinking" ? `${agent.name} is working` : marvin.state === "waiting_approval" ? `${agent.name} is waiting for an approval` : undefined}
-          >
-            <span className={`dot ${marvin.state}`} /> {agent.name}
-          </button>
-          <button className={side === "transcript" ? "on" : ""} onClick={() => setSide("transcript")}>Transcript</button>
-        </div>
-        {side === "marvin" ? <MarvinPane marvin={marvin} room={roomName} /> : <Transcript lines={marvin.transcript} />}
-      </aside>
-      {settings}
-    </div>
+      </div>
+    </AppShell>
   );
 }
 
@@ -171,23 +240,39 @@ function AppLinks({ links, onOpen }: { links: { label: string; url: string }[]; 
   );
 }
 
-/** Join screen. Password mode without a session shows the login form; everyone else hits setup, then projects.
- * Machine GitHub and a coding agent are required; personal GitHub is optional. none mode still asks for a display name. */
-function JoinScreen({ onJoin, error }: { onJoin: (room: string, name: string | null) => void; error: string | null }) {
-  const { me, setMe } = useContext(MeContext);
-  const [name, setName] = useState(localStorage.getItem("marvin.name") ?? "");
-  const [agentName, setAgentName] = useState(agent.name);
-  useEffect(() => { void loadAgentName().then(setAgentName); }, []);
-  if (me.auth === "password" && !me.identity) return <LoginScreen agentName={agentName} onLogin={setMe} notice={error} />;
+function ssoDevUrl() {
+  const host = typeof location === "undefined" ? "" : location.hostname;
+  if (host === "127.0.0.1" || host === "localhost") return "http://127.0.0.1:8088";
+  return "";
+}
+
+function SsoRequiredScreen() {
+  const href = ssoDevUrl();
   return (
-    <JoinGate
-      onJoin={onJoin}
-      error={error}
-      needsName={me.auth === "none"}
-      name={name}
-      setName={setName}
-      agentName={agentName}
-    />
+    <main className="login-workspace">
+      <aside className="login-rail">
+        <div className="login-brand"><span><i /></span><b>Marvin</b></div>
+        <div>
+          <h1>Sign in at the proxy.</h1>
+          <p>This address is the Vite app. Company sign-in only lands when you open the URL Caddy is serving.</p>
+        </div>
+      </aside>
+      <div className="join login-card">
+        <span className="login-ready">Identity proxy</span>
+        <h1>You’re not signed in here</h1>
+        <p>
+          Marvin is in header mode, and this page never received who you are. The name in the corner was leftover from local development — it is not a login.
+        </p>
+        {href ? (
+          <>
+            <p className="dim small">Local test: maria@acme.com / maria is admin. alex@acme.com / alex is a participant.</p>
+            <a className="join-primary" href={href}>Open {href}</a>
+          </>
+        ) : (
+          <p>Ask an administrator for the signed-in machine URL.</p>
+        )}
+      </div>
+    </main>
   );
 }
 

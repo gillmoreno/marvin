@@ -1,0 +1,59 @@
+# Host-process variant of Caddyfile.sso-dev (no Docker). `make sso-dev` uses this
+# when the Docker daemon is down. Dex :5556, oauth2-proxy :4180, token :8081, Vite :5174.
+
+{
+	admin off
+}
+
+http://127.0.0.1:8088 {
+	request_header -X-Forwarded-User
+	request_header -X-Forwarded-Email
+	request_header -X-Forwarded-Preferred-Username
+	request_header -X-Forwarded-Groups
+
+	handle /dex* {
+		reverse_proxy 127.0.0.1:5556
+	}
+
+	handle /oauth2/* {
+		reverse_proxy 127.0.0.1:4180 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	handle /api* {
+		forward_auth 127.0.0.1:4180 {
+			uri /oauth2/auth
+			header_up X-Real-IP {remote_host}
+			copy_headers {
+				X-Auth-Request-User>X-Forwarded-User
+				X-Auth-Request-Email>X-Forwarded-Email
+				X-Auth-Request-Preferred-Username>X-Forwarded-Preferred-Username
+				X-Auth-Request-Groups>X-Forwarded-Groups
+			}
+			@unauthorized status 401
+			handle_response @unauthorized {
+				redir * /oauth2/start?rd={scheme}://{http.request.hostport}{uri} 302
+			}
+		}
+		reverse_proxy 127.0.0.1:8081
+	}
+
+	handle {
+		forward_auth 127.0.0.1:4180 {
+			uri /oauth2/auth
+			header_up X-Real-IP {remote_host}
+			copy_headers {
+				X-Auth-Request-User>X-Forwarded-User
+				X-Auth-Request-Email>X-Forwarded-Email
+				X-Auth-Request-Preferred-Username>X-Forwarded-Preferred-Username
+				X-Auth-Request-Groups>X-Forwarded-Groups
+			}
+			@unauthorized status 401
+			handle_response @unauthorized {
+				redir * /oauth2/start?rd={scheme}://{http.request.hostport}{uri} 302
+			}
+		}
+		reverse_proxy 127.0.0.1:5174
+	}
+}

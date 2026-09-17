@@ -2,6 +2,82 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-17-company-under-marvin",
+      "date": "2026-09-17",
+      "title": "Company name under Marvin",
+      "summary": "The same sidebar is on every page. A licensed machine shows the company name under Marvin. A chevron beside Marvin folds the rail.",
+      "changes": [
+        {
+          "title": "The company name under Marvin",
+          "description": "When this box has a valid Enterprise license, the gold company badge sits under Marvin, on the left. Machines without a license stay just Marvin."
+        },
+        {
+          "title": "A chevron beside Marvin",
+          "description": "The arrow to the right of Marvin folds the sidebar to icons. This browser still remembers."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-16-one-sidebar-project-pages",
+      "date": "2026-09-16",
+      "title": "One sidebar, and Back from a project",
+      "summary": "The same sidebar is on every page. Opening a project changes the address, so Back returns you to the list.",
+      "changes": [
+        {
+          "title": "The same sidebar everywhere",
+          "description": "Projects, the room, setup, and Settings use one rail: Marvin, Projects, Settings, and your name."
+        },
+        {
+          "title": "A project is a page",
+          "description": "Opening a project changes the address. The browser Back button, or Projects in the rail, returns you to the list."
+        },
+        {
+          "title": "Collapse the sidebar",
+          "description": "Fold the rail down to icons when you want more room. This browser remembers."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-16-enterprise-mark-and-back",
+      "date": "2026-09-16",
+      "title": "Enterprise mark, and Back from Settings",
+      "summary": "A licensed machine wears its company name. Settings is a page you can leave with the browser Back button.",
+      "changes": [
+        {
+          "title": "The company name on the machine",
+          "description": "When this box has a valid Enterprise license, Marvin shows a gold badge with the company name on the rail."
+        },
+        {
+          "title": "Leave Settings like a page",
+          "description": "Opening Settings changes the address. Use Back in the header, or the browser Back button, to return to projects or the room. Switching sections does not stack extra history."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-16-guided-sign-in",
+      "date": "2026-09-16",
+      "title": "Company sign-in you can follow",
+      "summary": "Settings is one page at a time, and Sign-in lists the clicks at your identity provider.",
+      "changes": [
+        {
+          "title": "One settings page at a time",
+          "description": "The projects rail has Settings. Inside it, pick Sign-in, GitHub, coding agents, sessions, audit, Enterprise, or this machine."
+        },
+        {
+          "title": "Follow the clicks at your provider",
+          "description": "Choose Entra, Okta, Google, GitHub, or Keycloak. Copy the redirect URL, then paste the issuer, client id, and secret."
+        },
+        {
+          "title": "Try it on this laptop",
+          "description": "Local test is a fake company login. Sign in as maria (admin) or alex (participant) without a real tenant."
+        },
+        {
+          "title": "Settings during setup",
+          "description": "An administrator can open settings to connect sign-in or paste a license before the machine is ready."
+        }
+      ]
+    },
+    {
       "id": "2026-09-16-required-machine-setup",
       "date": "2026-09-16",
       "title": "Finish setup before the workspace",

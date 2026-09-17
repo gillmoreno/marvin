@@ -11,15 +11,24 @@ export type Setup = {
   oauth_configured: boolean;
 };
 
+export function setupLead(admin: boolean, setup: Setup | null) {
+  const done = (setup?.machine_github ? 1 : 0) + (setup?.agent.ready ? 1 : 0);
+  return (
+    <>
+      <p className="setup-rail-copy">
+        {admin
+          ? "This machine cannot open a room until both required connections are in place."
+          : "An administrator has to finish opening this machine."}
+      </p>
+      {admin && setup && <div className="setup-count">{done} of 2</div>}
+    </>
+  );
+}
+
 export function MachineSetup({
-  admin, who, role, initials, canLogout, onLogout, setup, setupError, github, onGitHub, reload,
+  admin, setup, setupError, github, onGitHub, reload,
 }: {
   admin: boolean;
-  who: string;
-  role: string;
-  initials: string;
-  canLogout: boolean;
-  onLogout: () => void;
   setup: Setup | null;
   setupError: boolean;
   github: GitHubStatus | null;
@@ -29,26 +38,9 @@ export function MachineSetup({
   const machine = setup?.machine_github ?? null;
   const machineReady = Boolean(machine);
   const agentReady = Boolean(setup?.agent.ready);
-  const done = (machineReady ? 1 : 0) + (agentReady ? 1 : 0);
 
   return (
-    <main className="join-workspace setup-workspace">
-      <aside className="join-rail">
-        <Brand />
-        <p className="setup-rail-copy">
-          {admin
-            ? "This machine cannot open a room until both required connections are in place."
-            : "An administrator has to finish opening this machine."}
-        </p>
-        {admin && setup && <div className="setup-count">{done} of 2</div>}
-        <div className="join-profile">
-          <span>{initials}</span>
-          <div><b>{who}</b><small>{role}</small></div>
-          {canLogout && <button type="button" onClick={onLogout}>Log out</button>}
-        </div>
-      </aside>
-
-      <div className="join-main setup-main">
+    <div className="join-main setup-main">
         {!admin ? (
           <Waiting />
         ) : setupError && !setup ? (
@@ -70,8 +62,7 @@ export function MachineSetup({
             reload={reload}
           />
         )}
-      </div>
-    </main>
+    </div>
   );
 }
 
@@ -99,7 +90,7 @@ function AdminSteps({
       <p className="setup-eyebrow">Required</p>
       <h1>Open this machine.</h1>
       <p className="setup-lead">
-        Connect the shared GitHub account first, then pick a coding agent. Projects, sessions, and settings stay hidden until both are done.
+        Connect the shared GitHub account first, then pick a coding agent. Projects stay hidden until both are done.
       </p>
       <div className="setup-steps">
         <section className={`setup-step${machineReady && !changeGithub ? " done" : ""}`}>
@@ -307,10 +298,6 @@ function LoadError({ onRetry }: { onRetry: () => void }) {
       </div>
     </>
   );
-}
-
-function Brand() {
-  return <div className="join-brand"><span><i /></span><b>Marvin</b></div>;
 }
 
 function machineLabel(machine: Setup["machine_github"]): string {

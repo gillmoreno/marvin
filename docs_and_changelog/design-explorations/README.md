@@ -3,6 +3,11 @@
 Clickable HTML prototypes. Nothing here is wired to the app; the goal is to pick a direction (or a mix) before
 touching `web/src`. Open `index.html` in a browser, no server needed.
 
+## Sidebar collapse (2026-09-17)
+
+`rail-collapse.html` — throwaway. Five ways to fold the shared rail, side by side, so we can pick one.
+Bottom control (what shipped), seam tab, hide completely, hover to open, overlay drawer.
+
 ## First-run setup (2026-09-13)
 
 `setup-first-run.html` — throwaway. Join gate won as the surface. Optional personal

@@ -15,7 +15,10 @@ Everyone else just uses the core. That is the whole product split.
 
 We mint a JWT on our machine. They paste it in Settings → **Enterprise** (admin).
 The worker checks the signature with the public key in `worker/marvin/license.pub`,
-offline, at start and again when someone saves. No phone-home.
+offline, at start and again when someone saves. No phone-home. Anyone signed in
+can see whether the machine is licensed (`GET /api/license`); a gold company
+badge appears on the rail, in the room, and in Settings. Only an admin can
+paste or remove the key.
 
 `MARVIN_LICENSE_KEY` is an override for automation. When it is set, it wins and
 the panel says "from the environment". Otherwise the key is stored encrypted in

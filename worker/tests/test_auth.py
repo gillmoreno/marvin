@@ -238,7 +238,7 @@ async def test_proxy_roles(upstream):
         assert (await c.get("/api/notes", headers=p)).status == 403
         assert (await c.get("/api/harness-creds", headers=p)).status == 403
         assert (await c.get("/api/update", headers=p)).status == 403
-        assert (await c.get("/api/license", headers=p)).status == 403
+        assert (await c.get("/api/license", headers=p)).status == 200
         assert (await c.get("/api/access", headers=p)).status == 403
         assert (await c.get("/api/export", headers=p)).status == 403
         assert (await c.get("/api/sessions", headers=p)).status == 200

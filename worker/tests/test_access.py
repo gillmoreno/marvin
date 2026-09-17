@@ -28,6 +28,15 @@ def test_env_wins_over_file(tmp_path, monkeypatch):
     assert a.public()["allowed_domains_source"] == "env"
 
 
+def test_proxy_env_github_without_issuer(tmp_path):
+    a = Access(str(tmp_path / "state"), "s", environ={"MARVIN_INSTALL_DIR": str(tmp_path)})
+    a.put({"provider": "github", "client_id": "abc", "client_secret": "shh"})
+    text = (tmp_path / ".oauth2-proxy.env").read_text()
+    assert "OAUTH2_PROXY_PROVIDER=github" in text
+    assert "OAUTH2_PROXY_CLIENT_ID=abc" in text
+    assert a.public()["sso"]["configured"]
+
+
 def test_proxy_env_only_when_issuer_and_install_dir(tmp_path):
     a = Access(str(tmp_path / "state"), "s", environ={"MARVIN_INSTALL_DIR": str(tmp_path)})
     a.put({"allowed_domains": "x.test"})

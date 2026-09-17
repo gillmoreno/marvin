@@ -76,6 +76,29 @@ edge-oidc-up: sandbox-image ## same, with single sign-on through oauth2-proxy (S
 edge-down:
 	$(EDGE) --profile oidc down
 
+# Local SSO in front of the four-terminal loop (Dex + oauth2-proxy + Caddy :8088).
+# Token: MARVIN_AUTH=header MARVIN_ADMIN_USERS=maria@acme.com MARVIN_TOKEN_PORT=8081
+# Vite:  http://127.0.0.1:5174  (stay behind Caddy)
+SSO_DEV := docker compose -f docker-compose.sso-dev.yml
+
+sso-dev: ## Dex + Caddy on :8088 in front of host Vite :5174 and token :8081
+	@echo "Open http://127.0.0.1:8088"
+	@echo "  maria@acme.com / maria   admin"
+	@echo "  alex@acme.com  / alex    participant"
+	@echo "Token must be running as:"
+	@echo "  MARVIN_AUTH=header MARVIN_ADMIN_USERS=maria@acme.com MARVIN_TOKEN_PORT=8081"
+	@if docker info >/dev/null 2>&1; then $(SSO_DEV) up -d; else echo "Docker is down; running Dex/Caddy/oauth2-proxy on the host."; ./deploy/edge/sso-dev-host.sh; fi
+
+sso-dev-down:
+	-$(SSO_DEV) down
+	-./deploy/edge/sso-dev-host.sh stop
+
+sso-dev-logs:
+	$(SSO_DEV) logs -f --tail=80
+
+token-sso: ## token server in header mode for make sso-dev
+	cd worker && MARVIN_AUTH=header MARVIN_ADMIN_USERS=maria@acme.com MARVIN_TOKEN_PORT=8081 MARVIN_STATE_DIR=$${MARVIN_STATE_DIR:-/tmp/marvin-state} uv run python -m marvin.token_server
+
 edge-logs:     ## follow all edge containers
 	$(EDGE) --profile oidc logs -f --tail=100
 

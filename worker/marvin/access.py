@@ -172,8 +172,8 @@ class Access:
                 "email_domains": sso.get("email_domains") or None,
                 "groups_claim": sso.get("groups_claim") or "groups",
                 "provider": sso.get("provider") or "oidc",
-                "configured": bool(self.env_issuer or sso.get("issuer")),
-                "source": "env" if self.env_issuer else ("settings" if sso.get("issuer") else None),
+                "configured": bool(self.env_issuer or self.env_client_id or sso.get("issuer") or sso.get("client_id")),
+                "source": "env" if (self.env_issuer or self.env_client_id) else ("settings" if (sso.get("issuer") or sso.get("client_id")) else None),
                 "has_secret": bool(self.env_client_id or self._secret("client_secret_enc")),
             },
         }
@@ -192,7 +192,10 @@ class Access:
         sso = self._data.setdefault("sso", {})
         issuer = self.env_issuer or sso.get("issuer") or ""
         cid = self.env_client_id or sso.get("client_id") or ""
-        if not issuer or not cid:
+        provider = sso.get("provider") or "oidc"
+        if not cid:
+            return None
+        if provider != "github" and not issuer:
             return None
         secret = os.environ.get("OAUTH2_PROXY_CLIENT_SECRET") or self._secret("client_secret_enc") or ""
         cookie = os.environ.get("OAUTH2_PROXY_COOKIE_SECRET") or self._secret("cookie_secret_enc") or ""
@@ -207,7 +210,7 @@ class Access:
         dest = dest_dir / ".oauth2-proxy.env"
         dest.write_text(
             "\n".join([
-                f"OAUTH2_PROXY_PROVIDER={sso.get('provider') or 'oidc'}",
+                f"OAUTH2_PROXY_PROVIDER={provider}",
                 f"OAUTH2_PROXY_OIDC_ISSUER_URL={issuer}",
                 f"OAUTH2_PROXY_CLIENT_ID={cid}",
                 f"OAUTH2_PROXY_CLIENT_SECRET={secret}",

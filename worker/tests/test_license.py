@@ -89,7 +89,8 @@ async def test_admin_license_routes(tmp_path):
     store = LicenseStore(str(tmp_path), "secret", environ={}, public_pem=pub)
     mgr = RoomManager(Config(rooms=()), repos_dir=str(tmp_path / "repos"), state_dir=str(tmp_path), session_kwargs={})
     async with TestClient(TestServer(make_admin_app(mgr, licenses=store))) as c:
-        assert (await c.get("/license", headers=WHO)).status == 403
+        guest = await (await c.get("/license", headers=WHO)).json()
+        assert guest["valid"] is False and guest["ee"] is False
         j = await (await c.get("/license", headers=ADM)).json()
         assert j["valid"] is False and j["ee"] is False
         bad = await c.put("/license", json={"key": "nope"}, headers=ADM)

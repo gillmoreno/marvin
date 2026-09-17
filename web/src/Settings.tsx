@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { agent } from "./agent";
 import { useIsAdmin } from "./auth";
 import { AccountSection } from "./RoomSettings";
@@ -8,6 +8,17 @@ import { AccessSection } from "./AccessSection";
 import { ExportSection, SessionsSection } from "./Sessions";
 import { LicenseSection } from "./License";
 import { MachineUpdate } from "./MachineUpdate";
+import type { SettingsPane } from "./nav";
+
+const MACHINE_PANES: { id: SettingsPane; label: string }[] = [
+  { id: "signin", label: "Sign-in" },
+  { id: "github", label: "GitHub" },
+  { id: "agents", label: "Coding agents" },
+  { id: "sessions", label: "Sessions" },
+  { id: "audit", label: "Audit export" },
+  { id: "license", label: "Enterprise" },
+  { id: "machine", label: "This machine" },
+];
 
 /** Sleep the whole machine (scale to zero). Only meaningful on the cluster, where /power is served by the gate. */
 export function PowerSection() {
@@ -16,7 +27,7 @@ export function PowerSection() {
   useEffect(() => {
     fetch("/power/status").then((r) => (r.ok ? r.json() : null)).then((j) => setState(j?.state ?? null)).catch(() => setState(null));
   }, []);
-  if (state === null) return null; // no gate here (local dev)
+  if (state === null) return null;
   async function sleep() {
     if (!confirm(`Put ${agent.name} to sleep? Everyone in every room gets disconnected. The machine wakes from the same URL, or on the morning schedule.`)) return;
     const r = await fetch("/power/sleep", { method: "POST" });
@@ -61,34 +72,56 @@ function AppPreviewsSection() {
   );
 }
 
-export function SettingsPanel({ onClose, extra, room, focus }: { onClose: () => void; extra?: React.ReactNode; room?: string; focus?: string }) {
+export function SettingsPage({ extra, room, pane, onPane }: {
+  extra?: ReactNode;
+  room?: string;
+  pane: SettingsPane;
+  onPane: (pane: SettingsPane) => void;
+}) {
   const admin = useIsAdmin();
-  useEffect(() => {
-    if (!focus) return;
-    const frame = requestAnimationFrame(() => document.getElementById(focus)?.scrollIntoView({ block: "start" }));
-    return () => cancelAnimationFrame(frame);
-  }, [focus]);
+  const hasRoom = Boolean(extra);
+  const panes = hasRoom ? [{ id: "room" as SettingsPane, label: "This room" }, ...MACHINE_PANES] : MACHINE_PANES;
+
   return (
-    <div className="modal-back settings-screen" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <header>
-          <span className="lbl">settings</span>
-          <h2>{agent.name}{room ? <> <span className="room">#{room}</span></> : <> · this machine</>}</h2>
-          <span className="sp" />
-          <button className="ghost" onClick={onClose}>close</button>
-        </header>
-        <div className="sgrid">
-          {extra}
-          <AccountSection />
-          <AccessSection />
-          <HarnessSection />
-          <GitHubSection />
-          <SessionsSection />
-          <ExportSection />
-          <AppPreviewsSection />
-          <LicenseSection />
-          {admin && <section className="settings-update"><h3>This machine</h3><MachineUpdate /></section>}
-          <PowerSection />
+    <div className="settings-page">
+      <header className="join-main-head">
+        <div>
+          <span>{room ? `#${room}` : "This machine"}</span>
+          <h1>Settings</h1>
+        </div>
+      </header>
+      <div className="settings-body">
+        <nav className="settings-nav" aria-label="Settings">
+          {panes.map((item) => (
+            <a
+              key={item.id}
+              href={`/settings/${item.id}`}
+              className={pane === item.id ? "on" : ""}
+              onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+                event.preventDefault();
+                onPane(item.id);
+              }}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+        <div className="settings-pane">
+          {pane === "room" && extra}
+          {pane === "signin" && <><AccountSection /><AccessSection /></>}
+          {pane === "github" && <GitHubSection />}
+          {pane === "agents" && <HarnessSection />}
+          {pane === "sessions" && <div id="settings-sessions"><SessionsSection /></div>}
+          {pane === "audit" && <ExportSection />}
+          {pane === "license" && <LicenseSection />}
+          {pane === "machine" && (
+            <>
+              <AppPreviewsSection />
+              {admin && <section className="settings-update"><h3>This machine</h3><MachineUpdate /></section>}
+              <PowerSection />
+            </>
+          )}
         </div>
       </div>
     </div>
