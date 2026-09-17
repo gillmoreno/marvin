@@ -3,6 +3,7 @@ import { agent } from "./agent";
 import { BotIcon, ChevronIcon, CpuIcon } from "./icons";
 import { useIsAdmin, useMe, logout } from "./auth";
 import { RepoAdder, RepoList, fromInfo, toApi, type ProjectRepoInfo, type RepoEntry } from "./ProjectRepos";
+import { Actions, Button, Card, Field, Text, Textarea } from "./ui";
 
 type Model = { id: string; label: string; note: string };
 type Harness = { id: string; label: string; kind: string; auth: string; note: string };
@@ -167,40 +168,44 @@ export function RoomAndMachine({ room, info, reload }: { room: string; info: Roo
   }
   return (
     <>
-      <section>
+      <Card>
         <h3>This project · {room}</h3>
-        <p className="dim small">
+        <Text>
           {info && info.repos.length > 1
             ? <>{info.repos.length} repos worked on together; the agent starts in <code>{info.repo}</code> and may read and edit all of them. Commits and PRs go to the repo each change belongs to.</>
             : <>Works in <code>{info?.repo ?? "…"}</code>. Add the other repos of this project (its API, a shared library) so the agent sees the whole thing.</>}
-        </p>
-        <p className="dim small">
+        </Text>
+        <Text>
           {info?.sandbox
             ? <>The agent runs in its own container <code>{info.sandbox.container}</code> (image <code>{info.sandbox.image}</code>); only these repos are mounted into it.</>
             : <>The agent runs directly on this machine (no sandbox; set <code>MARVIN_SANDBOX=docker</code> to contain it).</>}
-        </p>
+        </Text>
         {entries && <RepoList entries={entries} onChange={setEntries} readOnly={!admin} />}
         {admin && (
           <>
             {adding ? <RepoAdder exclude={entries ?? []} onAdd={(e) => { setEntries((cur) => [...(cur ?? []), e]); setAdding(false); }} /> : null}
-            <div className="btns">
-              <button className="ghost" onClick={() => setAdding((a) => !a)}>{adding ? "close" : "add repo"}</button>
-              <button disabled={!dirty || busy || (entries?.length ?? 0) === 0} onClick={() => void saveRepos()}>{busy ? "saving…" : "save project"}</button>
-              {dirty && <button className="ghost" disabled={busy} onClick={() => { setEntries(null); setAdding(false); }}>discard</button>}
-            </div>
+            <Actions>
+              <Button variant="ghost" onClick={() => setAdding((a) => !a)}>{adding ? "Close" : "Add repo"}</Button>
+              <Button disabled={!dirty || busy || (entries?.length ?? 0) === 0} onClick={() => void saveRepos()}>{busy ? "Saving…" : "Save project"}</Button>
+              {dirty && <Button variant="ghost" disabled={busy} onClick={() => { setEntries(null); setAdding(false); }}>Discard</Button>}
+            </Actions>
           </>
         )}
-        {!admin && <p className="dim small">Only admins can change the project's repos.</p>}
-      </section>
+        {!admin && <Text>Only admins can change the project's repos.</Text>}
+      </Card>
       {admin && (
-        <section>
+        <Card>
           <h3>Machine notes</h3>
-          <p className="dim small">Loaded into every room on this machine ({notes?.path ?? "~/.claude/CLAUDE.md"}). How repos connect, fake accounts, ports, recipes. {agent.name} appends here when asked to remember something machine-wide.</p>
-          <textarea rows={12} value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} />
-          <div className="btns"><button onClick={() => void saveNotes()} disabled={notes === null || draft === notes.text}>save notes</button></div>
-        </section>
+          <Text>Loaded into every room on this machine ({notes?.path ?? "~/.claude/CLAUDE.md"}). How repos connect, fake accounts, ports, recipes. {agent.name} appends here when asked to remember something machine-wide.</Text>
+          <Field label="Notes" wide>
+            <Textarea rows={12} value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} />
+          </Field>
+          <Actions>
+            <Button onClick={() => void saveNotes()} disabled={notes === null || draft === notes.text}>Save notes</Button>
+          </Actions>
+        </Card>
       )}
-      {msg && <section><p className="status ok">{msg}</p></section>}
+      {msg && <Card><Text tone="ok">{msg}</Text></Card>}
     </>
   );
 }
@@ -211,15 +216,15 @@ export function AccountSection() {
   if (me.auth === "none") return null; // localhost dev: no account to speak of
   const how = me.auth === "header" ? "signed in by the identity proxy (SSO)" : "signed in with the room password";
   return (
-    <section>
+    <Card>
       <h3>Account</h3>
-      <p className="dim small">
+      <Text>
         <b>{me.identity?.name ?? "?"}</b>{me.identity?.email ? ` · ${me.identity.email}` : ""} · {how} · roles: {me.identity?.roles.join(", ") || "none"}
-      </p>
+      </Text>
       {me.auth === "password" && (
-        <div className="btns"><button className="ghost" onClick={() => void logout().then(() => location.reload())}>log out</button></div>
+        <Actions><Button variant="ghost" onClick={() => void logout().then(() => location.reload())}>Log out</Button></Actions>
       )}
-      {me.auth === "header" && <p className="dim small">To sign out, use your identity provider (for oauth2-proxy: <a href="/oauth2/sign_out">/oauth2/sign_out</a>).</p>}
-    </section>
+      {me.auth === "header" && <Text>To sign out, use your identity provider (for oauth2-proxy: <a href="/oauth2/sign_out">/oauth2/sign_out</a>).</Text>}
+    </Card>
   );
 }

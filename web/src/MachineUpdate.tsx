@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Button } from "./ui";
 
 export type ProductRelease = {
   id: string;
@@ -123,8 +124,8 @@ export function MachineUpdate({ compact = false }: { compact?: boolean }) {
           {applying && <span className="machine-update-progress"><i /></span>}
         </div>
         <div className="machine-update-actions">
-          {hasNotes && <button type="button" className="ghost" onClick={() => setNotesOpen(true)}>What changed</button>}
-          {updateReady && <button type="button" disabled={busy} onClick={() => void apply()}>{busy ? "Starting…" : "Update now"}</button>}
+          {hasNotes && <Button variant="ghost" onClick={() => setNotesOpen(true)}>What changed</Button>}
+          {updateReady && <Button disabled={busy} onClick={() => void apply()}>{busy ? "Starting…" : "Update now"}</Button>}
         </div>
         {!compact && info?.latest_short && !applying && (
           <p className="machine-update-version">Running <code>{info.short ?? "unknown"}</code> · {info.ref} is <code>{info.latest_short}</code></p>
@@ -177,7 +178,7 @@ function ReleaseNotes({ releases, commits, onClose }: { releases: ProductRelease
           )}
           {releases.length === 0 && commits.length === 0 && <p>No release notes were published for this version.</p>}
         </div>
-        <footer><button type="button" onClick={onClose}>Done</button></footer>
+        <footer><Button onClick={onClose}>Done</Button></footer>
       </aside>
     </div>
   );

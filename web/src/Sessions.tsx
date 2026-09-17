@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useIsAdmin } from "./auth";
+import { Actions, Button, Card, Check, Field, Fields, Input, Text } from "./ui";
 
 type Row = { id: string; room: string; started_at: number; ended_at: number | null; participants: string[]; live?: boolean };
 type Rec = { ts: number; verb: string; actor: string; turn: number | null; payload: Record<string, unknown>; chain_ok?: boolean };
@@ -32,38 +33,47 @@ export function SessionsSection() {
   };
   const when = (t: number | null) => t ? new Date(t * 1000).toLocaleString() : "open";
   return (
-    <section id="settings-sessions">
+    <Card>
       <h3>Sessions</h3>
-      <p className="dim small">Each meeting is a hash-chained log on this machine. Export (S3 / webhook) is below in Enterprise if you set it.</p>
+      <Text>Each meeting is a hash-chained log on this machine. Export (S3 / webhook) is on Audit export if you set it.</Text>
       {admin && (
-        <div className="github-setup">
-          <div className="row">
-            <label className="dim small">Keep logs <input type="number" min={1} max={3650} value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ width: 72 }} /> days</label>
-            <button type="button" className="ghost" onClick={() => void saveDays()}>save</button>
-          </div>
-        </div>
+        <Fields>
+          <Field label="Keep logs for (days)">
+            <Input type="number" min={1} max={3650} value={days} onChange={(e) => setDays(Number(e.target.value))} />
+          </Field>
+        </Fields>
       )}
-      {rows.length === 0 && <p className="dim small">No meetings yet.</p>}
-      <ul className="small">
-        {rows.map((s) => (
-          <li key={s.id}>
-            <a href="#" onClick={(e) => { e.preventDefault(); void view(s.id); }}>{s.room}</a>
-            {" "}{when(s.started_at)}{s.live ? " · live" : ""} · {(s.participants || []).join(", ") || "—"}
-          </li>
-        ))}
-      </ul>
+      {admin && (
+        <Actions>
+          <Button onClick={() => void saveDays()}>Save</Button>
+        </Actions>
+      )}
+      {rows.length === 0 && <Text>No meetings yet.</Text>}
+      {rows.length > 0 && (
+        <ul className="ui-list">
+          {rows.map((s) => (
+            <li key={s.id}>
+              <a href="#" onClick={(e) => { e.preventDefault(); void view(s.id); }}>{s.room}</a>
+              <small>{when(s.started_at)}{s.live ? " · live" : ""} · {(s.participants || []).join(", ") || "—"}</small>
+            </li>
+          ))}
+        </ul>
+      )}
       {detail && open && (
-        <div className="session-log">
-          <p className="dim small">{open.slice(0, 8)} · {detail.live ? "live" : detail.signed ? "signed" : "unsigned"}</p>
-          <ol className="small">
+        <div className="ui-block">
+          <Text>{open.slice(0, 8)} · {detail.live ? "live" : detail.signed ? "signed" : "unsigned"}</Text>
+          <ol className="ui-steps">
             {detail.records.map((r, i) => (
-              <li key={i}><code>{r.verb}</code> {r.actor}{r.turn ? ` · turn ${r.turn}` : ""} {r.payload?.question || r.payload?.text || r.payload?.message ? <span className="dim"> — {String(r.payload.question || r.payload.text || r.payload.message).slice(0, 120)}</span> : null}</li>
+              <li key={i}>
+                <b>{r.verb}</b>
+                <span>{r.actor}{r.turn ? ` · turn ${r.turn}` : ""}{r.payload?.question || r.payload?.text || r.payload?.message ? ` — ${String(r.payload.question || r.payload.text || r.payload.message).slice(0, 120)}` : ""}</span>
+              </li>
             ))}
           </ol>
         </div>
       )}
-      {err && <p className="error small">{err}</p>}
-    </section>
+      {err && <Text tone="bad">{err}</Text>}
+    </Card>
   );
 }
 
@@ -97,19 +107,23 @@ export function ExportSection() {
     setAk(""); setSk(""); setInfo(j);
   };
   return (
-    <section>
+    <Card>
       <h3>Audit export</h3>
-      <p className="dim small">When a meeting closes, Marvin can PUT the JSONL to your bucket and/or POST it to a webhook. Needs an Enterprise license. Nothing is sent to us.</p>
-      <label className="dim small">S3 bucket <input value={bucket} onChange={(e) => setBucket(e.target.value)} placeholder="company-marvin-audit" /></label>
-      <label className="dim small">Region <input value={region} onChange={(e) => setRegion(e.target.value)} /></label>
-      <label className="dim small">Prefix <input value={prefix} onChange={(e) => setPrefix(e.target.value)} /></label>
-      <label className="dim small">Access key <input value={ak} onChange={(e) => setAk(e.target.value)} autoComplete="off" /></label>
-      <label className="dim small">Secret key <input type="password" value={sk} onChange={(e) => setSk(e.target.value)} placeholder={info?.has_keys ? "unchanged" : ""} /></label>
-      <label className="dim small"><input type="checkbox" checked={lock} onChange={(e) => setLock(e.target.checked)} /> Object Lock (GOVERNANCE)</label>
-      <label className="dim small">Webhook URL <input value={webhook} onChange={(e) => setWebhook(e.target.value)} placeholder="https://siem.example/hooks/marvin" /></label>
-      {info?.source === "env" && <p className="dim small">Export is set from the environment.</p>}
-      <div className="btns"><button type="button" disabled={busy} onClick={() => void save()}>{busy ? "saving…" : "save export"}</button></div>
-      {err && <p className="error small">{err}</p>}
-    </section>
+      <Text>When a meeting closes, Marvin can PUT the JSONL to your bucket and/or POST it to a webhook. Needs an Enterprise license. Nothing is sent to us.</Text>
+      <Fields>
+        <Field label="S3 bucket"><Input value={bucket} onChange={(e) => setBucket(e.target.value)} placeholder="company-marvin-audit" /></Field>
+        <Field label="Region"><Input value={region} onChange={(e) => setRegion(e.target.value)} /></Field>
+        <Field label="Prefix"><Input value={prefix} onChange={(e) => setPrefix(e.target.value)} /></Field>
+        <Field label="Access key"><Input value={ak} onChange={(e) => setAk(e.target.value)} autoComplete="off" /></Field>
+        <Field label="Secret key"><Input type="password" value={sk} onChange={(e) => setSk(e.target.value)} placeholder={info?.has_keys ? "unchanged" : ""} /></Field>
+        <Field label="Webhook URL" wide><Input value={webhook} onChange={(e) => setWebhook(e.target.value)} placeholder="https://siem.example/hooks/marvin" /></Field>
+      </Fields>
+      <Check label="Object Lock (GOVERNANCE)" checked={lock} onChange={(e) => setLock(e.target.checked)} />
+      {info?.source === "env" && <Text>Export is set from the environment.</Text>}
+      <Actions>
+        <Button disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : "Save export"}</Button>
+      </Actions>
+      {err && <Text tone="bad">{err}</Text>}
+    </Card>
   );
 }

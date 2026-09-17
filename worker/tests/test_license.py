@@ -77,6 +77,7 @@ def test_store_env_wins_and_rejects_bad(tmp_path):
         pass
     assert store.status().reason == "missing"
     assert store.put(good).valid and store.status().source == "settings"
+    assert store.status().key_hint and good not in (store.status().key_hint or "")
     assert store.path and store.path.is_file()
     text = store.path.read_text()
     assert good not in text and "key_enc" in text
@@ -99,6 +100,9 @@ async def test_admin_license_routes(tmp_path):
         body = await ok.json()
         assert ok.status == 200 and body["valid"] and body["company"] == "acme.com" and body["seats"] == 25
         assert body["source"] == "settings"
+        assert body["key_hint"] and good[:4] in body["key_hint"] and good not in body["key_hint"]
+        guest_on = await (await c.get("/license", headers=WHO)).json()
+        assert guest_on["valid"] and guest_on["company"] == "acme.com" and "key_hint" not in guest_on
         gone = await (await c.delete("/license", headers=ADM)).json()
         assert gone["valid"] is False
 

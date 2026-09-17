@@ -1,0 +1,12 @@
+---
+description: Settings and forms use the Marvin UI kit, not one-off inputs
+globs: web/src/**/*.{tsx,css}
+alwaysApply: false
+---
+
+# Marvin UI kit
+
+When editing `web/src` UI, read `.cursor/skills/marvin-ui/SKILL.md` and import from `web/src/ui`.
+
+Do not invent a new input, button, or card on the page. Add a missing control to the kit first.
+Use Tailwind for layout only. Keep the existing Marvin colours. No Material / shadcn.

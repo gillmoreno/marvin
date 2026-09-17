@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 // Browsers only allow the microphone on HTTPS (or localhost), so the dev server serves TLS with a
 // self-signed cert (web/certs, see README) and proxies both the token endpoint and LiveKit's signaling
@@ -12,7 +13,7 @@ const haveCert = fs.existsSync(path.join(certDir, "dev.crt"));
 const apiPort = process.env.MARVIN_TOKEN_PORT || "8080";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     host: true,
     port: 5173,

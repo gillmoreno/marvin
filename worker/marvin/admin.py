@@ -433,7 +433,10 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, harnes
     app.router.add_post("/update", update_apply)
 
     async def license_status(req: web.Request) -> web.Response:
-        return web.json_response(licenses.status().public())
+        body = licenses.status().public()
+        if not _is_admin(req):
+            body.pop("key_hint", None)
+        return web.json_response(body)
 
     async def license_put(req: web.Request) -> web.Response:
         if not _is_admin(req):

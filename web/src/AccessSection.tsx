@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useIsAdmin } from "./auth";
+import { Actions, Button, Card, Chip, Chips, Field, Fields, Input, Steps, Text, Textarea } from "./ui";
 
 type AccessInfo = {
   notice: string;
@@ -210,73 +211,74 @@ export function AccessSection() {
   };
 
   return (
-    <div className="signin-page">
-      <section>
+    <>
+      <Card>
         <h3>Who may join</h3>
-        <p className="dim small">Password login and SSO both honour this list. Empty means anyone who can authenticate.</p>
-        <label className="dim small">Allowed email domains <input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="company.com" /></label>
-        <label className="dim small">Extra allowed addresses <input value={allow} onChange={(e) => setAllow(e.target.value)} placeholder="maria@contractor.dev" /></label>
-        <label className="dim small">Admin users <input value={users} onChange={(e) => setUsers(e.target.value)} placeholder="maria@company.com" /></label>
-        <label className="dim small">Admin groups (SSO) <input value={groups} onChange={(e) => setGroups(e.target.value)} placeholder="Entra object ids, or Okta group names" /></label>
-        <label className="dim small">Recording notice <textarea rows={2} value={notice} onChange={(e) => setNotice(e.target.value)} /></label>
-        <div className="btns"><button type="button" disabled={busy} onClick={() => void saveWho()}>{busy ? "Saving…" : "Save who may join"}</button></div>
-      </section>
+        <Text>Password login and SSO both honour this list. Empty means anyone who can authenticate.</Text>
+        <Fields>
+          <Field label="Allowed email domains"><Input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="company.com" /></Field>
+          <Field label="Extra allowed addresses"><Input value={allow} onChange={(e) => setAllow(e.target.value)} placeholder="maria@contractor.dev" /></Field>
+          <Field label="Admin users"><Input value={users} onChange={(e) => setUsers(e.target.value)} placeholder="maria@company.com" /></Field>
+          <Field label="Admin groups (SSO)"><Input value={groups} onChange={(e) => setGroups(e.target.value)} placeholder="Entra object ids, or Okta group names" /></Field>
+          <Field label="Recording notice" wide><Textarea rows={3} value={notice} onChange={(e) => setNotice(e.target.value)} /></Field>
+        </Fields>
+        <Actions><Button disabled={busy} onClick={() => void saveWho()}>{busy ? "Saving…" : "Save who may join"}</Button></Actions>
+      </Card>
 
-      <section>
+      <Card>
         <h3>Company sign-in</h3>
-        <p className="dim small">
+        <Text>
           People sign in at your identity provider. Marvin never sees their password.
           Needs an Enterprise license. {info?.sso.source === "env" ? "Issuer is from the environment." : null}
-        </p>
+        </Text>
         {info?.sso.configured && (
-          <p className="signin-ready">{info.sso.client_id ? `Client ${info.sso.client_id}` : "Client saved"} · {info.sso.source === "env" ? "from the environment" : "set here"}</p>
+          <Text tone="ok">{info.sso.client_id ? `Client ${info.sso.client_id}` : "Client saved"} · {info.sso.source === "env" ? "from the environment" : "set here"}</Text>
         )}
 
-        <div className="signin-providers" role="tablist" aria-label="Identity provider">
+        <Chips label="Identity provider">
           {PROVIDERS.map((p) => (
-            <button key={p.id} type="button" role="tab" aria-selected={pick === p.id} className={pick === p.id ? "on" : ""} onClick={() => applyProvider(p.id)}>
-              {p.label}
-            </button>
+            <Chip key={p.id} selected={pick === p.id} onClick={() => applyProvider(p.id)}>{p.label}</Chip>
           ))}
-        </div>
-        <p className="dim small">{provider.hint}</p>
+        </Chips>
+        <Text>{provider.hint}</Text>
 
-        <div className="signin-callback">
-          <span>Redirect URL — paste this at the provider</span>
-          <code>{callback}</code>
-          <button type="button" className="ghost" onClick={copyCallback}>{copied ? "Copied" : "Copy"}</button>
-        </div>
+        <Field label="Redirect URL — paste this at the provider" wide>
+          <div className="ui-row">
+            <code className="ui-code">{callback}</code>
+            <Button variant="ghost" onClick={copyCallback}>{copied ? "Copied" : "Copy"}</Button>
+          </div>
+        </Field>
 
-        <ol className="signin-steps">
-          {provider.steps.map((step) => (
-            <li key={step.title}>
-              <b>{step.title}</b>
-              <span>
-                {step.href ? <><a href={step.href} target="_blank" rel="noopener noreferrer">{step.href.replace(/^https:\/\//, "").split("/")[0]}</a> — {step.detail}</> : step.detail}
-              </span>
-            </li>
-          ))}
-        </ol>
+        <Steps
+          items={provider.steps.map((step) => ({
+            title: step.title,
+            detail: step.href
+              ? <><a href={step.href} target="_blank" rel="noopener noreferrer">{step.href.replace(/^https:\/\//, "").split("/")[0]}</a> — {step.detail}</>
+              : step.detail,
+          }))}
+        />
 
-        {provider.proxy === "oidc" && (
-          <label className="dim small">Issuer URL <input value={issuer} onChange={(e) => setIssuer(e.target.value)} placeholder="https://login.microsoftonline.com/…/v2.0" /></label>
-        )}
-        <label className="dim small">Client id <input value={clientId} onChange={(e) => setClientId(e.target.value)} /></label>
-        <label className="dim small">Client secret <input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder={info?.sso.has_secret ? "unchanged" : pick === "local" ? "marvin-local" : ""} /></label>
-        <label className="dim small">SSO email domains <input value={emailDomains} onChange={(e) => setEmailDomains(e.target.value)} placeholder="company.com or *" /></label>
-        {provider.proxy === "oidc" && provider.id !== "local" && (
-          <label className="dim small">Groups claim <input value={groupsClaim} onChange={(e) => setGroupsClaim(e.target.value)} placeholder="groups" /></label>
-        )}
-        <div className="btns">
-          <button type="button" disabled={busy || info?.sso.source === "env"} onClick={() => void saveSso()}>{busy ? "Saving…" : "Save company sign-in"}</button>
-        </div>
+        <Fields>
+          {provider.proxy === "oidc" && (
+            <Field label="Issuer URL" wide><Input value={issuer} onChange={(e) => setIssuer(e.target.value)} placeholder="https://login.microsoftonline.com/…/v2.0" /></Field>
+          )}
+          <Field label="Client id"><Input value={clientId} onChange={(e) => setClientId(e.target.value)} /></Field>
+          <Field label="Client secret"><Input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder={info?.sso.has_secret ? "unchanged" : pick === "local" ? "marvin-local" : ""} /></Field>
+          <Field label="SSO email domains"><Input value={emailDomains} onChange={(e) => setEmailDomains(e.target.value)} placeholder="company.com or *" /></Field>
+          {provider.proxy === "oidc" && provider.id !== "local" && (
+            <Field label="Groups claim"><Input value={groupsClaim} onChange={(e) => setGroupsClaim(e.target.value)} placeholder="groups" /></Field>
+          )}
+        </Fields>
+        <Actions>
+          <Button disabled={busy || info?.sso.source === "env"} onClick={() => void saveSso()}>{busy ? "Saving…" : "Save company sign-in"}</Button>
+        </Actions>
         {pick === "local" ? (
-          <p className="dim small">After save, run <code>make sso-dev</code> and open <a href="http://127.0.0.1:8088">http://127.0.0.1:8088</a>. The four-terminal loop on :5174 stays unsigned-in.</p>
+          <Text>After save, run <code>make sso-dev</code> and open <a href="http://127.0.0.1:8088">http://127.0.0.1:8088</a>. The four-terminal loop on :5174 stays unsigned-in.</Text>
         ) : (
-          <p className="dim small">On an appliance, after the first save an admin runs <code>make edge-oidc-up</code> once so Caddy starts asking the provider.</p>
+          <Text>On an appliance, after the first save an admin runs <code>make edge-oidc-up</code> once so Caddy starts asking the provider.</Text>
         )}
-      </section>
-      {err && <p className="error small">{err}</p>}
-    </div>
+      </Card>
+      {err && <Text tone="bad">{err}</Text>}
+    </>
   );
 }

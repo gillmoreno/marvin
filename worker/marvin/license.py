@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -160,6 +160,7 @@ class Status:
     features: tuple[str, ...] = ()
     source: str | None = None
     has_key: bool = False
+    key_hint: str | None = None
 
     def allows(self, feature: str) -> bool:
         if not self.valid:
@@ -195,6 +196,7 @@ class Status:
             "source": self.source,
             "has_key": self.has_key,
             "ee": self.valid,
+            "key_hint": self.key_hint,
         }
 
 
@@ -248,6 +250,12 @@ def _read_features(payload: dict[str, Any]) -> tuple[str, ...]:
     if isinstance(raw, list):
         return tuple(str(p).strip() for p in raw if str(p).strip()) or ("*",)
     return ("*",)
+
+
+def _hint(secret: str) -> str:
+    if len(secret) <= 8:
+        return "•" * len(secret)
+    return secret[:4] + "•" * min(12, len(secret) - 8) + secret[-4:]
 
 
 class LicenseStore:
@@ -308,7 +316,9 @@ class LicenseStore:
         return None
 
     def status(self) -> Status:
-        return verify(self.raw_key(), public_pem=self._public_pem, source=self.source())
+        raw = self.raw_key()
+        st = verify(raw, public_pem=self._public_pem, source=self.source())
+        return replace(st, key_hint=_hint(raw)) if raw else st
 
     def put(self, key: str) -> Status:
         if self.env_key:

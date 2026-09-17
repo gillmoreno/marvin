@@ -14,6 +14,22 @@
         {
           "title": "A chevron beside Marvin",
           "description": "The arrow to the right of Marvin folds the sidebar to icons. This browser still remembers."
+        },
+        {
+          "title": "Sign-in fields have room",
+          "description": "On Settings → Sign-in, each label sits above its field. The list is no longer one cramped line of words and boxes."
+        },
+        {
+          "title": "GitHub settings use the same fields",
+          "description": "Client ID, tokens, and the machine / your GitHub blocks on Settings → GitHub use the same spaced fields as Sign-in."
+        },
+        {
+          "title": "Every Settings page is the same card",
+          "description": "Coding agents, sessions, audit export, Enterprise, and this machine now use the same fields and spacing as Sign-in and GitHub."
+        },
+        {
+          "title": "A license already on the machine is obvious",
+          "description": "Settings → Enterprise shows the company name, how many seats, and when it ends. The license string is masked. The paste box only appears when there is no key, or when you replace it."
         }
       ]
     },

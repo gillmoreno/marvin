@@ -9,6 +9,9 @@ All notable changes to Marvin. Entries are dated; the newest is on top.
 - On an Enterprise machine the company name sits under Marvin, as the gold badge. There is no company line without a license.
 - Collapse is a chevron to the right of Marvin. The company badge sits under Marvin, left-aligned.
 - Projects and Settings keep their labels when the rail is open.
+- Settings → Sign-in stacks each field under its label, so words and inputs are not jammed on one line.
+- Settings forms share one UI kit (card, field, button). GitHub, coding agents, sessions, audit, Enterprise, and this machine use the same card.
+- Settings → Enterprise shows the company, seats, and expiry when a license is already on the machine. The paste box stays hidden until you replace it. The string is masked like an API key. A pasted key has no “set here” label; the page only names the origin when `MARVIN_LICENSE_KEY` is holding it.
 
 ## 2026-09-16 — One sidebar, and projects are pages
 

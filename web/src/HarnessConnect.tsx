@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useIsAdmin } from "./auth";
+import { Actions, Block, Button, Card, Field, Fields, Input, Select, Steps, Text } from "./ui";
 
 /** Settings → Coding agents: which model provider this machine talks to, set here, not in .env.
  *  API key paste for every vendor; Grok also has "Sign in with Grok" (device flow, your grok.com subscription). */
@@ -40,30 +41,34 @@ export function KeyForm({ p, onSaved }: { p: Provider; onSaved: (s: Status) => v
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };
   if (p.key_source === "env" && !open) {
-    return <p className="dim small">API key: <code>{p.key_hint}</code> (from the environment)</p>;
+    return <Text>API key: <code>{p.key_hint}</code> (from the environment)</Text>;
   }
   if (p.key_set && !open) {
     return (
-      <p className="dim small">
+      <Text>
         API key: <code>{p.key_hint}</code> (set here)
         {p.key_source !== "env" && <> · <a href="#" onClick={(e) => { e.preventDefault(); setOpen(true); }}>change</a> · <a href="#" onClick={(e) => { e.preventDefault(); void clear(); }}>forget</a></>}
-      </p>
+      </Text>
     );
   }
   return (
-    <div className="github-setup">
-      <ol className="dim small">
-        {p.steps.map((s) => (
-          <li key={s}>{s === p.steps[0] ? <><a href={p.console_url} target="_blank" rel="noopener noreferrer">{p.console_url.replace(/^https:\/\//, "")}</a> — {s.replace(/^Open [^.]+\. /, "")}</> : s}</li>
-        ))}
-      </ol>
-      <div className="row">
-        <input type={show ? "text" : "password"} placeholder={p.key_prefix ? `${p.key_prefix}…` : "API key"} value={value} onChange={(e) => setValue(e.target.value)} autoComplete="off" spellCheck={false} />
-        <button className="ghost" type="button" onClick={() => setShow((s) => !s)}>{show ? "hide" : "show"}</button>
-        <button disabled={busy || value.trim().length < 12} onClick={() => void save()}>save</button>
-        {p.key_set && <button className="ghost" disabled={busy} onClick={() => setOpen(false)}>cancel</button>}
-      </div>
-      {err && <p className="error small">{err}</p>}
+    <div className="ui-stack">
+      <Steps items={p.steps.map((s) => ({
+        detail: s === p.steps[0]
+          ? <><a href={p.console_url} target="_blank" rel="noopener noreferrer">{p.console_url.replace(/^https:\/\//, "")}</a> — {s.replace(/^Open [^.]+\. /, "")}</>
+          : s,
+      }))} />
+      <Fields>
+        <Field label="API key" wide>
+          <Input type={show ? "text" : "password"} placeholder={p.key_prefix ? `${p.key_prefix}…` : "API key"} value={value} onChange={(e) => setValue(e.target.value)} autoComplete="off" spellCheck={false} />
+        </Field>
+      </Fields>
+      <Actions>
+        <Button variant="ghost" onClick={() => setShow((s) => !s)}>{show ? "Hide" : "Show"}</Button>
+        <Button disabled={busy || value.trim().length < 12} onClick={() => void save()}>{busy ? "Saving…" : "Save"}</Button>
+        {p.key_set && <Button variant="ghost" disabled={busy} onClick={() => setOpen(false)}>Cancel</Button>}
+      </Actions>
+      {err && <Text tone="bad">{err}</Text>}
     </div>
   );
 }
@@ -101,19 +106,19 @@ export function GrokLogin({ onSaved }: { onSaved: (s: Status) => void }) {
   const copy = () => { if (flow) void navigator.clipboard?.writeText(flow.user_code).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); }); };
   if (flow) {
     return (
-      <div className="github-flow">
-        <p className="small">Enter this code on Grok (a tab should have opened; if not, use the link):</p>
-        <div className="github-code" onClick={copy} title="click to copy">{flow.user_code || "…"}{copied ? <span className="dim small"> copied</span> : null}</div>
-        <p className="small"><a href={flow.verification_uri} target="_blank" rel="noopener noreferrer">{flow.verification_uri}</a></p>
-        <p className="dim small">Waiting for you to approve… the code is valid for {Math.max(1, Math.round(flow.expires_in / 60))} minutes.</p>
-        <div className="btns"><button type="button" className="ghost" onClick={() => { stop(); setFlow(null); }}>cancel</button></div>
+      <div className="ui-stack">
+        <Text>Enter this code on Grok (a tab should have opened; if not, use the link):</Text>
+        <button type="button" className="ui-code" onClick={copy} title="click to copy">{flow.user_code || "…"}{copied ? " · copied" : ""}</button>
+        <Text><a href={flow.verification_uri} target="_blank" rel="noopener noreferrer">{flow.verification_uri}</a></Text>
+        <Text>Waiting for you to approve… the code is valid for {Math.max(1, Math.round(flow.expires_in / 60))} minutes.</Text>
+        <Actions><Button variant="ghost" onClick={() => { stop(); setFlow(null); }}>Cancel</Button></Actions>
       </div>
     );
   }
   return (
     <>
-      <div className="btns"><button type="button" className="primary" disabled={busy} onClick={() => void start()}>{busy ? "starting…" : "Sign in with Grok"}</button></div>
-      {err && <p className="error small">{err}</p>}
+      <Actions><Button disabled={busy} onClick={() => void start()}>{busy ? "Starting…" : "Sign in with Grok"}</Button></Actions>
+      {err && <Text tone="bad">{err}</Text>}
     </>
   );
 }
@@ -126,10 +131,10 @@ export function HarnessSection() {
   useEffect(() => { if (admin) void load(); }, [admin]);
   if (!admin) {
     return (
-      <section className="coding-agents">
+      <Card>
         <h3>Coding agents</h3>
-        <p className="dim small">An admin connects Claude, Grok, Codex and the others from this panel. Nothing goes in a <code>.env</code> file.</p>
-      </section>
+        <Text>An admin connects Claude, Grok, Codex and the others from this panel. Nothing goes in a <code>.env</code> file.</Text>
+      </Card>
     );
   }
   const setDefault = async (id: string) => {
@@ -144,38 +149,36 @@ export function HarnessSection() {
     if (r.ok) setStatus(j); else setErr(j.error ?? r.statusText);
   };
   return (
-    <section className="coding-agents">
+    <Card>
       <h3>Coding agents</h3>
-      <p className="dim small">Who Marvin talks to. Set it here — a key or a subscription — not in an environment file. Rooms without a pinned harness use the default.</p>
-      {status === null && !err && <p className="dim small">checking…</p>}
+      <Text>Who Marvin talks to. Set it here — a key or a subscription — not in an environment file. Rooms without a pinned harness use the default.</Text>
+      {status === null && !err && <Text>Checking…</Text>}
       {status && (
         <>
-          <label className="small">
-            Default agent
-            <select value={status.default_harness === "claude-code" ? "" : status.default_harness} disabled={status.default_source === "env"} onChange={(e) => void setDefault(e.target.value)}>
-              <option value="">Claude Code (built-in default)</option>
-              {status.harnesses.filter((h) => h.id !== "claude-code").map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
-            </select>
-          </label>
-          {status.default_source === "env" && <p className="dim small">Default is <code>MARVIN_HARNESS</code> from the environment.</p>}
-          <p className="dim small">OpenCode uses whichever of the keys above it is configured for; there is no separate OpenCode secret.</p>
-          <div className="providers">
-            {status.providers.map((p) => (
-              <div className="provider" key={p.id}>
-                <p className="small"><b>{p.label}</b> <span className="dim">· {p.harnesses.join(", ")}</span></p>
-                {p.note && <p className="dim small">{p.note}</p>}
-                {p.subscription === "grok" && (
-                  p.subscription_set
-                    ? <p className="small">Grok subscription: <b>signed in</b> · <a href="#" onClick={(e) => { e.preventDefault(); void disconnectGrok(); }}>disconnect</a></p>
-                    : <GrokLogin onSaved={setStatus} />
-                )}
-                <KeyForm p={p} onSaved={setStatus} />
-              </div>
-            ))}
-          </div>
+          <Fields>
+            <Field label="Default agent" wide>
+              <Select value={status.default_harness === "claude-code" ? "" : status.default_harness} disabled={status.default_source === "env"} onChange={(e) => void setDefault(e.target.value)}>
+                <option value="">Claude Code (built-in default)</option>
+                {status.harnesses.filter((h) => h.id !== "claude-code").map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
+              </Select>
+            </Field>
+          </Fields>
+          {status.default_source === "env" && <Text>Default is <code>MARVIN_HARNESS</code> from the environment.</Text>}
+          <Text>OpenCode uses whichever of the keys above it is configured for; there is no separate OpenCode secret.</Text>
+          {status.providers.map((p) => (
+            <Block key={p.id} title={`${p.label} · ${p.harnesses.join(", ")}`}>
+              {p.note && <Text>{p.note}</Text>}
+              {p.subscription === "grok" && (
+                p.subscription_set
+                  ? <Text>Grok subscription: <b>signed in</b> · <a href="#" onClick={(e) => { e.preventDefault(); void disconnectGrok(); }}>disconnect</a></Text>
+                  : <GrokLogin onSaved={setStatus} />
+              )}
+              <KeyForm p={p} onSaved={setStatus} />
+            </Block>
+          ))}
         </>
       )}
-      {err && <p className="error small">{err}</p>}
-    </section>
+      {err && <Text tone="bad">{err}</Text>}
+    </Card>
   );
 }

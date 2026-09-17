@@ -1,0 +1,15 @@
+/* Utilities only — do not import Tailwind preflight; Marvin's existing chrome stays intact. */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  --color-ink: #1d2227;
+  --color-paper: #eef0f1;
+  --color-card: #ffffff;
+  --color-line: #d9dadd;
+  --color-muted: #697078;
+  --color-gold: #f0ad3e;
+  --color-rail: #191d20;
+  --font-sans: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+}

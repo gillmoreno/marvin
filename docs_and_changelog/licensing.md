@@ -13,16 +13,22 @@ Everyone else just uses the core. That is the whole product split.
 
 ## The key
 
-We mint a JWT on our machine. They paste it in Settings → **Enterprise** (admin).
+We mint a JWT on our machine. They paste it in Settings → **Enterprise** (admin)
+when the machine has no key. After that the page shows the company, seats, and
+expiry — not an empty paste box. The string itself is shown masked (first and
+last letters), the same way API keys are. Replace opens the box again. Remove
+clears it.
+
 The worker checks the signature with the public key in `worker/marvin/license.pub`,
 offline, at start and again when someone saves. No phone-home. Anyone signed in
 can see whether the machine is licensed (`GET /api/license`); a gold company
 badge appears on the rail, in the room, and in Settings. Only an admin can
-paste or remove the key.
+paste, replace, or remove the key. The masked hint is admin-only.
 
 `MARVIN_LICENSE_KEY` is an override for automation. When it is set, it wins and
-the panel says "from the environment". Otherwise the key is stored encrypted in
-the worker state dir (`license.json`), same as GitHub tokens.
+the panel says so — Settings cannot replace or remove it. A key pasted on the
+page is just the masked string, with no origin label. Otherwise the key is
+stored encrypted in the worker state dir (`license.json`), same as GitHub tokens.
 
 The string carries company, expiry, seats, and which EE flags are on. Seats are
 recorded. Flags that the worker honours today: `sso` (OIDC save +

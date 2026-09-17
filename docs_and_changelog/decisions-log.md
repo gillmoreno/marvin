@@ -178,3 +178,11 @@ this file is the "why we did it this way" layer on top.
   Projects, Settings, profile. The room no longer has a second sidebar. Addresses:
   `/projects`, `/projects/<name>`, `/settings`, `/settings/<pane>`. Opening a project
   `pushState`s; Back (or Projects) leaves it. Settings is the same main column, not an overlay.
+
+## 2026-09-17
+
+- **One UI kit, not a third-party design system.** Settings was inventing a new input on every card.
+  `web/src/ui` is the kit (Card, Field, Input, Button, Steps). Sign-in, GitHub, coding agents,
+  sessions, audit, Enterprise, and this machine share that one map. Tailwind is for layout only; no
+  preflight, no Material, no shadcn — those would restyle the rail. Claude's frontend-design plugin
+  is for throwaway look explorations, not product chrome. Agents follow `.cursor/skills/marvin-ui`.

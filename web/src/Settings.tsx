@@ -9,6 +9,7 @@ import { ExportSection, SessionsSection } from "./Sessions";
 import { LicenseSection } from "./License";
 import { MachineUpdate } from "./MachineUpdate";
 import type { SettingsPane } from "./nav";
+import { Actions, Button, Card, Text } from "./ui";
 
 const MACHINE_PANES: { id: SettingsPane; label: string }[] = [
   { id: "signin", label: "Sign-in" },
@@ -34,12 +35,12 @@ export function PowerSection() {
     setMsg(r.ok ? "Going to sleep. This page will stop responding in a moment." : "Could not sleep: " + r.statusText);
   }
   return (
-    <section>
+    <Card>
       <h3>Machine power</h3>
-      <p className="dim small">State: <b>{state}</b>. Sleeping scales everything to zero (volumes stay), which drops the GPU node and its cost. The URL then shows a Wake button.</p>
-      <div className="btns"><button className="danger" onClick={() => void sleep()}>put {agent.name} to sleep</button></div>
-      {msg && <p className="status ok">{msg}</p>}
-    </section>
+      <Text>State: <b>{state}</b>. Sleeping scales everything to zero (volumes stay), which drops the GPU node and its cost. The URL then shows a Wake button.</Text>
+      <Actions><Button variant="danger" onClick={() => void sleep()}>Put {agent.name} to sleep</Button></Actions>
+      {msg && <Text tone="ok">{msg}</Text>}
+    </Card>
   );
 }
 
@@ -55,20 +56,20 @@ function AppPreviewsSection() {
   }, []);
   if (!admin) return null;
   return (
-    <section>
+    <Card>
       <h3>App previews</h3>
       {pattern && host ? (
         <>
-          <p className="small">This machine is <code>{host}</code>. A port the agent opens is <code>{pattern}</code> — so port 3000 is <code>{pattern.replace("{port}", "3000")}</code>.</p>
-          <p className="dim small">
+          <Text>This machine is <code>{host}</code>. A port the agent opens is <code>{pattern}</code> — so port 3000 is <code>{pattern.replace("{port}", "3000")}</code>.</Text>
+          <Text>
             DNS: an A record for <code>{host}</code> and for <code>*.{host}</code>, both pointing at this VM, DNS-only (not proxied).
             The name is this install&apos;s hostname (<code>MARVIN_DOMAIN</code>), not a Marvin-wide domain.
-          </p>
+          </Text>
         </>
       ) : (
-        <p className="dim small">No public hostname on this machine, so previews are <code>http://localhost:&lt;port&gt;</code>. Set <code>MARVIN_DOMAIN</code> (and a <code>*.that-name</code> DNS record) for HTTPS links other people can open.</p>
+        <Text>No public hostname on this machine, so previews are <code>http://localhost:&lt;port&gt;</code>. Set <code>MARVIN_DOMAIN</code> (and a <code>*.that-name</code> DNS record) for HTTPS links other people can open.</Text>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -118,7 +119,7 @@ export function SettingsPage({ extra, room, pane, onPane }: {
           {pane === "machine" && (
             <>
               <AppPreviewsSection />
-              {admin && <section className="settings-update"><h3>This machine</h3><MachineUpdate /></section>}
+              {admin && <Card><h3>This machine</h3><MachineUpdate /></Card>}
               <PowerSection />
             </>
           )}
