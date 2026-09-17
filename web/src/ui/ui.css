@@ -156,3 +156,26 @@
 .ui-list a { color: #1d2227; font-weight: 650; text-decoration: none; }
 .ui-list a:hover { text-decoration: underline; }
 .ui-list small { color: #697078; font-size: 12px; }
+
+.ui-lock-mark {
+  display: inline;
+  margin-left: 6px;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  vertical-align: 1px;
+}
+.ui-lock-reason {
+  margin: 0;
+  color: #a66b15;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ui-lock-reason a { color: #a66b15; font-weight: 650; }
+.ui-lock-wrap { display: flex; flex-direction: column; gap: 12px; }
+.ui-locked {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  opacity: .42;
+}

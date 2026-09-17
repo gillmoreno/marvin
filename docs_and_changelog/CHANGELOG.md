@@ -2,6 +2,11 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-17 — Enterprise settings lock
+
+### Changed
+- Without a license, Settings locks who may join, company sign-in, audit export, and creating a GitHub App. A 🔒 sits on the title, the body dims, and a gold line points at Enterprise to paste a key. A pasted GitHub token, coding agents, and the local session log stay open.
+
 ## 2026-09-17 — Company name under Marvin
 
 ### Changed

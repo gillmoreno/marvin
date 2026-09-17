@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useIsAdmin } from "./auth";
+import { LicenseLockReason, useEnterprise } from "./License";
 import { Actions, Button, Card, Chip, Chips, Field, Fields, Input, Steps, Text, Textarea } from "./ui";
 
 type AccessInfo = {
@@ -127,6 +128,8 @@ function guessProvider(info: AccessInfo | null): ProviderId {
 
 export function AccessSection() {
   const admin = useIsAdmin();
+  const ent = useEnterprise();
+  const locked = !ent.ee;
   const [info, setInfo] = useState<AccessInfo | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -212,7 +215,7 @@ export function AccessSection() {
 
   return (
     <>
-      <Card>
+      <Card locked={locked} lockReason={<LicenseLockReason />}>
         <h3>Who may join</h3>
         <Text>Password login and SSO both honour this list. Empty means anyone who can authenticate.</Text>
         <Fields>
@@ -225,11 +228,11 @@ export function AccessSection() {
         <Actions><Button disabled={busy} onClick={() => void saveWho()}>{busy ? "Saving…" : "Save who may join"}</Button></Actions>
       </Card>
 
-      <Card>
+      <Card locked={locked || !ent.allows("sso")} lockReason={<LicenseLockReason />}>
         <h3>Company sign-in</h3>
         <Text>
           People sign in at your identity provider. Marvin never sees their password.
-          Needs an Enterprise license. {info?.sso.source === "env" ? "Issuer is from the environment." : null}
+          {info?.sso.source === "env" ? " Issuer is from the environment." : null}
         </Text>
         {info?.sso.configured && (
           <Text tone="ok">{info.sso.client_id ? `Client ${info.sso.client_id}` : "Client saved"} · {info.sso.source === "env" ? "from the environment" : "set here"}</Text>

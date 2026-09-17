@@ -33,9 +33,10 @@ stored encrypted in the worker state dir (`license.json`), same as GitHub tokens
 The string carries company, expiry, seats, and which EE flags are on. Seats are
 recorded. Flags that the worker honours today: `sso` (OIDC save +
 `.oauth2-proxy.env`), `audit` (S3 / webhook export). A valid key is also
-required to create the machine GitHub App. Domain allow-lists, the local session
-JSONL, and the free core do not need a key. `ee.enabled("sso")` is the gate
-modules under `ee/` should call.
+required to create the machine GitHub App. Settings locks those cards (and
+who may join) with a 🔒 until a key is pasted; a pasted GitHub token, coding
+agents, and the local session JSONL stay editable. `ee.enabled("sso")` is the
+gate modules under `ee/` should call.
 
 ## Issuing a key (us, not them)
 

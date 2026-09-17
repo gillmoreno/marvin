@@ -21,7 +21,7 @@ Settings, setup, and forms are a solved problem. Do not invent a new input, butt
 
 | Need | Use |
 | --- | --- |
-| White settings block | `Card` (`<h3>` first) |
+| White settings block | `Card` (`<h3>` first); `locked` for Enterprise-only cards |
 | Group inside a card | `Block` with a title |
 | Label above a control | `Field` + `Input` or `Textarea`; wrap several in `Fields` |
 | Primary / quiet / destructive action | `Button` `primary` / `ghost` / `danger` |
@@ -31,6 +31,7 @@ Settings, setup, and forms are a solved problem. Do not invent a new input, butt
 | Choice chips | `Chips` + `Chip` |
 | Long secret or URL | `<code className="ui-code">` |
 | A few labeled facts | `Facts` (`{ label, value }[]`) |
+| Enterprise-only body | `Lock` (`on={!ee}`), or `Card locked` |
 
 ```tsx
 import { Actions, Button, Card, Field, Fields, Input, Text } from "./ui";

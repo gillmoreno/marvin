@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useIsAdmin } from "./auth";
+import { useAppNav } from "./nav";
 import { Actions, Button, Card, Facts, Field, Fields, Text, Textarea } from "./ui";
 
 export type LicenseInfo = {
@@ -59,19 +60,63 @@ export function LicensePaste({ onValid, extra }: { onValid?: (info: LicenseInfo)
   );
 }
 
+export type EnterpriseState = {
+  ee: boolean;
+  company: string | null;
+  features: string[];
+  loaded: boolean;
+  allows: (feature?: string) => boolean;
+};
+
+function allowsFeature(ee: boolean, features: string[], feature?: string) {
+  if (!ee) return false;
+  if (!feature) return true;
+  if (!features.length || features.includes("*")) return true;
+  return features.includes(feature);
+}
+
+/** Gold lock copy: stay on Settings, open the Enterprise pane. */
+export function LicenseLockReason() {
+  const nav = useAppNav();
+  return (
+    <>
+      Needs an Enterprise license.{" "}
+      <a
+        href="/settings/license"
+        onClick={(event) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+          event.preventDefault();
+          nav.openSettings("license");
+        }}
+      >
+        Paste one
+      </a>.
+    </>
+  );
+}
+
 /** Whether this machine has a valid Enterprise license. Safe for anyone signed in (GET /api/license). */
-export function useEnterprise() {
-  const [info, setInfo] = useState<{ ee: boolean; company: string | null } | null>(null);
+export function useEnterprise(): EnterpriseState {
+  const [info, setInfo] = useState<LicenseInfo | null>(null);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     fetch("/api/license")
       .then(async (response) => {
         if (!response.ok) return;
-        const body = await response.json() as LicenseInfo;
-        setInfo({ ee: Boolean(body.ee || body.valid), company: body.company });
+        setInfo(await response.json() as LicenseInfo);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoaded(true));
   }, []);
-  return info;
+  const ee = Boolean(info?.ee || info?.valid);
+  const features = info?.features ?? [];
+  return {
+    ee,
+    company: info?.company ?? null,
+    features,
+    loaded,
+    allows: (feature?: string) => allowsFeature(ee, features, feature),
+  };
 }
 
 export function LicenseSection() {

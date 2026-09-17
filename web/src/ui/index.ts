@@ -1,6 +1,7 @@
 export { Actions } from "./Actions";
 export { Button } from "./Button";
 export { Block, Card } from "./Card";
+export { Lock, LockMark, LockReason } from "./Lock";
 export { Chip, Chips } from "./Chip";
 export { Facts } from "./Facts";
 export { Field, Fields } from "./Field";

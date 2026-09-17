@@ -181,6 +181,7 @@ this file is the "why we did it this way" layer on top.
 
 ## 2026-09-17
 
+- **Enterprise settings lock in the kit.** After the license is removed, who may join, company sign-in, audit export, and the GitHub App stay on the page but lock (🔒, gold “paste a license”, inert dimmed body). The worker still refuses SSO save, audit shipping, and GitHub App creation without a key. A pasted PAT and the local session log stay free.
 - **One UI kit, not a third-party design system.** Settings was inventing a new input on every card.
   `web/src/ui` is the kit (Card, Field, Input, Button, Steps). Sign-in, GitHub, coding agents,
   sessions, audit, Enterprise, and this machine share that one map. Tailwind is for layout only; no

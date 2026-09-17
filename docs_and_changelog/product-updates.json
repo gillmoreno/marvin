@@ -2,6 +2,22 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-17-enterprise-settings-lock",
+      "date": "2026-09-17",
+      "title": "Enterprise settings lock when there is no license",
+      "summary": "Who may join, company sign-in, audit export, and the GitHub App stay visible but locked until you paste a license.",
+      "changes": [
+        {
+          "title": "Enterprise cards lock",
+          "description": "If this machine has no Enterprise license, who may join, company sign-in, and audit export show a lock and dim. Paste a license under Enterprise to edit them."
+        },
+        {
+          "title": "The GitHub App waits on a license",
+          "description": "Creating a GitHub App for the machine is locked the same way. A pasted token still works."
+        }
+      ]
+    },
+    {
       "id": "2026-09-17-company-under-marvin",
       "date": "2026-09-17",
       "title": "Company name under Marvin",

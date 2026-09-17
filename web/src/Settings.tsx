@@ -6,7 +6,7 @@ import { GitHubSection } from "./GitHubConnect";
 import { HarnessSection } from "./HarnessConnect";
 import { AccessSection } from "./AccessSection";
 import { ExportSection, SessionsSection } from "./Sessions";
-import { LicenseSection } from "./License";
+import { LicenseSection, useEnterprise } from "./License";
 import { MachineUpdate } from "./MachineUpdate";
 import type { SettingsPane } from "./nav";
 import { Actions, Button, Card, Text } from "./ui";
@@ -80,6 +80,7 @@ export function SettingsPage({ extra, room, pane, onPane }: {
   onPane: (pane: SettingsPane) => void;
 }) {
   const admin = useIsAdmin();
+  const ent = useEnterprise();
   const hasRoom = Boolean(extra);
   const panes = hasRoom ? [{ id: "room" as SettingsPane, label: "This room" }, ...MACHINE_PANES] : MACHINE_PANES;
 
@@ -104,7 +105,7 @@ export function SettingsPage({ extra, room, pane, onPane }: {
                 onPane(item.id);
               }}
             >
-              {item.label}
+              {item.label}{(item.id === "audit" || item.id === "signin") && !ent.ee ? " 🔒" : ""}
             </a>
           ))}
         </nav>

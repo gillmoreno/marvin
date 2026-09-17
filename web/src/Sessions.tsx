@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useIsAdmin } from "./auth";
+import { LicenseLockReason, useEnterprise } from "./License";
 import { Actions, Button, Card, Check, Field, Fields, Input, Text } from "./ui";
 
 type Row = { id: string; room: string; started_at: number; ended_at: number | null; participants: string[]; live?: boolean };
@@ -81,6 +82,8 @@ type ExportInfo = { bucket: string | null; region: string; prefix: string; webho
 
 export function ExportSection() {
   const admin = useIsAdmin();
+  const ent = useEnterprise();
+  const locked = !ent.allows("audit");
   const [info, setInfo] = useState<ExportInfo | null>(null);
   const [bucket, setBucket] = useState("");
   const [region, setRegion] = useState("eu-central-1");
@@ -107,9 +110,9 @@ export function ExportSection() {
     setAk(""); setSk(""); setInfo(j);
   };
   return (
-    <Card>
+    <Card locked={locked} lockReason={<LicenseLockReason />}>
       <h3>Audit export</h3>
-      <Text>When a meeting closes, Marvin can PUT the JSONL to your bucket and/or POST it to a webhook. Needs an Enterprise license. Nothing is sent to us.</Text>
+      <Text>When a meeting closes, Marvin can PUT the JSONL to your bucket and/or POST it to a webhook. Nothing is sent to us.</Text>
       <Fields>
         <Field label="S3 bucket"><Input value={bucket} onChange={(e) => setBucket(e.target.value)} placeholder="company-marvin-audit" /></Field>
         <Field label="Region"><Input value={region} onChange={(e) => setRegion(e.target.value)} /></Field>

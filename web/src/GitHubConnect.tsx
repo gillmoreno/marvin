@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useIsAdmin, useMe } from "./auth";
-import { Actions, Block, Button, Card, Field, Fields, Input, Steps, Text } from "./ui";
+import { LicenseLockReason, useEnterprise } from "./License";
+import { Actions, Block, Button, Card, Field, Fields, Input, Lock, Steps, Text } from "./ui";
 
 /** Machine GitHub (required, admin) plus optional personal GitHub. Device flow or a pasted PAT. */
 
@@ -179,6 +180,7 @@ export function GitHubAuth({ dest, configured, onDone }: { dest: "user" | "machi
 export function GitHubSection() {
   const me = useMe();
   const admin = useIsAdmin();
+  const ent = useEnterprise();
   const [status, setStatus] = useState<Status | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const load = (verify = false) =>
@@ -218,11 +220,13 @@ export function GitHubSection() {
                 : "Not set."}
             </Text>
             {admin && (
-              <Text>
-                <a href="#" onClick={(e) => { e.preventDefault(); void startApp(); }}>Create a GitHub App for this machine</a>
-                {status.app?.configured ? <> · app {status.app.slug || "ready"}{status.app.installed ? ", installed" : " — install it on the org after GitHub redirects"}</> : null}
-                . A pasted PAT still works.
-              </Text>
+              <Lock on={!ent.ee} reason={<LicenseLockReason />}>
+                <Text>
+                  <a href="#" onClick={(e) => { e.preventDefault(); void startApp(); }}>Create a GitHub App for this machine</a>
+                  {status.app?.configured ? <> · app {status.app.slug || "ready"}{status.app.installed ? ", installed" : " — install it on the org after GitHub redirects"}</> : null}
+                  . A pasted PAT still works.
+                </Text>
+              </Lock>
             )}
             {admin && status.signing_key && (
               <>
