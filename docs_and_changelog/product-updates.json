@@ -2,6 +2,22 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-19-marvin-mark",
+      "date": "2026-09-19",
+      "title": "A mark for Marvin",
+      "summary": "Marvin in the sidebar is the gold speech circle and the cream word, with a live pip on the i. Fold the rail and the mark stays.",
+      "changes": [
+        {
+          "title": "The name you say",
+          "description": "The sidebar shows the Marvin lockup: speech circle, cream word, gold pip on the i. Fold it and the square mark stays."
+        },
+        {
+          "title": "The same mark on the way in",
+          "description": "Sign-in uses the lockup. The browser tab uses the square mark."
+        }
+      ]
+    },
+    {
       "id": "2026-09-17-coding-agents-grok-first",
       "date": "2026-09-17",
       "title": "Coding agents lead with Grok",

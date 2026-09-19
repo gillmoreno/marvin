@@ -2,6 +2,11 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-19 — Marvin mark
+
+### Changed
+- The sidebar and sign-in rail use the Marvin lockup: gold speech circle, cream word, live gold pip on the i. Fold the rail and the square mark stays. The browser tab uses the mark.
+
 ## 2026-09-19 — Refined icon-only rail
 
 ### Changed

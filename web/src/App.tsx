@@ -14,7 +14,7 @@ import { MeContext, fetchMe, login, type Me } from "./auth";
 import { MobileRoom, useIsMobile } from "./Mobile";
 import { useEnterprise } from "./License";
 import { useAppNav } from "./nav";
-import { AppNavProvider, AppShell, useProfile } from "./shell";
+import { AppNavProvider, AppShell, BrandLogo, useProfile } from "./shell";
 
 type Join = { serverUrl: string; token: string; room: string; relayOnly: boolean };
 
@@ -251,7 +251,7 @@ function SsoRequiredScreen() {
   return (
     <main className="login-workspace">
       <aside className="login-rail">
-        <div className="login-brand"><span><i /></span><b>Marvin</b></div>
+        <div className="login-brand"><BrandLogo /></div>
         <div>
           <h1>Sign in at the proxy.</h1>
           <p>This address is the Vite app. Company sign-in only lands when you open the URL Caddy is serving.</p>
@@ -284,7 +284,7 @@ function LoginScreen({ agentName, onLogin, notice }: { agentName: string; onLogi
   return (
     <main className="login-workspace">
       <aside className="login-rail">
-        <div className="login-brand"><span><i /></span><b>Marvin</b></div>
+        <div className="login-brand"><BrandLogo /></div>
         <div><h1>A workspace you can talk to.</h1><p>Join your team’s coding room and say “{agentName}” when you need the agent.</p></div>
       </aside>
       <form

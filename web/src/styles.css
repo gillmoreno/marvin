@@ -380,13 +380,13 @@ button.ghost { background: transparent; }
 .join-workspace { min-height: 100dvh; display: grid; grid-template-columns: 244px minmax(0, 1fr); background: #eef0f1; color: #1d2227; }
 .join-workspace:has(.join-rail.collapsed) { grid-template-columns: 60px minmax(0, 1fr); }
 .join-rail { min-height: 100dvh; display: flex; flex-direction: column; padding: 30px 20px 22px; color: #f5f3ee; background: #191d20; border-right: 1px solid #080a0c; }
-.join-brand { --brand-text-inset: 34px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 0 8px; }
-.join-brand-row { display: flex; align-items: center; gap: 11px; width: 100%; font-size: 18px; letter-spacing: .11em; }
-.join-brand-mark { width: 23px; height: 23px; display: grid; place-items: center; border: 1px solid rgba(240,173,62,.5); border-radius: 50%; position: relative; flex: none; }
-.join-brand-mark::after { content: ""; position: absolute; width: 4px; height: 4px; top: -2px; right: 3px; border-radius: 50%; background: #f0ad3e; }
-.join-brand i { width: 7px; height: 7px; border-radius: 50%; background: #f0ad3e; }
-.join-brand b { font-weight: 650; }
-.join-brand.ee .join-brand-mark { border-color: #f0ad3e; box-shadow: 0 0 0 4px rgba(240,173,62,.16); }
+.join-brand { --brand-text-inset: 32px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 0 8px; }
+.join-brand-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+.join-brand-lockup-img { height: 28px; width: auto; display: block; flex: none; }
+.join-brand-mark-img { width: 24px; height: 24px; display: block; flex: none; }
+.join-brand.ee .join-brand-lockup-img,
+.join-brand.ee .join-brand-mark-img { filter: drop-shadow(0 0 5px rgba(240,173,62,.45)); }
+.login-brand .join-brand-lockup-img { height: 32px; }
 .ee-mark {
   display: inline-flex; align-items: center; align-self: flex-start; max-width: calc(100% - var(--brand-text-inset));
   height: 20px; margin-left: var(--brand-text-inset); margin-right: auto; padding: 0 8px;
@@ -418,7 +418,6 @@ button.ghost { background: transparent; }
 .join-rail.collapsed { padding: 20px 10px 16px; align-items: center; }
 .join-rail.collapsed .join-brand { --brand-text-inset: 0; align-items: center; padding: 0; gap: 16px; width: 100%; }
 .join-rail.collapsed .join-brand-row { flex-direction: column; justify-content: center; gap: 16px; width: 100%; }
-.join-rail.collapsed .join-brand b,
 .join-rail.collapsed .ee-mark,
 .join-rail.collapsed .setup-rail-copy,
 .join-rail.collapsed .setup-count,
@@ -520,9 +519,6 @@ button.ghost { background: transparent; }
 .login-workspace { min-height: 100dvh; display: grid; grid-template-columns: minmax(300px,38%) 1fr; background: #eef0f1; }
 .login-rail { min-height: 100dvh; padding: 40px clamp(30px,5vw,72px); display: flex; flex-direction: column; justify-content: space-between; color: #f5f3ee; background: #191d20; }
 .login-brand { display: flex; align-items: center; gap: 11px; font-size: 18px; letter-spacing: .11em; }
-.login-brand > span { width: 23px; height: 23px; display: grid; place-items: center; border: 1px solid rgba(240,173,62,.5); border-radius: 50%; position: relative; }
-.login-brand > span::after { content: ""; position: absolute; width: 4px; height: 4px; top: -2px; right: 3px; border-radius: 50%; background: #f0ad3e; }
-.login-brand i { width: 7px; height: 7px; border-radius: 50%; background: #f0ad3e; }
 .login-rail > div:last-child { margin-bottom: 12vh; }
 .login-rail h1 { max-width: 410px; margin: 0; font-size: clamp(38px,5vw,64px); line-height: .98; letter-spacing: -.05em; font-weight: 600; }
 .login-rail p { max-width: 390px; margin: 22px 0 0; color: #939ba0; font-size: 14px; line-height: 1.6; }

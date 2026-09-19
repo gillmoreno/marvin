@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Marvin · lockups</title>
+<style>
+  :root {
+    --rail: #191d20;
+    --gold: #f0ad3e;
+    --cream: #f5f3ee;
+    --ink: #1d2227;
+    --paper: #eef0f1;
+    --dim: #697078;
+    --studio: #d8dbde;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background: var(--studio);
+    font: 14px/1.45 "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+  }
+  .page { padding: 36px 28px 64px; max-width: 1280px; margin: 0 auto; }
+  .page > h1 { margin: 0; font-size: 22px; letter-spacing: -.03em; font-weight: 600; }
+  .page > p { margin: 6px 0 28px; color: var(--dim); max-width: 40em; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .board {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 280px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--rail);
+  }
+  .board .stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 36px 28px;
+  }
+  .board.paper { background: var(--paper); }
+  .board figcaption {
+    margin: 0;
+    padding: 12px 16px 14px;
+    background: #cfd2d5;
+    color: var(--dim);
+    font-size: 13px;
+  }
+  .board.square { min-height: 360px; }
+  .span2 { grid-column: 1 / -1; }
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .lockup.stack {
+    flex-direction: column;
+    gap: 22px;
+  }
+  .mark {
+    width: 64px;
+    height: 64px;
+    color: var(--gold);
+    display: block;
+    overflow: visible;
+    flex: none;
+  }
+  .stack .mark, .mark.hero { width: 88px; height: 88px; }
+  .word {
+    font-family: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+    font-weight: 600;
+    font-size: 48px;
+    letter-spacing: .12em;
+    line-height: 1;
+    color: var(--cream);
+    padding-left: .04em;
+    transform: translateY(1px);
+  }
+  .word.gold { color: var(--gold); }
+  .word.ink { color: var(--ink); }
+  .i {
+    position: relative;
+    display: inline-block;
+    letter-spacing: 0;
+    margin-right: .12em;
+  }
+  .i::before,
+  .i::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    border-radius: 50%;
+    transform: translateX(-50%);
+  }
+  .i::before {
+    top: .07em;
+    width: .28em;
+    height: .28em;
+    background: var(--rail);
+  }
+  .i::after {
+    top: .12em;
+    width: .18em;
+    height: .18em;
+    background: var(--gold);
+    box-shadow: 0 0 .22em rgba(240, 173, 62, .7);
+  }
+  @media (max-width: 800px) {
+    .grid { grid-template-columns: 1fr; }
+    .word { font-size: 36px; }
+    .mark { width: 52px; height: 52px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Marvin</h1>
+  <p>The speech circle, with the name. Same mark in every lockup.</p>
+
+  <div class="grid">
+    <figure class="board">
+      <div class="stage">
+        <div class="lockup">
+          <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="15.7" cy="9.6" r="3.4" fill="currentColor" opacity="0.22"/>
+            <circle cx="15.7" cy="9.6" r="2.05" fill="currentColor"/>
+          </svg>
+          <span class="word">Marvin</span>
+        </div>
+      </div>
+      <figcaption>Cream. Gold mark, cream word — what the sidebar does now.</figcaption>
+    </figure>
+
+    <figure class="board">
+      <div class="stage">
+        <div class="lockup">
+          <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="15.7" cy="9.6" r="3.4" fill="currentColor" opacity="0.22"/>
+            <circle cx="15.7" cy="9.6" r="2.05" fill="currentColor"/>
+          </svg>
+          <span class="word gold">Marvin</span>
+        </div>
+      </div>
+      <figcaption>Gold. Mark and letters in the same metal.</figcaption>
+    </figure>
+
+    <figure class="board">
+      <div class="stage">
+        <div class="lockup">
+          <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="15.7" cy="9.6" r="3.4" fill="currentColor" opacity="0.22"/>
+            <circle cx="15.7" cy="9.6" r="2.05" fill="currentColor"/>
+          </svg>
+          <span class="word">Marv<span class="i">i</span>n</span>
+        </div>
+      </div>
+      <figcaption>Live i. Cream word, gold pip on the i.</figcaption>
+    </figure>
+
+    <figure class="board paper">
+      <div class="stage">
+        <div class="lockup">
+          <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="15.7" cy="9.6" r="3.4" fill="currentColor" opacity="0.22"/>
+            <circle cx="15.7" cy="9.6" r="2.05" fill="currentColor"/>
+          </svg>
+          <span class="word ink">Marvin</span>
+        </div>
+      </div>
+      <figcaption>Paper. For a light page or README.</figcaption>
+    </figure>
+
+    <figure class="board square">
+      <div class="stage">
+        <div class="lockup stack">
+          <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="15.7" cy="9.6" r="3.4" fill="currentColor" opacity="0.22"/>
+            <circle cx="15.7" cy="9.6" r="2.05" fill="currentColor"/>
+          </svg>
+          <span class="word">Marvin</span>
+        </div>
+      </div>
+      <figcaption>Stacked. For a square: icon, poster, social.</figcaption>
+    </figure>
+
+    <figure class="board square">
+      <div class="stage">
+        <svg class="mark hero" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="15.7" cy="9.6" r="3.4" fill="currentColor" opacity="0.22"/>
+          <circle cx="15.7" cy="9.6" r="2.05" fill="currentColor"/>
+        </svg>
+      </div>
+      <figcaption>The mark. What sits in the sidebar when the rail is folded.</figcaption>
+    </figure>
+  </div>
+</div>
+</body>
+</html>

@@ -2,6 +2,17 @@ import { CollapseIcon, ExpandIcon } from "../icons";
 
 export type EnterpriseMark = { ee: boolean; company: string | null } | null | undefined;
 
+export function BrandLogo({ collapsed = false }: { collapsed?: boolean }) {
+  return (
+    <img
+      className={collapsed ? "join-brand-mark-img" : "join-brand-lockup-img"}
+      src={collapsed ? "/marvin-mark.svg" : "/marvin-lockup.svg"}
+      alt="Marvin"
+      draggable={false}
+    />
+  );
+}
+
 export function Brand({
   ee,
   collapsed,
@@ -15,8 +26,7 @@ export function Brand({
   return (
     <div className={`join-brand${ee?.ee ? " ee" : ""}`}>
       <div className="join-brand-row">
-        <span className="join-brand-mark"><i /></span>
-        <b>Marvin</b>
+        <BrandLogo collapsed={collapsed} />
         <button
           type="button"
           className="rail-toggle"
