@@ -2,6 +2,11 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-19 — Refined icon-only rail
+
+### Changed
+- Collapsed sidebar is now a cleaner icon-only rail (~60px instead of 72px) with better icon centering, clearer expand affordance, and improved visual hierarchy. Expanded rail remains unchanged.
+
 ## 2026-09-17 — Coding agents lead with Grok
 
 ### Changed
