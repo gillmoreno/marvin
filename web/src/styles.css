@@ -362,7 +362,7 @@ button.ghost { background: transparent; }
 .left-head h1::before { content: ""; width: 20px; height: 20px; border: 1px solid rgba(45,212,191,.5); border-radius: 50%; box-shadow: inset 0 0 0 6px #161920, inset 0 0 0 10px #2dd4bf; }
 .left .room { display: block; margin-left: 30px; color: #7d858b; font-size: 11px; letter-spacing: 0; }
 .left .people li { min-height: 38px; padding: 7px 9px; }
-.left .people li[data-speaking] { background: #282e32; }
+.left .people li[data-speaking] { background: #1a1e26; }
 .left-foot { padding-top: 13px; border-top: 1px solid var(--line); }
 .center { background: var(--bg); }
 .right { --bg: #fff; --panel: #fff; --panel-2: #f4f5f5; background: #fff; border-left: 1px solid var(--line); }
@@ -399,7 +399,7 @@ button.ghost { background: transparent; }
 .join-rail nav a, .join-rail nav button { display: flex; align-items: center; gap: 11px; min-height: 40px; padding: 0 11px; color: #8e969d; background: transparent; border: 0; border-radius: 8px; text-align: left; font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: all 0.15s ease; }
 .join-rail nav a svg, .join-rail nav button svg { width: 17px; height: 17px; flex-shrink: 0; }
 .join-rail nav a:hover, .join-rail nav button:hover { color: #fff; background: rgba(255,255,255,.05); }
-.join-rail nav a.on, .join-rail nav button.on { color: #fff; background: #282e32; }
+.join-rail nav a.on, .join-rail nav button.on { color: #fff; background: #1a1e26; }
 .app-shell { height: 100dvh; min-height: 100dvh; overflow: hidden; }
 .app-shell .join-rail { min-height: 0; height: 100%; overflow: auto; }
 .app-main { min-width: 0; min-height: 0; overflow: auto; }

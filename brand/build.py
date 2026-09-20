@@ -14,9 +14,13 @@ ROOT = Path(__file__).resolve().parent
 FONT = "/System/Library/Fonts/Avenir Next.ttc"
 DEMI = 2  # AvenirNext-DemiBold
 
-RAIL = "#191d20"
-GOLD = "#f0ad3e"
+# Room First palette (dark + teal)
+RAIL = "#161920"
+ACCENT = "#2dd4bf"  # teal/green
 CREAM = "#f5f3ee"
+
+# Backward-compat alias
+GOLD = ACCENT
 
 # Speech circle from the in-app mark (24×24 viewBox).
 MARK_PATH = "M7.9 20A9 9 0 1 0 4 16.1L2 22Z"
@@ -99,14 +103,14 @@ def lockup_svg(bg: str | None = None) -> str:
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb_x:.2f} {vb_y:.2f} {vb_w:.2f} {vb_h:.2f}" fill="none">
   {bg_rect}
   <g transform="translate({mark_x:.3f} {mark_y:.3f}) scale({mark_scale:.6f})">
-    <path d="{MARK_PATH}" stroke="{GOLD}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="3.4" fill="{GOLD}" fill-opacity="0.22"/>
-    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="2.05" fill="{GOLD}"/>
+    <path d="{MARK_PATH}" stroke="{ACCENT}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="3.4" fill="{ACCENT}" fill-opacity="0.22"/>
+    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="2.05" fill="{ACCENT}"/>
   </g>
   <g>
 {letter_paths}
-    <circle cx="{pip_svg_x:.3f}" cy="{pip_svg_y:.3f}" r="{(pip_r * 1.55):.3f}" fill="{GOLD}" fill-opacity="0.28"/>
-    <circle cx="{pip_svg_x:.3f}" cy="{pip_svg_y:.3f}" r="{pip_r:.3f}" fill="{GOLD}"/>
+    <circle cx="{pip_svg_x:.3f}" cy="{pip_svg_y:.3f}" r="{(pip_r * 1.55):.3f}" fill="{ACCENT}" fill-opacity="0.28"/>
+    <circle cx="{pip_svg_x:.3f}" cy="{pip_svg_y:.3f}" r="{pip_r:.3f}" fill="{ACCENT}"/>
   </g>
 </svg>
 '''
@@ -119,9 +123,9 @@ def mark_svg(bg: str | None = None, canvas: float = 48) -> str:
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {canvas} {canvas}" fill="none">
   {bg_rect}
   <g transform="translate({inset} {inset})">
-    <path d="{MARK_PATH}" stroke="{GOLD}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="3.4" fill="{GOLD}" fill-opacity="0.22"/>
-    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="2.05" fill="{GOLD}"/>
+    <path d="{MARK_PATH}" stroke="{ACCENT}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="3.4" fill="{ACCENT}" fill-opacity="0.22"/>
+    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="2.05" fill="{ACCENT}"/>
   </g>
 </svg>
 '''
@@ -164,9 +168,9 @@ def favicon_svg() -> str:
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" rx="7" fill="{RAIL}"/>
   <g fill="none" transform="translate(4 4)">
-    <path d="{MARK_PATH}" stroke="{GOLD}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="3.4" fill="{GOLD}" fill-opacity="0.22"/>
-    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="2.05" fill="{GOLD}"/>
+    <path d="{MARK_PATH}" stroke="{ACCENT}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="3.4" fill="{ACCENT}" fill-opacity="0.22"/>
+    <circle cx="{MARK_PIP[0]}" cy="{MARK_PIP[1]}" r="2.05" fill="{ACCENT}"/>
   </g>
 </svg>
 '''
