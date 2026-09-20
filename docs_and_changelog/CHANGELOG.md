@@ -2,10 +2,11 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
-## 2026-09-20 — AWS AMI: seed .env before make
+## 2026-09-20 — AWS AMI: seed .env and fix docker group
 
 ### Fixed
 - Packer AMI bake now seeds `.env` from `.env.example` before running `make sandbox-image`, fixing the `Makefile:2: .env: No such file or directory` error.
+- Image builds now run with `sg docker -c '...'` after `usermod -aG docker ubuntu` to ensure docker group membership is active.
 
 ## 2026-09-19 — Marvin mark
 
