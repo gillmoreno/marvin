@@ -2,6 +2,11 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-20 — AWS AMI: seed .env before make
+
+### Fixed
+- Packer AMI bake now seeds `.env` from `.env.example` before running `make sandbox-image`, fixing the `Makefile:2: .env: No such file or directory` error.
+
 ## 2026-09-19 — Marvin mark
 
 ### Changed

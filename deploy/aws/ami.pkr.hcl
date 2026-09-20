@@ -57,7 +57,7 @@ build {
       "curl -fsSL https://get.docker.com | sudo sh",
       "sudo usermod -aG docker ubuntu",
       "git clone --depth 1 --branch ${var.git_ref} ${var.git_repo} /home/ubuntu/marvin",
-      "cd /home/ubuntu/marvin && SANDBOX_HARNESSES='${var.sandbox_harnesses}' make sandbox-image",
+      "cd /home/ubuntu/marvin && (test -f .env || cp .env.example .env) && SANDBOX_HARNESSES='${var.sandbox_harnesses}' make sandbox-image",
       "cd /home/ubuntu/marvin && NODE_IP=127.0.0.1 LIVEKIT_API_KEY=marvin LIVEKIT_API_SECRET=packer-build-not-used-000000000000 MARVIN_INSTALL_DIR=/home/ubuntu/marvin docker compose -f docker-compose.edge.yml build",
       "sudo chown -R ubuntu:ubuntu /home/ubuntu/marvin",
     ]
