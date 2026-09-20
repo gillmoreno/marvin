@@ -82,6 +82,8 @@ class RoomConfig:
         object.__setattr__(self, "git_url", repos[0].git_url)
         object.__setattr__(self, "branch", repos[0].branch)
         object.__setattr__(self, "linked", tuple(r.path for r in repos[1:]))
+        lang = (self.language or "").strip()
+        object.__setattr__(self, "language", None if not lang or lang.lower() == "auto" else lang)
 
     def repo_for(self, path: str | None) -> ProjectRepo | None:
         """The project repo at `path` (None/"" = the primary)."""

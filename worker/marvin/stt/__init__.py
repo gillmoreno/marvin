@@ -47,7 +47,7 @@ def make_stt(*, stt_url: str | None, whisper_model: str = "small") -> SegmenterF
 
             async def fallback(audio, started: float, ended: float) -> None:
                 model = await local_model()
-                text = await transcribe_utterance(model, audio, None if language in (None, "auto") else language, lock)
+                text = await transcribe_utterance(model, audio, language, lock)
                 if text:
                     res = on_segment(Segment(start=started, end=ended, speaker=speaker, text=text, final=True))
                     if asyncio.iscoroutine(res):

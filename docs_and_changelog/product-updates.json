@@ -2,6 +2,18 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-20-empty-language-transcribes",
+      "date": "2026-09-20",
+      "title": "Talking is transcribed even when no language is set",
+      "summary": "If this machine does not pin a speech language, Marvin detects it. An empty setting used to drop every line.",
+      "changes": [
+        {
+          "title": "Blank language still transcribes",
+          "description": "Leave the language unset to autodetect. Speech shows in the transcript instead of disappearing."
+        }
+      ]
+    },
+    {
       "id": "2026-09-20-stale-session-fresh-start",
       "date": "2026-09-20",
       "title": "A forgotten conversation no longer leaves the room silent",

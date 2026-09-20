@@ -2,6 +2,11 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-20 — Empty language still transcribes
+
+### Fixed
+- Leaving `MARVIN_LANGUAGE` blank (autodetect) no longer crashes local Whisper, so the transcript pane fills while you talk.
+
 ## 2026-09-20 — Stale saved conversation starts a new one
 
 ### Fixed

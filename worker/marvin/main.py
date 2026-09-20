@@ -104,7 +104,7 @@ def main() -> None:
     p.add_argument("--harness", default=os.environ.get("MARVIN_HARNESS"), help=f"default harness for rooms without one: {', '.join(registry.ids())}")
     p.add_argument("--whisper-model", default=os.environ.get("MARVIN_WHISPER", "small"))
     p.add_argument("--stt-url", default=os.environ.get("MARVIN_STT_URL"), help="ws://host:8765/v1/stream of the marvin-stt service; unset = local whisper")
-    p.add_argument("--language", default=os.environ.get("MARVIN_LANGUAGE"))
+    p.add_argument("--language", default=os.environ.get("MARVIN_LANGUAGE") or None, help="STT language (en, it, …); empty = autodetect")
     p.add_argument("--state-dir", default=os.environ.get("MARVIN_STATE_DIR"), help="per-room state + dynamic rooms; unset = nothing persists")
     p.add_argument("--admin-port", type=int, default=int(os.environ.get("MARVIN_ADMIN_PORT", "8090")), help="0 disables the admin API")
     p.add_argument("--admin-host", default=os.environ.get("MARVIN_ADMIN_HOST", "127.0.0.1"), help="bind address of the admin API; it has no auth of its own (the token server enforces roles), so only 127.0.0.1 or a private container network")

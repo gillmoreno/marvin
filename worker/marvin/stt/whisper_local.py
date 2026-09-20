@@ -23,6 +23,16 @@ SAMPLE_RATE = 16_000
 VAD_WINDOW = 512  # samples; Silero requires exactly 512 at 16 kHz
 
 
+def whisper_language(language: str | None) -> str | None:
+    """faster-whisper autodetects when language is None. Empty MARVIN_LANGUAGE (and 'auto') must not be passed as ''."""
+    if language is None:
+        return None
+    value = language.strip().lower()
+    if not value or value == "auto":
+        return None
+    return value
+
+
 def load_model(size: str = "small", device: str = "cpu", compute_type: str = "int8") -> WhisperModel:
     """`small` is a good latency/accuracy point on Apple Silicon CPU; `large-v3-turbo` if you have the cores."""
     log.info("loading faster-whisper %s (%s/%s)", size, device, compute_type)
@@ -51,7 +61,7 @@ class WhisperSegmenter:
         self.speaker = speaker
         self.on_segment = on_segment
         self.clock = clock
-        self.language = language
+        self.language = whisper_language(language)
         # Do not prompt with a bare "Marvin, Marvin.": small Whisper treats that as already-said and drops the
         # spoken name at the start of the next sentence. A full sentence + hotwords keeps the spelling.
         self.initial_prompt = initial_prompt
@@ -158,7 +168,7 @@ async def transcribe_utterance(
 
     def run() -> str:
         segments, _ = model.transcribe(
-            f32, language=language, beam_size=1, vad_filter=False,
+            f32, language=whisper_language(language), beam_size=1, vad_filter=False,
             initial_prompt=initial_prompt, hotwords=hotwords, condition_on_previous_text=False,
         )
         return " ".join(s.text for s in segments).strip()

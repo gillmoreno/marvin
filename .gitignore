@@ -17,6 +17,7 @@ deploy/k8s/secrets.env
 crash.log
 crash.*.log
 deploy/aws/terraform.tfvars
+deploy/aws/terraform.tfvars.*
 .pytest_cache/
 *.tsbuildinfo
 *.aiff
