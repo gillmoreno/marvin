@@ -2,6 +2,11 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-20 — Stale saved conversation starts a new one
+
+### Fixed
+- If a room’s saved coding-agent session id is gone (new volume, pruned history), the room starts a fresh conversation instead of joining LiveKit with a dead agent. Other harness start failures (not signed in, missing binary) still keep the room up so a later message can retry.
+
 ## 2026-09-20 — AWS AMI: seed .env and fix docker group
 
 ### Fixed

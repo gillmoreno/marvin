@@ -46,6 +46,7 @@ class Conductor:
 
     # -- lifecycle --------------------------------------------------------------
     async def start(self) -> None:
+        resume_exc = None
         try:
             await self.harness.start()
         except Exception as e:
@@ -53,10 +54,17 @@ class Conductor:
             # signing in, timeout, missing binary), keep the turn runner so a later message retries.
             log.exception("harness failed to start")
             await self.publish({"kind": "error", "message": f"{type(e).__name__}: {e or 'harness failed to start'}"})
-        self._runner = asyncio.create_task(self._run_turns())
+            # A saved session id that the harness no longer has must reach RoomSession.start()
+            # so it can clear the id and start fresh. Other start failures stay swallowed.
+            if getattr(self.harness, "resume", None) or getattr(self.harness, "session_id", None):
+                resume_exc = e
+        if self._runner is None:
+            self._runner = asyncio.create_task(self._run_turns())
         await self._set_state("idle")
         if self.app_links:
             await self.publish({"kind": "app_links", "links": self.app_links})
+        if resume_exc:
+            raise resume_exc
 
     async def close(self) -> None:
         if self._runner:

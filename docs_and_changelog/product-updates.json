@@ -2,6 +2,18 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-20-stale-session-fresh-start",
+      "date": "2026-09-20",
+      "title": "A forgotten conversation no longer leaves the room silent",
+      "summary": "If Marvin cannot reopen last time’s coding-agent conversation, it starts a new one instead of sitting in the room with no agent.",
+      "changes": [
+        {
+          "title": "Start fresh when the old thread is gone",
+          "description": "A saved conversation that the agent no longer has (new disk, trimmed history) used to leave the room with a dead agent. Marvin now starts a new conversation and keeps the room usable."
+        }
+      ]
+    },
+    {
       "id": "2026-09-19-marvin-mark",
       "date": "2026-09-19",
       "title": "A mark for Marvin",
