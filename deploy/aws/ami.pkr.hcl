@@ -60,6 +60,14 @@ build {
       "cd /home/ubuntu/marvin && (test -f .env || cp .env.example .env) && sg docker -c 'SANDBOX_HARNESSES=\"${var.sandbox_harnesses}\" make sandbox-image'",
       "cd /home/ubuntu/marvin && sg docker -c 'NODE_IP=127.0.0.1 LIVEKIT_API_KEY=marvin LIVEKIT_API_SECRET=packer-build-not-used-000000000000 MARVIN_INSTALL_DIR=/home/ubuntu/marvin docker compose -f docker-compose.edge.yml build'",
       "sudo chown -R ubuntu:ubuntu /home/ubuntu/marvin",
+      "sudo rm -f /home/ubuntu/marvin/.env",
+    ]
+  }
+  # Remove the .env used during build so first boot regenerates LiveKit keys and
+  # fetches passwords from SSM instead of treating it as a reboot with stale defaults.
+  provisioner "shell" {
+    inline = [
+      "test ! -f /home/ubuntu/marvin/.env || (echo 'ERROR: .env still present after cleanup' && exit 1)",
     ]
   }
 }

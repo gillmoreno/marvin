@@ -76,9 +76,10 @@ packer build -var region=eu-central-1 deploy/aws/ami.pkr.hcl
 ```
 
 The image is Ubuntu 24.04 plus Docker, a clone of `git_repo` at `git_ref`, the
-sandbox image, and the edge compose images. Cloud-init still writes `.env` and
-starts the stack; it skips clone and `docker build`. Settings → Update still
-pulls new code.
+sandbox image, and the edge compose images. The AMI does not contain a `.env`
+file, so first boot always generates fresh LiveKit keys and fetches passwords
+from SSM. Cloud-init skips clone and `docker build`, writes `.env`, and starts
+the stack. Settings → Update still pulls new code.
 
 ## Not in v1
 
