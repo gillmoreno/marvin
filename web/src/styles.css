@@ -487,7 +487,7 @@ button.ghost { background: transparent; }
 .setup-steps { display: grid; gap: 16px; max-width: 720px; }
 .setup-step { padding: 22px 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
 .setup-step-head { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; }
-.setup-num { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: var(--fg); background: var(--accent); font-size: 12px; font-weight: 700; }
+.setup-num { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: var(--accent-fg); background: var(--accent); font-size: 12px; font-weight: 700; }
 .setup-step.done .setup-num { background: var(--ok); }
 .setup-step.wait .setup-num { color: var(--dim); background: var(--line); }
 .setup-step h2 { margin: 0; color: var(--fg); font-size: 18px; font-weight: 650; text-transform: none; letter-spacing: 0; }
