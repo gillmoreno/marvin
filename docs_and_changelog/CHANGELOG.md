@@ -2,6 +2,13 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-21 — Room First dark theme for Projects and Settings
+
+### Changed
+- Projects, join screen, setup, and settings pages now use the Room First dark canvas: near-black backgrounds (#0f1115), dark cards (#161920), light text (#e8eaef), and teal accent (#2dd4bf).
+- Ready/ok indicators switched from green to teal to match the unified palette.
+- Room conversation chrome (center workspace and right transcript) remain intentionally light in this version.
+
 ## 2026-09-20 — Empty language still transcribes
 
 ### Fixed

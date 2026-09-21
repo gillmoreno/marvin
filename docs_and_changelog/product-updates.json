@@ -2,6 +2,22 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-21-room-first-dark-shell",
+      "date": "2026-09-21",
+      "title": "Projects and settings are now dark",
+      "summary": "The join screen, project picker, setup, and settings pages match the Room First dark theme: near-black canvas, dark cards, light text, and teal accents.",
+      "changes": [
+        {
+          "title": "Dark backgrounds across the shell",
+          "description": "Projects, join, setup, and settings switched from light backgrounds to the Room First dark palette. Your conversation workspace stays light for now."
+        },
+        {
+          "title": "Teal ready states",
+          "description": "Ready and ok indicators now use teal (#2dd4bf) instead of green, matching the enterprise calm accent."
+        }
+      ]
+    },
+    {
       "id": "2026-09-20-empty-language-transcribes",
       "date": "2026-09-20",
       "title": "Talking is transcribed even when no language is set",
