@@ -597,7 +597,7 @@ button.ghost { background: transparent; }
 .signin-fields textarea { min-height: 5.5rem; resize: vertical; line-height: 1.45; }
 .signin-providers { display: flex; flex-wrap: wrap; gap: 8px; }
 .signin-providers button { min-height: 34px; padding: 0 12px; color: var(--fg-2); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; font-size: 12px; }
-.signin-providers button.on { color: var(--fg); background: var(--accent); border-color: var(--accent); }
+.signin-providers button.on { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
 .signin-callback { display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; align-items: center; padding: 14px 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
 .signin-callback span { grid-column: 1 / -1; color: var(--dim); font-size: 12px; }
 .signin-callback code { min-width: 0; overflow: auto; color: var(--fg); font-size: 13px; line-height: 1.4; }
