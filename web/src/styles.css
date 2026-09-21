@@ -433,7 +433,7 @@ button.ghost { background: transparent; }
 .join-main-head { display: flex; align-items: flex-end; justify-content: space-between; }
 .join-main-head > div > span { color: var(--ok); font-size: 12px; font-weight: 650; }
 .join-main-head h1 { margin: 2px 0 0; font-size: 39px; line-height: 1.08; letter-spacing: -.04em; font-weight: 650; }
-.join-primary { padding: 0 18px; color: var(--fg); background: var(--accent); border-radius: 7px; font-size: 12px; }
+.join-primary { padding: 0 18px; color: var(--accent-fg); background: var(--accent); border-radius: 7px; font-size: 12px; }
 .join-notice { display: flex; align-items: center; gap: 8px; margin: 28px 0 0; padding: 10px 12px; color: var(--dim); background: var(--panel-2); border-radius: 7px; font-size: 12px; }
 .join-notice svg { width: 14px; height: 14px; }
 .join-name { display: flex; flex-direction: column; gap: 5px; width: min(400px,100%); margin-top: 24px; color: var(--dim); font-size: 12px; }
