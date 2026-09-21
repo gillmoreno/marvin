@@ -450,7 +450,7 @@ button.ghost { background: transparent; }
 .join-projects .room-list li b { font-size: 14px; }
 .join-projects .room-list .repo { margin-left: auto; padding: 4px 7px; border: 1px solid var(--line); border-radius: 5px; font-size: 10px; color: var(--dim); }
 .join-projects .newroom { padding: 18px; background: var(--panel); border-color: var(--line); }
-.join-project-cta { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding: 0 17px; min-height: 52px; color: var(--fg); background: var(--accent); border-radius: 9px; text-align: left; }
+.join-project-cta { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding: 0 17px; min-height: 52px; color: var(--accent-fg); background: var(--accent); border-radius: 9px; text-align: left; }
 .join-project-cta span { display: flex; gap: 4px; align-items: center; }
 .join-project-cta span i { width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: rgba(45,212,191,.85); }
 .join-project-cta svg { width: 17px; height: 17px; }
@@ -504,8 +504,8 @@ button.ghost { background: transparent; }
 .setup-note { margin: 10px 0 0; color: var(--dim); font-size: 12px; }
 .setup-waiting { max-width: 520px; padding: 28px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
 .setup-waiting p { margin: 0; color: var(--fg); }
-.setup-waiting button { margin-top: 16px; color: var(--fg); background: var(--accent); }
-.setup-main button:not(.ghost):not(.join-link) { color: var(--fg); background: var(--accent); }
+.setup-waiting button { margin-top: 16px; color: var(--accent-fg); background: var(--accent); }
+.setup-main button:not(.ghost):not(.join-link) { color: var(--accent-fg); background: var(--accent); }
 .setup-main button.ghost { color: var(--dim); background: transparent; border: 1px solid var(--line); }
 .setup-main button.ghost:hover { color: var(--fg); border-color: var(--line); }
 .setup-main input, .setup-main select, .setup-main textarea { color: var(--fg); background: var(--bg); border-color: var(--line); }
@@ -528,7 +528,7 @@ button.ghost { background: transparent; }
 .login-card > p { margin: -5px 0 8px; color: var(--dim); }
 .login-card label { color: var(--dim); font-size: 12px; }
 .login-card input { min-height: 42px; background: var(--bg); border: 1px solid var(--line); color: var(--fg); }
-.login-card > button, .login-card > a.join-primary { margin-top: 6px; background: var(--accent); color: var(--fg); }
+.login-card > button, .login-card > a.join-primary { margin-top: 6px; background: var(--accent); color: var(--accent-fg); }
 .login-card > a.join-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; text-decoration: none; }
 
 /* Update status and human-readable release notes */
