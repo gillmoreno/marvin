@@ -4,11 +4,11 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 
 @theme {
-  --color-ink: #1d2227;
-  --color-paper: #eef0f1;
-  --color-card: #ffffff;
-  --color-line: #d9dadd;
-  --color-muted: #697078;
+  --color-ink: #e8eaef;
+  --color-paper: #0f1115;
+  --color-card: #161920;
+  --color-line: #252a34;
+  --color-muted: #8b93a2;
   --color-gold: #2dd4bf;
   --color-rail: #161920;
   --font-sans: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
