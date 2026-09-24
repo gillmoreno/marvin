@@ -2,6 +2,22 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-24-transcript-name-and-gap",
+      "date": "2026-09-24",
+      "title": "The transcript reads as a conversation",
+      "summary": "Each line shows a name, a time, and the words apart from each other. Signing in with an email no longer prints the whole address on every line.",
+      "changes": [
+        {
+          "title": "A name, then what was said",
+          "description": "The time sits in its own column. The name is on one line and the words are under it. Someone who keeps talking does not have their name repeated on every line."
+        },
+        {
+          "title": "An email becomes a name",
+          "description": "maria.santos@acme.com shows as Maria Santos. Hover the name to see the address. The room list uses the same name."
+        }
+      ]
+    },
+    {
       "id": "2026-09-21-room-first-dark-shell",
       "date": "2026-09-21",
       "title": "Projects and settings are now dark",

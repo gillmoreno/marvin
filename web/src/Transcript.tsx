@@ -9,16 +9,33 @@ export function Transcript({ lines }: { lines: TranscriptLine[] }) {
     <div className="transcript">
       <h2>Transcript</h2>
       {lines.length === 0 && <p className="hint">Live transcript of everyone in the room appears here.</p>}
-      {lines.map((l, i) => (
-        <p key={i} className={l.final === false ? "interim" : undefined} data-speaker={l.speaker === agent.name ? "agent" : "human"}>
-          <span className="t" title={`${l.start.toFixed(1)} s into the session`}>{clock(l)}</span>
-          <b className="w">{l.speaker}</b>
-          <span className="txt">{l.text}</span>
-        </p>
-      ))}
+      {lines.map((l, i) => {
+        const continued = i > 0 && lines[i - 1].speaker === l.speaker && lines[i - 1].final !== false;
+        const who = speakerLabel(l.speaker);
+        return (
+          <div
+            key={i}
+            className={`line${continued ? " cont" : ""}${l.final === false ? " interim" : ""}`}
+            data-speaker={l.speaker === agent.name ? "agent" : "human"}
+          >
+            <span className="t" title={`${l.start.toFixed(1)} s into the session`}>{clock(l)}</span>
+            {!continued && <b className="who" title={who.title}>{who.label}</b>}
+            <span className="txt">{l.text}</span>
+          </div>
+        );
+      })}
       <div ref={endRef} />
     </div>
   );
+}
+
+/** Emails are how people sign in. The transcript shows a name; the address stays on hover. */
+export function speakerLabel(speaker: string): { label: string; title?: string } {
+  const at = speaker.indexOf("@");
+  if (at <= 0) return { label: speaker };
+  const words = speaker.slice(0, at).split(/[._+-]+/).filter(Boolean);
+  const label = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  return { label: label || speaker, title: speaker };
 }
 
 /** Wall-clock time of the utterance (`at`, epoch seconds); older workers only send session-relative `start`. */

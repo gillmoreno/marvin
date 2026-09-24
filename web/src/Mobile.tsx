@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocalParticipant, useRoomContext } from "@livekit/components-react";
 import { MarvinPane } from "./MarvinPane";
-import { Transcript } from "./Transcript";
+import { Transcript, speakerLabel } from "./Transcript";
 import { ChangesPane } from "./ChangesPane";
 import { ScreenShareView, screenShareKey, screenShareLabel, useScreenShares } from "./ScreenShare";
 import { stateLabel } from "./People";
@@ -75,7 +75,7 @@ export function MobileRoom({ roomName, marvin, repos, refreshKey, onSettings }: 
       <div className="m-bar">
         <span className="m-speaker">
           <SpeakerPresence participant={localParticipant} />
-          <span className="who">{localParticipant.name || localParticipant.identity}<small>{isMicrophoneEnabled ? "you're live · tap to mute" : "muted · tap to talk"}</small></span>
+          <span className="who">{speakerLabel(localParticipant.name || localParticipant.identity).label}<small>{isMicrophoneEnabled ? "you're live · tap to mute" : "muted · tap to talk"}</small></span>
         </span>
         <button type="button" className={`m-talk${isMicrophoneEnabled ? "" : " muted"}`} onClick={() => void localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)} aria-pressed={isMicrophoneEnabled} aria-label={isMicrophoneEnabled ? "mute" : "unmute"}>
           {isMicrophoneEnabled ? <MicIcon /> : <MicOffIcon />}

@@ -2,6 +2,12 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-24 — Transcript lines have a name, a time, and the words
+
+### Changed
+- Each transcript line is a block: the time in a quiet column, the speaker’s name, then the words underneath. A person who keeps talking does not get their name repeated on every line.
+- An email used to sign in shows as a name (`maria.santos@acme.com` → Maria Santos). The address is still there on hover, in the room list as well as the transcript.
+
 ## 2026-09-21 — Room First dark theme for Projects and Settings
 
 ### Changed

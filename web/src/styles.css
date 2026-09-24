@@ -128,8 +128,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .chip { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 3px 10px; }
 .typed { display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); }
 .typed input { flex: 1; padding: 8px 10px; }
-.transcript p { margin: 0 0 6px; } .transcript p.interim { opacity: 0.55; font-style: italic; } .transcript .t { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; font-family: var(--font-mono); }
-.transcript p b { font-family: var(--font-display); }
+.transcript .line { display: grid; grid-template-columns: 3.1rem minmax(0, 1fr); column-gap: 12px; margin: 0; padding: 12px 0 0; color: #1d2227; }
+.transcript .line.cont { padding-top: 3px; }
+.transcript .line.interim { opacity: 0.55; font-style: italic; }
+.transcript .t { grid-row: 1 / span 2; padding-top: 2px; color: #8a9198; font-variant-numeric: tabular-nums; font-size: 12px; font-family: var(--font-mono); }
+.transcript .line.cont .t { grid-row: 1; padding-top: 1px; }
+.transcript .who { font-weight: 650; letter-spacing: -.01em; line-height: 1.2; }
+.transcript .line[data-speaker="agent"] .who { color: #0f766e; }
+.transcript .txt { margin: 2px 0 0; line-height: 1.45; }
+.transcript .line.cont .txt { margin: 0; }
 .hint { color: var(--dim); }
 .error { color: var(--bad); }
 .lk-control-bar { justify-content: flex-start; }

@@ -4,6 +4,7 @@ import { AGENT_IDENTITY } from "./protocol";
 import { agent } from "./agent";
 import { rolesOf } from "./auth";
 import { AgentPresence, SpeakerPresence, type AgentState } from "./Presence";
+import { speakerLabel } from "./Transcript";
 
 export function People({ agentState }: { agentState: AgentState }) {
   const participants = useParticipants();
@@ -37,11 +38,12 @@ function Person({ p }: { p: Participant }) {
   const speaking = useIsSpeaking(p);
   const admin = rolesOf(p.metadata).includes("admin"); // roles come from the token server, signed into the LiveKit token
   const muted = p.isMicrophoneEnabled === false;
+  const who = speakerLabel(p.name || p.identity);
   return (
     <li data-speaking={speaking || undefined} data-away={muted || undefined}>
       <span className={`dot${muted ? " offline" : speaking ? " idle" : ""}`} />
       <span className="nm">
-        <b>{p.name || p.identity}</b>
+        <b title={who.title}>{who.label}</b>
         {admin && <span className="role" title="admin: may turn on “always allow”, create rooms, change models and edit machine notes">admin</span>}
       </span>
       <span className="who-st">
