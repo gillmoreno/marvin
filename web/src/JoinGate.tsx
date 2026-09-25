@@ -63,6 +63,10 @@ export function JoinGate({
     </AppShell>
   );
 
+  if (nav.page === "settings" && nav.room) {
+    return shell(<SettingsPage room={nav.room} pane="room" onPane={nav.setSettingsPane} />);
+  }
+
   if (nav.page === "settings") {
     return shell(<SettingsPage pane={nav.settingsPane} onPane={nav.setSettingsPane} />, setup?.ready ? undefined : setupLead(admin, setup));
   }

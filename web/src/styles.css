@@ -177,9 +177,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .devhint { font-size: 12px; line-height: 1.4; margin: 0; padding: 8px; border: 1px solid var(--bad); border-radius: var(--radius); }
 .settings-btn { align-self: flex-start; }
 /* -- tabs and the workspace -------------------------------------------------------------------------------------------- */
-.side-tabs, .ws-tabs { display: flex; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--line); align-items: center; flex-wrap: wrap; }
-.side-tabs button, .ws-tabs button { background: transparent; color: var(--dim); border: 1px solid transparent; padding: 5px 10px; border-radius: var(--radius); font-weight: 500; }
-.side-tabs button.on, .ws-tabs button.on { color: var(--fg); background: var(--bg); border-color: var(--line); }
+.side-tabs, .ws-tabs { display: flex; gap: 2px; align-items: flex-end; flex-wrap: wrap; margin: 0; padding: 8px 12px 0; background: var(--panel); border-bottom: 1px solid var(--line); }
+.side-tabs > button, .ws-tabs > button { background: transparent; color: var(--dim); border: 0; border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0; min-height: 40px; padding: 0 14px; font-size: 14px; font-weight: 500; }
+.side-tabs > button.on, .ws-tabs > button.on { color: var(--fg); background: var(--bg); border-bottom-color: var(--accent); font-weight: 650; }
 .side-tabs button { display: inline-flex; align-items: center; gap: 7px; }
 .side-tabs .dot { width: 7px; height: 7px; }
 /* the Marvin tab calls for attention while it works or waits, even when the transcript is open */
@@ -374,21 +374,28 @@ button.ghost { background: transparent; }
 .center { background: var(--bg); color: var(--fg); }
 .right { background: var(--panel); color: var(--fg); border-left: 1px solid var(--line); }
 .gutter { background: var(--line); }
-.side-tabs, .ws-tabs { min-height: 50px; padding: 9px 14px; background: var(--panel); }
-.side-tabs button.on, .ws-tabs button.on { background: var(--bg); }
+.side-tabs, .ws-tabs { background: var(--panel); }
 .turn { border-left-width: 2px; }
 .typed { background: var(--panel); }
 .typed input { background: var(--bg); color: var(--fg); }
 .workspace, .changes, .changes-body, .files { background: var(--bg); color: var(--fg); }
 
 /* Join workspace (Room First dark shell) */
-.join-workspace { min-height: 100dvh; display: grid; grid-template-columns: 244px minmax(0, 1fr); background: var(--bg); color: var(--fg); }
-.join-workspace:has(.join-rail.collapsed) { grid-template-columns: 60px minmax(0, 1fr); }
-.join-rail { min-height: 100dvh; display: flex; flex-direction: column; padding: 30px 20px 22px; color: #e8eaef; background: #161920; border-right: 1px solid #080a0c; }
+.join-workspace { min-height: 100dvh; display: grid; grid-template-columns: 232px minmax(0, 1fr); background: var(--bg); color: var(--fg); }
+.join-workspace:has(.join-rail.collapsed) { grid-template-columns: 72px minmax(0, 1fr); }
+.app-shell.join-workspace,
+.app-shell.join-workspace:has(.join-rail.collapsed) { display: block; grid-template-columns: none; }
+.app-shell .join-rail { position: fixed; top: 0; left: 0; bottom: 0; width: 232px; z-index: 20; transition: transform 300ms ease-in-out; }
+.app-shell:has(.join-rail.collapsed) .join-rail { width: 72px; }
+.app-shell .app-main { margin-left: 232px; height: 100%; transition: margin-left 300ms ease-in-out; }
+.app-shell:has(.join-rail.collapsed) .app-main { margin-left: 72px; }
+.app-shell.in-project .join-rail { transform: translateX(-100%); pointer-events: none; }
+.app-shell.in-project .app-main { margin-left: 0; }
+.join-rail { min-height: 100dvh; display: flex; flex-direction: column; padding: 20px 12px 16px; color: #e8eaef; background: #161920; border-right: 1px solid #080a0c; }
 .join-brand { --brand-text-inset: 32px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 0 8px; }
 .join-brand-row { display: flex; align-items: center; gap: 8px; width: 100%; }
-.join-brand-lockup-img { height: 28px; width: auto; display: block; flex: none; }
-.join-brand-mark-img { width: 24px; height: 24px; display: block; flex: none; }
+.join-brand-lockup-img { height: 26px; width: auto; display: block; flex: none; }
+.join-brand-mark-img { width: 28px; height: 28px; display: block; flex: none; }
 .join-brand.ee .join-brand-lockup-img,
 .join-brand.ee .join-brand-mark-img { filter: drop-shadow(0 0 5px rgba(45,212,191,.45)); }
 .login-brand .join-brand-lockup-img { height: 32px; }
@@ -400,21 +407,29 @@ button.ghost { background: transparent; }
   font-style: normal; letter-spacing: .08em; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap;
 }
 .left-head .ee-mark { height: 18px; margin-left: 0; padding: 0 7px; font-size: 8px; letter-spacing: .07em; }
-.join-rail nav { display: flex; flex-direction: column; gap: 4px; margin-top: 36px; }
-.join-rail nav a, .join-rail nav button { display: flex; align-items: center; gap: 11px; min-height: 40px; padding: 0 11px; color: #8e969d; background: transparent; border: 0; border-radius: 8px; text-align: left; font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: all 0.15s ease; }
-.join-rail nav a svg, .join-rail nav button svg { width: 17px; height: 17px; flex-shrink: 0; }
+.join-rail nav { display: flex; flex-direction: column; gap: 4px; margin-top: 28px; }
+.join-rail nav a, .join-rail nav button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; color: #b0b8c1; background: transparent; border: 0; border-radius: 10px; text-align: left; font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.15s ease; }
+.join-rail nav a svg, .join-rail nav button svg { width: 20px; height: 20px; flex-shrink: 0; }
 .join-rail nav a:hover, .join-rail nav button:hover { color: #fff; background: rgba(255,255,255,.05); }
 .join-rail nav a.on, .join-rail nav button.on { color: #fff; background: #1a1e26; }
+.rail-rooms { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+.rail-hash { width: 20px; height: 20px; display: grid; place-items: center; flex-shrink: 0; color: var(--accent); font-size: 16px; font-weight: 750; }
+.join-rail nav a.rail-room-link .rail-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-foot { margin-top: auto; display: flex; flex-direction: column; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.09); }
+.rail-foot nav { margin-top: 0; }
+.rail-foot .join-profile { margin-top: 4px; padding-top: 12px; border-top: 0; }
+.join-rail.collapsed .rail-rooms { width: 100%; align-items: center; }
+.join-rail.collapsed .rail-foot { width: 100%; align-items: center; padding-top: 12px; }
 .app-shell { height: 100dvh; min-height: 100dvh; overflow: hidden; }
 .app-shell .join-rail { min-height: 0; height: 100%; overflow: auto; }
 .app-main { min-width: 0; min-height: 0; overflow: auto; }
 .app-shell.room-open .app-main { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
 .app-main .layout[data-mobile] { height: 100%; }
-.join-profile { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: auto; padding: 14px 8px 0; border-top: 1px solid rgba(255,255,255,.09); }
-.join-profile > span { width: 32px; height: 32px; display: grid; place-items: center; color: var(--accent-fg); background: var(--accent); border-radius: 50%; font-size: 10px; font-weight: 800; }
-.join-profile > div { min-width: 0; display: flex; flex-direction: column; }
-.join-profile b { overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
-.join-profile small { color: #858c92; font-size: 10px; }
+.join-profile { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: auto; padding: 14px 4px 0; border-top: 1px solid rgba(255,255,255,.09); }
+.join-profile > span { width: 36px; height: 36px; display: grid; place-items: center; color: var(--accent-fg); background: var(--accent); border-radius: 50%; font-size: 13px; font-weight: 800; }
+.join-profile > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.join-profile b { overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.join-profile small { color: #b0b8c1; font-size: 13px; }
 .join-profile button { min-height: auto; padding: 3px; color: #858c92; background: transparent; border: 0; font-size: 10px; }
 .rail-toggle { display: grid; place-items: center; width: 32px; height: 32px; margin-left: 4px; padding: 0; color: #8e969d; background: transparent; border: 1px solid transparent; border-radius: 8px; flex: none; cursor: pointer; transition: all 0.15s ease; }
 .rail-toggle svg { width: 16px; height: 16px; }
@@ -428,9 +443,9 @@ button.ghost { background: transparent; }
 .join-rail.collapsed .setup-count,
 .join-rail.collapsed .join-profile > div,
 .join-rail.collapsed .join-profile > button { display: none; }
-.join-rail.collapsed nav { width: 100%; align-items: center; margin-top: 40px; }
-.join-rail.collapsed nav a { justify-content: center; width: 40px; height: 40px; padding: 0; }
-.join-rail.collapsed nav button { justify-content: center; width: 40px; height: 40px; padding: 0; }
+.join-rail.collapsed nav { width: 100%; align-items: center; margin-top: 28px; }
+.join-rail.collapsed nav a { justify-content: center; width: 44px; height: 44px; padding: 0; }
+.join-rail.collapsed nav button { justify-content: center; width: 44px; height: 44px; padding: 0; }
 .join-rail.collapsed .join-profile { display: flex; justify-content: center; width: 100%; padding: 14px 0 0; }
 .join-rail.collapsed .rail-toggle { margin: 0; width: 36px; height: 36px; }
 .join-rail.collapsed .rail-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
@@ -582,11 +597,11 @@ button.ghost { background: transparent; }
 .release-sheet > footer button { background: #2dd4bf; color: #042f2e; }
 
 /* Settings is a page in the shared dark shell. */
-.settings-body { display: flex; flex: 1; min-width: 0; width: 100%; min-height: 0; }
-.settings-nav { align-self: flex-start; width: 200px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 0 16px 0 0; }
-.settings-nav a { display: flex; align-items: center; min-height: 40px; padding: 0 12px; color: var(--dim); background: transparent; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 500; }
-.settings-nav a.on { color: var(--fg); background: var(--panel); box-shadow: var(--shadow); }
-.settings-pane { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; gap: 16px; padding: 28px; }
+.settings-body { display: flex; flex-direction: column; flex: 1; min-width: 0; width: 100%; min-height: 0; }
+.settings-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin: 0 12px -1px; position: relative; z-index: 1; }
+.settings-tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: var(--dim); background: transparent; border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0; text-decoration: none; font-size: 15px; font-weight: 500; }
+.settings-tabs a.on { color: var(--fg); background: var(--panel); border-bottom-color: var(--accent); font-weight: 650; }
+.settings-pane { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; gap: 28px; }
 .settings-pane > section, .settings-pane .signin-page > section, .sgrid > section { padding: 20px 22px 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 11px; box-shadow: var(--shadow); }
 .settings-pane .signin-page { display: flex; flex-direction: column; gap: 20px; }
 .signin-page > section { display: flex; flex-direction: column; gap: 16px; }
@@ -616,6 +631,14 @@ button.ghost { background: transparent; }
 .room-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; height: 100%; }
 .room-bar { display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 18px; background: var(--panel); border-bottom: 1px solid var(--line); color: var(--fg); flex: none; }
 .room-bar b { font-size: 15px; letter-spacing: -.02em; color: var(--fg); }
+.room-mark { display: flex; align-items: center; padding: 0; flex: none; color: inherit; background: transparent; border: 0; cursor: pointer; }
+.room-bar .join-brand-lockup-img { height: 22px; }
+.room-back { display: inline-flex; align-items: center; gap: 2px; height: 32px; padding: 0 8px; flex: none; color: var(--dim); background: transparent; border: 0; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.room-back svg { width: 16px; height: 16px; }
+.room-back:hover { color: var(--fg); background: rgba(255,255,255,.06); }
+.room-bar-rule { width: 1px; height: 16px; flex: none; background: var(--line); }
+.room-settings { height: 32px; padding: 0 10px; flex: none; white-space: nowrap; color: var(--dim); background: transparent; border: 0; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.room-settings:hover { color: var(--fg); background: rgba(255,255,255,.06); }
 .room-bar .sp { flex: 1; }
 .room-bar .devhint { margin: 0; padding: 4px 8px; font-size: 11px; }
 .room-layout { display: grid; grid-template-columns: minmax(0, 1fr) 1px var(--right-w); flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
@@ -634,18 +657,27 @@ html .room-controls .lk-disconnect-button {
 .right .applinks { padding: 0 8px 8px; }
 .room-layout .right { min-height: 0; overflow: hidden; }
 .room-layout .marvin, .room-layout .transcript { flex: 1; min-height: 0; }
-.settings-page { min-height: 100%; display: flex; flex-direction: column; padding: 48px clamp(28px,6vw,76px) 90px; }
-.settings-page .join-main-head { margin-bottom: 28px; }
+.settings-page { min-height: 100%; display: flex; flex-direction: column; padding: 56px clamp(40px,7vw,96px) 120px; }
+.settings-page .join-main-head { margin-bottom: 20px; }
 .sgrid { width: min(1260px,100%); margin: 0 auto; padding: 28px; gap: 16px; background: transparent; border: 0; }
 .settings-update > .machine-update { margin-top: 2px; }
 
 @media (max-width: 800px) {
   .join-workspace { display: block; }
+  .app-shell .join-rail { position: relative; width: auto; height: 64px; transform: none; pointer-events: auto; }
+  .app-shell .app-main,
+  .app-shell:has(.join-rail.collapsed) .app-main { margin-left: 0; }
+  .app-shell.in-project .join-rail { display: none; }
   .join-rail { min-height: auto; height: 64px; padding: 0 18px; flex-direction: row; align-items: center; }
-  .join-rail nav, .rail-toggle { display: none; }
+  .join-rail > nav, .rail-toggle { display: none; }
+  .rail-foot { flex-direction: row; align-items: center; margin: 0 0 0 auto; padding: 0; border: 0; gap: 8px; }
+  .rail-foot nav { display: flex; }
+  .rail-foot nav a { min-height: 40px; height: 40px; padding: 0 10px; font-size: 14px; }
+  .rail-foot nav a svg { width: 22px; height: 22px; }
   .join-brand { flex-direction: row; align-items: center; gap: 10px; --brand-text-inset: 0; }
   .join-workspace:has(.join-rail.collapsed) { grid-template-columns: 1fr; }
   .join-profile { margin: 0 0 0 auto; padding: 0; border: 0; }
+  .rail-foot .join-profile { margin: 0; }
   .join-profile > div, .join-profile > button { display: none; }
   .join-main { padding: 30px 18px 90px; }
   .join-content { grid-template-columns: 1fr; margin-top: 30px; }
@@ -664,16 +696,14 @@ html .room-controls .lk-disconnect-button {
   .join.login-card { width: 100%; }
   .sgrid { padding: 14px; grid-template-columns: 1fr; }
   .settings-page { padding: 24px 18px 60px; }
-  .settings-body { flex-direction: column; }
-  .settings-nav { width: auto; flex-direction: row; flex-wrap: wrap; padding: 0 0 12px; }
-  .settings-pane { padding: 14px 0; }
+  .settings-tabs { margin-right: 0; margin-left: 0; }
   .signin-fields { grid-template-columns: 1fr; }
   .app-shell { height: auto; min-height: 100dvh; overflow: visible; }
   .app-shell.room-open { height: 100dvh; overflow: hidden; }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .join-workspace { transition: grid-template-columns .2s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .join-rail, .app-shell .app-main { transition: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

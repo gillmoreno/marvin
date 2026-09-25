@@ -1,0 +1,231 @@
+<!doctype html>
+<!-- PROTOTYPE — throwaway. Question: can Settings drop its second sidebar?
+     Three layouts, same Marvin rail. Switch with the bar or ?variant=vtabs|htabs|stack
+     Default is vtabs: the sections are vertical tabs on the panel, not a second rail. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Settings tabs — prototype</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161920; --panel-2: #1a1e26; --line: #252a34;
+    --fg: #e8eaef; --fg-2: #b0b8c1; --dim: #8b93a2;
+    --accent: #2dd4bf; --accent-fg: #042f2e; --warn: #d29922;
+    font: 14px/1.45 "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); }
+  button, a { font: inherit; color: inherit; }
+  .app { display: grid; grid-template-columns: 244px minmax(0, 1fr); min-height: 100dvh; }
+  .rail { background: #161920; border-right: 1px solid #080a0c; padding: 30px 20px 22px; display: flex; flex-direction: column; }
+  .brand { height: 28px; display: block; }
+  .rail nav { display: flex; flex-direction: column; gap: 2px; margin-top: 28px; }
+  .rail a { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: var(--dim); font-weight: 500; }
+  .rail a.on { color: #fff; background: #1a1e26; }
+  .rail .me { margin-top: auto; display: flex; gap: 10px; align-items: center; color: var(--fg-2); font-size: 13px; }
+  .rail .me b { display: block; color: var(--fg); font-weight: 650; }
+  .rail .me small { color: var(--dim); }
+  .dot { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; font-weight: 700; }
+  main { padding: 48px clamp(28px, 5vw, 72px) 120px; min-width: 0; }
+  .kicker { color: var(--accent); font-size: 12px; font-weight: 650; }
+  h1 { margin: 4px 0 28px; font-size: 40px; letter-spacing: -.03em; font-weight: 650; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 24px 26px 28px; }
+  .card + .card { margin-top: 16px; }
+  .card h2 { margin: 0 0 8px; font-size: 16px; }
+  .warn { margin: 0 0 10px; color: var(--warn); font-size: 13px; }
+  .warn b { color: #e7c27a; }
+  p.dim { margin: 0 0 16px; color: var(--fg-2); max-width: 46em; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
+  label { display: flex; flex-direction: column; gap: 7px; color: var(--fg-2); font-size: 12px; font-weight: 500; }
+  input, .fake { min-height: 40px; padding: 10px 12px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .wide { grid-column: 1 / -1; }
+  .btn { margin-top: 16px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-fg); font-weight: 650; cursor: pointer; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .chips span { min-height: 34px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); color: var(--fg-2); font-size: 12px; }
+  .chips span.on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .url { display: flex; align-items: center; justify-content: space-between; }
+
+  /* A — vertical tabs glued to the panel. Not a second rail. */
+  .vtabs { display: grid; grid-template-columns: 168px minmax(0, 1fr); align-items: start; }
+  .vtabs .tabs { display: flex; flex-direction: column; padding-top: 8px; }
+  .vtabs button {
+    text-align: left; background: transparent; border: 0; border-right: 2px solid transparent;
+    color: var(--dim); padding: 10px 14px; cursor: pointer; border-radius: 8px 0 0 8px;
+  }
+  .vtabs button.on { color: var(--fg); background: var(--panel); border-right-color: var(--accent); font-weight: 650; }
+  .vtabs .pane { min-width: 0; }
+
+  /* B — titles on top, same connected tab as the vertical strip. Not a pill. */
+  .htabs .tabs { display: flex; flex-wrap: wrap; gap: 2px; margin: 0 12px -1px; position: relative; z-index: 1; }
+  .htabs button {
+    background: transparent; color: var(--dim); border: 0; border-bottom: 2px solid transparent;
+    border-radius: 8px 8px 0 0; min-height: 40px; padding: 0 14px; cursor: pointer;
+  }
+  .htabs button.on {
+    color: var(--fg); background: var(--panel); border-bottom-color: var(--accent); font-weight: 650;
+  }
+  .htabs .pane .card:first-child { border-top-left-radius: 11px; }
+
+  /* C — no tabs. Sections stack. A one-line jump sits under the title. */
+  .stack .jump { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: -12px 0 22px; }
+  .stack .jump a { color: var(--fg-2); text-decoration: none; font-size: 13px; }
+  .stack .jump a:hover { color: var(--accent); }
+  .stack section { scroll-margin-top: 24px; }
+
+  .switcher {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px; padding: 6px;
+    background: #fff; color: #14181c; border-radius: 999px; box-shadow: 0 8px 28px rgba(0,0,0,.35);
+    z-index: 5;
+  }
+  .switcher button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: #14181c; color: #fff; cursor: pointer; }
+  .switcher b { min-width: 16em; text-align: center; font-size: 13px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <img class="brand" src="../../web/public/marvin-lockup.svg" alt="Marvin" />
+    <nav>
+      <a href="#projects">▦ Projects</a>
+      <a class="on" href="#settings">⚙ Settings</a>
+    </nav>
+    <div class="me"><span class="dot">G</span><span><b>Gil</b><small>Administrator</small></span></div>
+  </aside>
+  <main>
+    <div class="kicker">This machine</div>
+    <h1>Settings</h1>
+
+    <div id="vtabs" class="vtabs">
+      <div class="tabs" role="tablist" aria-label="Settings"></div>
+      <div class="pane"></div>
+    </div>
+
+    <div id="htabs" class="htabs" hidden>
+      <div class="tabs" role="tablist" aria-label="Settings"></div>
+      <div class="pane"></div>
+    </div>
+
+    <div id="stack" class="stack" hidden>
+      <nav class="jump" aria-label="On this page"></nav>
+      <div class="pane"></div>
+    </div>
+  </main>
+</div>
+
+<div class="switcher" role="toolbar" aria-label="Prototype variants">
+  <button type="button" id="prev" aria-label="Previous layout">←</button>
+  <b id="label"></b>
+  <button type="button" id="next" aria-label="Next layout">→</button>
+</div>
+
+<template id="signin">
+  <article class="card">
+    <h2>Who may join 🔒</h2>
+    <p class="warn">Needs an Enterprise license. <b>Paste one.</b></p>
+    <p class="dim">Password login and SSO both honour this list. Empty means anyone who can authenticate.</p>
+    <div class="fields">
+      <label>Allowed email domains<input value="company.com" /></label>
+      <label>Extra allowed addresses<input value="maria@contractor.dev" /></label>
+      <label>Admin users<input value="maria@company.com" /></label>
+      <label>Admin groups (SSO)<input placeholder="Entra object ids, or Okta group names" /></label>
+      <label class="wide">Recording notice<textarea class="fake" rows="3">This room is transcribed. What you say is sent to the coding agent configured on this machine.</textarea></label>
+    </div>
+    <button class="btn" type="button">Save who may join</button>
+  </article>
+  <article class="card">
+    <h2>Company sign-in 🔒</h2>
+    <p class="warn">Needs an Enterprise license. <b>Paste one.</b></p>
+    <p class="dim">People sign in at your identity provider. Marvin never sees their password.</p>
+    <div class="chips"><span>Local test</span><span class="on">Microsoft Entra</span><span>Okta</span><span>Google</span><span>GitHub</span><span>Keycloak</span></div>
+    <p class="dim">Company Microsoft 365 / Azure AD.</p>
+    <label>Redirect URL — paste this at the provider<div class="url fake"><span>https://localhost:5173/oauth2/callback</span><span>Copy</span></div></label>
+  </article>
+</template>
+<template id="github"><article class="card"><h2>GitHub</h2><p class="dim">Connected as @gillmoreno. The machine clones and opens pull requests with this account.</p><button class="btn" type="button">Manage connection</button></article></template>
+<template id="agents"><article class="card"><h2>Coding agents</h2><p class="dim">Grok is connected and is the default for rooms that do not pin one.</p><button class="btn" type="button">Add another</button></article></template>
+<template id="sessions"><article class="card"><h2>Sessions</h2><p class="dim">Conversations stored on this machine. People who were in a session can read it.</p></article></template>
+<template id="audit"><article class="card"><h2>Audit export 🔒</h2><p class="warn">Needs an Enterprise license. <b>Paste one.</b></p><p class="dim">Closed sessions can be copied to a bucket you control. Nothing is sent until you save a destination.</p></article></template>
+<template id="enterprise"><article class="card"><h2>Enterprise</h2><p class="dim">No license on this machine. Paste a key to unlock who may join, company sign-in, and audit export.</p></article></template>
+<template id="machine"><article class="card"><h2>This machine</h2><p class="dim">Marvin is up to date. Running main.</p></article></template>
+
+<script>
+const PANES = [
+  ["signin", "Sign-in"],
+  ["github", "GitHub"],
+  ["agents", "Coding agents"],
+  ["sessions", "Sessions"],
+  ["audit", "Audit export"],
+  ["enterprise", "Enterprise"],
+  ["machine", "This machine"],
+];
+const VARIANTS = [
+  ["vtabs", "A — Vertical tabs"],
+  ["htabs", "B — Top tabs, connected"],
+  ["stack", "C — One page, no second nav"],
+];
+const params = new URLSearchParams(location.search);
+let variant = VARIANTS.some(([id]) => id === params.get("variant")) ? params.get("variant") : "vtabs";
+let pane = PANES.some(([id]) => id === params.get("pane")) ? params.get("pane") : "signin";
+
+function fill(root, mode) {
+  const tabs = root.querySelector(".tabs, .jump");
+  const paneHost = root.querySelector(".pane");
+  tabs.replaceChildren();
+  if (mode === "stack") {
+    paneHost.replaceChildren();
+    for (const [id, label] of PANES) {
+      const a = document.createElement("a");
+      a.href = "#" + id;
+      a.textContent = label;
+      tabs.append(a);
+      const block = document.createElement("section");
+      block.id = id;
+      block.append(document.getElementById(id).content.cloneNode(true));
+      paneHost.append(block);
+    }
+    return;
+  }
+  for (const [id, label] of PANES) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    b.className = id === pane ? "on" : "";
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", String(id === pane));
+    b.onclick = () => { pane = id; render(); };
+    tabs.append(b);
+  }
+  paneHost.replaceChildren(document.getElementById(pane).content.cloneNode(true));
+}
+
+function render() {
+  for (const [id] of VARIANTS) document.getElementById(id).hidden = id !== variant;
+  fill(document.getElementById(variant), variant);
+  const i = VARIANTS.findIndex(([id]) => id === variant);
+  document.getElementById("label").textContent = VARIANTS[i][1];
+  const url = new URL(location.href);
+  url.searchParams.set("variant", variant);
+  url.searchParams.set("pane", pane);
+  history.replaceState(null, "", url);
+}
+
+function cycle(dir) {
+  const i = VARIANTS.findIndex(([id]) => id === variant);
+  variant = VARIANTS[(i + dir + VARIANTS.length) % VARIANTS.length][0];
+  render();
+}
+document.getElementById("prev").onclick = () => cycle(-1);
+document.getElementById("next").onclick = () => cycle(1);
+document.addEventListener("keydown", (event) => {
+  if (event.target.matches("input, textarea")) return;
+  if (event.key === "ArrowLeft") cycle(-1);
+  if (event.key === "ArrowRight") cycle(1);
+});
+render();
+</script>
+</body>
+</html>

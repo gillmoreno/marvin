@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { GearIcon, GridIcon } from "../icons";
+import { useAppNav } from "../nav";
 import { Brand, type EnterpriseMark } from "./Brand";
 import { Profile, type ProfileInfo } from "./Profile";
 
@@ -15,11 +16,11 @@ function useRailCollapsed() {
   return [collapsed, setCollapsed] as const;
 }
 
-function RailLink({ href, on, onClick, label, children }: { href: string; on: boolean; onClick: () => void; label: string; children: ReactNode }) {
+function RailLink({ href, on, onClick, label, className, children }: { href: string; on: boolean; onClick: () => void; label: string; className?: string; children: ReactNode }) {
   return (
     <a
       href={href}
-      className={on ? "on" : ""}
+      className={[className, on ? "on" : ""].filter(Boolean).join(" ")}
       title={label}
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
@@ -35,11 +36,12 @@ function RailLink({ href, on, onClick, label, children }: { href: string; on: bo
 
 export function Sidebar({
   ee,
-  section,
+  section: _section,
   profile,
   lead,
   onProjects,
   onSettings,
+  hidden,
 }: {
   ee?: EnterpriseMark;
   section: "projects" | "settings";
@@ -47,17 +49,36 @@ export function Sidebar({
   lead?: ReactNode;
   onProjects: () => void;
   onSettings: () => void;
+  hidden?: boolean;
 }) {
+  const nav = useAppNav();
   const [collapsed, setCollapsed] = useRailCollapsed();
+  const generalSettings = nav.page === "settings" && !nav.room;
   return (
-    <aside id="marvin-rail" className={`join-rail${collapsed ? " collapsed" : ""}`}>
+    <aside id="marvin-rail" className={`join-rail${collapsed ? " collapsed" : ""}`} aria-hidden={hidden || undefined} inert={hidden || undefined}>
       <Brand ee={ee} collapsed={collapsed} onToggle={() => setCollapsed((on) => !on)} />
       {lead}
       <nav aria-label="Workspace">
-        <RailLink href="/projects" on={section === "projects"} onClick={onProjects} label="Projects"><GridIcon /></RailLink>
-        <RailLink href="/settings" on={section === "settings"} onClick={onSettings} label="Settings"><GearIcon /></RailLink>
+        <RailLink href="/projects" on={nav.page === "projects"} onClick={onProjects} label="Projects"><GridIcon /></RailLink>
+        {nav.openRooms.length > 0 && (
+          <div className="rail-rooms">
+            {nav.openRooms.map((room) => {
+              const here = nav.room === room && (nav.page === "room" || nav.page === "settings");
+              return (
+                <RailLink key={room} href={`/projects/${room}`} on={here} onClick={() => nav.openProject(room)} label={room} className="rail-room-link">
+                  <span className="rail-hash" aria-hidden>#</span>
+                </RailLink>
+              );
+            })}
+          </div>
+        )}
       </nav>
-      <Profile {...profile} />
+      <div className="rail-foot">
+        <nav aria-label="Settings">
+          <RailLink href="/settings" on={generalSettings} onClick={onSettings} label="Settings"><GearIcon /></RailLink>
+        </nav>
+        <Profile {...profile} />
+      </div>
     </aside>
   );
 }

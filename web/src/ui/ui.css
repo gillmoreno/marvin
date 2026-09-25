@@ -3,8 +3,8 @@
 .ui-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 24px 26px 28px;
+  gap: 28px;
+  padding: 36px 40px 40px;
   color: var(--fg);
   background: var(--panel);
   border: 1px solid var(--line);
@@ -14,17 +14,18 @@
 .ui-card > h3 {
   margin: 0;
   color: var(--fg);
-  font-size: 16px;
+  font-size: 22px;
   font-weight: 650;
+  letter-spacing: -.02em;
 }
 .ui-card > h4 {
   margin: 0;
   color: var(--fg);
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 650;
 }
 
-.ui-text { margin: 0; max-width: 42em; color: var(--fg-2); font-size: 13px; line-height: 1.55; }
+.ui-text { margin: 0; max-width: 46em; color: var(--fg-2); font-size: 16px; line-height: 1.6; }
 .ui-text.ok { color: var(--ok); }
 .ui-text.bad { color: var(--bad); }
 
@@ -54,14 +55,15 @@
   gap: 18px 24px;
 }
 
-.ui-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.ui-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ui-field.wide { grid-column: 1 / -1; }
-.ui-field > span { color: var(--fg-2); font-size: 12px; font-weight: 500; }
+.ui-field > span { color: var(--fg-2); font-size: 14px; font-weight: 500; }
 
 .ui-input, .ui-textarea, .ui-select {
   width: 100%;
-  min-height: 40px;
-  padding: 10px 12px;
+  min-height: 44px;
+  padding: 12px 14px;
+  font-size: 16px;
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--line);
@@ -78,14 +80,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 0 16px;
+  min-height: 42px;
+  padding: 0 18px;
   color: var(--accent-fg);
   background: var(--accent);
   border: 1px solid var(--accent);
   border-radius: 8px;
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -100,10 +102,10 @@
 .ui-btn.ghost:hover { color: var(--fg); border-color: var(--fg-2); background: var(--panel-2); }
 .ui-btn.danger { color: #fff; background: var(--bad); border-color: var(--bad); }
 
-.ui-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ui-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .ui-row { display: flex; gap: 8px; align-items: flex-start; min-width: 0; }
 .ui-row .ui-code { flex: 1; }
-.ui-stack { display: flex; flex-direction: column; gap: 16px; }
+.ui-stack { display: flex; flex-direction: column; gap: 20px; }
 
 .ui-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 12px; }
 .ui-steps li { display: flex; flex-direction: column; gap: 4px; }
@@ -124,15 +126,15 @@
   word-break: break-all;
 }
 
-.ui-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ui-chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .ui-chip {
-  min-height: 34px;
-  padding: 0 12px;
+  min-height: 38px;
+  padding: 0 14px;
   color: var(--fg-2);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .ui-chip.on { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
@@ -140,10 +142,10 @@
 .ui-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 4px;
+  gap: 16px;
+  padding-top: 8px;
 }
-.ui-block + .ui-block { padding-top: 16px; border-top: 1px solid var(--line); }
+.ui-block + .ui-block { padding-top: 28px; margin-top: 8px; border-top: 1px solid var(--line); }
 
 .ui-check { display: flex; align-items: center; gap: 10px; color: var(--fg-2); font-size: 13px; font-weight: 500; }
 .ui-check input { width: 16px; height: 16px; accent-color: var(--accent); }

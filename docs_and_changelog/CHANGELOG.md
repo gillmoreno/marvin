@@ -2,6 +2,29 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-25 — Room settings stay with the room
+
+### Changed
+- Opening settings for a room shows only that room. The control is **Room settings**, next to the room name. Sign-in, GitHub, and the rest of the machine stay under Settings.
+- A room you enter stays on the sidebar with Projects. Settings sits at the bottom of the sidebar, just above your name.
+- Opening a room slides the sidebar away. The room fills the window, with Projects and Room settings in its top bar. Leaving the room brings the sidebar back.
+- The sidebar is a normal size again. Inside a room, the Marvin logo and a back link sit in the top bar, and both return to Projects. Changes uses the same connected tab as Settings.
+
+## 2026-09-25 — A fuller sidebar
+
+### Changed
+- Projects and Settings in the sidebar are large rows with much bigger icons. The mark, your name, and the role are larger too.
+
+## 2026-09-25 — Settings has more room to read
+
+### Changed
+- Settings type is larger, and the page, tabs, and cards have more space between them.
+
+## 2026-09-25 — Settings sections are tabs under the title
+
+### Changed
+- Settings no longer has a second sidebar. Sign-in, GitHub, coding agents, and the rest sit in one row under the title. The open section shares the card and is marked with a teal line.
+
 ## 2026-09-25 — One dark theme for the room and Settings
 
 ### Changed

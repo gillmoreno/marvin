@@ -1,0 +1,50 @@
+<!doctype html>
+<!-- PROTOTYPE. No sidebar. You enter a short list. The open project is the first row, not a second screen of chrome. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>4 — A short list</title>
+<style>
+  :root { --bg:#0f1115; --panel:#161920; --line:#252a34; --fg:#e8eaef; --muted:#b0b8c1; --dim:#8b93a2; --accent:#2dd4bf; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 "Avenir Next", Avenir, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 72px 28px; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 36px; }
+  h1 { margin: 0; font-size: 28px; font-weight: 650; }
+  .top span, .top a { color: var(--dim); text-decoration: none; font-size: 15px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: grid; grid-template-columns: 1fr auto; gap: 8px 24px; padding: 22px 0; border-top: 1px solid var(--line); }
+  li b { font-size: 20px; font-weight: 650; }
+  li em { grid-column: 1; color: var(--muted); font-style: normal; }
+  li i { color: var(--accent); font-style: normal; }
+  .open { background: var(--panel); margin: 0 -20px; padding: 22px 20px; border-radius: 12px; border-top: 0; }
+  .talk { margin-top: 28px; color: var(--muted); }
+  .flow { margin-top: 48px; }
+  .flow a { color: var(--dim); margin-right: 16px; }
+</style>
+</head>
+<body>
+<main id="room">
+  <div class="top"><h1>Marvin</h1><span>Gil · <a href="#">Settings</a></span></div>
+  <ul>
+    <li class="open"><b>dev</b><i>open</i><em>Gil — Marvin, what is this repository about?</em></li>
+    <li><b>shop</b><span></span><em>No one has spoken yet.</em></li>
+  </ul>
+  <p class="talk">You are in dev. Ask from here, or open the line above.</p>
+</main>
+<main id="setup" hidden>
+  <div class="top"><h1>Marvin</h1><span>Gil</span></div>
+  <ul>
+    <li><b>GitHub</b><i>needed</i><em>This machine has no account to clone with.</em></li>
+    <li><b>Coding agent</b><i>needed</i><em>Sign in with Grok, or paste a key.</em></li>
+  </ul>
+  <p class="talk">Projects show up here after those two.</p>
+</main>
+<p class="flow" style="max-width:760px;margin:0 auto;padding:0 28px 40px"><a href="?flow=room">In the project</a><a href="?flow=setup">Not connected</a></p>
+<script>
+  const setup = new URLSearchParams(location.search).get("flow") === "setup";
+  document.getElementById("room").hidden = setup;
+  document.getElementById("setup").hidden = !setup;
+</script>
+</body>
+</html>

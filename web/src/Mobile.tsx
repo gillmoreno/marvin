@@ -49,7 +49,7 @@ export function MobileRoom({ roomName, marvin, repos, refreshKey, onSettings }: 
         <span className="m-title">{agent.name} <span className="room">#{roomName}</span></span>
         <AgentPresence state={marvin.state} label={`${agent.name} is ${stateLabel(marvin.state)}`} />
         <span className="m-state">{stateLabel(marvin.state)}</span>
-        <button type="button" className="iconbtn settings-btn" onClick={onSettings} aria-label="settings" title="settings"><GearIcon /></button>
+        <button type="button" className="iconbtn settings-btn" onClick={onSettings} aria-label="Room settings" title="Room settings"><GearIcon /></button>
       </div>
       <div className="m-pane" data-pane={pane.split(":")[0]}>
         {pane === "marvin" && <MarvinPane marvin={marvin} room={roomName} />}

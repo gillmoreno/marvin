@@ -1,14 +1,14 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { agent } from "./agent";
 import { useIsAdmin } from "./auth";
-import { AccountSection } from "./RoomSettings";
+import { AccountSection, RoomAndMachine, useRoomInfo } from "./RoomSettings";
 import { GitHubSection } from "./GitHubConnect";
 import { HarnessSection } from "./HarnessConnect";
 import { AccessSection } from "./AccessSection";
 import { ExportSection, SessionsSection } from "./Sessions";
 import { LicenseSection, useEnterprise } from "./License";
 import { MachineUpdate } from "./MachineUpdate";
-import type { SettingsPane } from "./nav";
+import { useAppNav, type SettingsPane } from "./nav";
 import { Actions, Button, Card, Text } from "./ui";
 
 const MACHINE_PANES: { id: SettingsPane; label: string }[] = [
@@ -73,27 +73,49 @@ function AppPreviewsSection() {
   );
 }
 
-export function SettingsPage({ extra, room, pane, onPane }: {
-  extra?: ReactNode;
-  room?: string;
-  pane: SettingsPane;
-  onPane: (pane: SettingsPane) => void;
-}) {
+function RoomSettingsFrame({ room, children }: { room: string; children: ReactNode }) {
+  const nav = useAppNav();
+  return (
+    <div className="settings-page">
+      <header className="join-main-head">
+        <div>
+          <span>#{room}</span>
+          <h1>Room settings</h1>
+        </div>
+        <button type="button" className="room-back" onClick={() => nav.openProject(room)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m15 18-6-6 6-6" /></svg>
+          Back to room
+        </button>
+      </header>
+      <div className="settings-pane">{children}</div>
+    </div>
+  );
+}
+
+function RoomSettingsLoaded({ room }: { room: string }) {
+  const fetched = useRoomInfo(room, 0);
+  return (
+    <RoomSettingsFrame room={room}>
+      <RoomAndMachine room={room} info={fetched.info} reload={fetched.reload} />
+    </RoomSettingsFrame>
+  );
+}
+
+function MachineSettingsPage({ pane, onPane }: { pane: SettingsPane; onPane: (pane: SettingsPane) => void }) {
   const admin = useIsAdmin();
   const ent = useEnterprise();
-  const hasRoom = Boolean(extra);
-  const panes = hasRoom ? [{ id: "room" as SettingsPane, label: "This room" }, ...MACHINE_PANES] : MACHINE_PANES;
+  const panes = MACHINE_PANES;
 
   return (
     <div className="settings-page">
       <header className="join-main-head">
         <div>
-          <span>{room ? `#${room}` : "This machine"}</span>
+          <span>This machine</span>
           <h1>Settings</h1>
         </div>
       </header>
       <div className="settings-body">
-        <nav className="settings-nav" aria-label="Settings">
+        <nav className="settings-tabs" aria-label="Settings">
           {panes.map((item) => (
             <a
               key={item.id}
@@ -110,7 +132,6 @@ export function SettingsPage({ extra, room, pane, onPane }: {
           ))}
         </nav>
         <div className="settings-pane">
-          {pane === "room" && extra}
           {pane === "signin" && <><AccountSection /><AccessSection /></>}
           {pane === "github" && <GitHubSection />}
           {pane === "agents" && <HarnessSection />}
@@ -128,4 +149,18 @@ export function SettingsPage({ extra, room, pane, onPane }: {
       </div>
     </div>
   );
+}
+
+export function SettingsPage({ extra, room, pane, onPane }: {
+  extra?: ReactNode;
+  room?: string;
+  pane: SettingsPane;
+  onPane: (pane: SettingsPane) => void;
+}) {
+  if (room) {
+    return extra
+      ? <RoomSettingsFrame room={room}>{extra}</RoomSettingsFrame>
+      : <RoomSettingsLoaded room={room} />;
+  }
+  return <MachineSettingsPage pane={pane} onPane={onPane} />;
 }

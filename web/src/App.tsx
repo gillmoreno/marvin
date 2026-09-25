@@ -159,12 +159,18 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
     />
   );
 
+  const machineSettings = <SettingsPage pane={nav.settingsPane} onPane={nav.setSettingsPane} />;
+  const roomSettingsView = nav.room && nav.room !== roomName
+    ? <SettingsPage room={nav.room} pane="room" onPane={nav.setSettingsPane} />
+    : settings;
+  const viewingRoomSettings = nav.page === "settings" && Boolean(nav.room);
+
   if (mobile) {
     return (
-      <AppShell ee={ee} section={nav.page === "settings" ? "settings" : "projects"} profile={profile} onProjects={nav.goProjects} onSettings={() => nav.openSettings()} room={nav.page === "room"}>
-        {nav.page === "settings" ? settings : (
+      <AppShell ee={ee} section={nav.page === "settings" && !nav.room ? "settings" : "projects"} profile={profile} onProjects={nav.goProjects} onSettings={() => nav.openSettings()} room={nav.page === "room"} inProject={nav.page === "room" || viewingRoomSettings}>
+        {viewingRoomSettings ? roomSettingsView : nav.page === "settings" ? machineSettings : (
           <div className="layout" data-state={marvin.state} data-mobile="">
-            <MobileRoom roomName={roomName} marvin={marvin} repos={repos} refreshKey={refreshKey} onSettings={() => nav.openSettings()} />
+            <MobileRoom roomName={roomName} marvin={marvin} repos={repos} refreshKey={refreshKey} onSettings={() => nav.openRoomSettings(roomName)} />
             {deviceError && <p className="error devhint">{deviceError}</p>}
           </div>
         )}
@@ -172,10 +178,18 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
     );
   }
 
-  if (nav.page === "settings") {
+  if (nav.page === "settings" && !nav.room) {
     return (
       <AppShell ee={ee} section="settings" profile={profile} onProjects={nav.goProjects} onSettings={() => nav.openSettings()}>
-        {settings}
+        {machineSettings}
+      </AppShell>
+    );
+  }
+
+  if (nav.page === "settings") {
+    return (
+      <AppShell ee={ee} section="settings" profile={profile} onProjects={nav.goProjects} onSettings={() => nav.openSettings()} inProject>
+        {roomSettingsView}
       </AppShell>
     );
   }
@@ -184,7 +198,16 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
     <AppShell ee={ee} section="projects" profile={profile} onProjects={nav.goProjects} onSettings={() => nav.openSettings()} room>
       <div className="room-workspace" data-state={marvin.state}>
         <header className="room-bar">
+          <button type="button" className="room-mark" onClick={nav.goProjects} title="Projects" aria-label="Projects">
+            <BrandLogo />
+          </button>
+          <button type="button" className="room-back" onClick={nav.goProjects}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m15 18-6-6 6-6" /></svg>
+            Projects
+          </button>
+          <span className="room-bar-rule" aria-hidden />
           <b>#{roomName}</b>
+          <button type="button" className="room-settings" onClick={() => nav.openRoomSettings(roomName)}>Room settings</button>
           {deviceError && <p className="error devhint">{deviceError}</p>}
           <StartAudio label="Click to hear the room" />
           <span className="sp" />

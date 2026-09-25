@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- PROTOTYPE. No sidebar. A single top line, then the project.
+     ?flow=setup shows the machine before GitHub and an agent exist. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>1 — Top line</title>
+<style>
+  :root { --bg:#0f1115; --panel:#161920; --line:#252a34; --fg:#e8eaef; --muted:#b0b8c1; --dim:#8b93a2; --accent:#2dd4bf; --ink:#042f2e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.55 "Avenir Next", Avenir, sans-serif; }
+  header { display: flex; align-items: center; gap: 28px; height: 72px; padding: 0 40px; border-bottom: 1px solid var(--line); }
+  header img { height: 26px; }
+  header nav { display: flex; gap: 22px; }
+  header a { color: var(--dim); text-decoration: none; }
+  header a.on { color: var(--fg); }
+  header .sp { flex: 1; }
+  header .who { color: var(--muted); }
+  main { max-width: 880px; margin: 0 auto; padding: 56px 32px 80px; }
+  .kicker { color: var(--accent); font-size: 14px; font-weight: 650; }
+  h1 { margin: 6px 0 28px; font-size: 44px; letter-spacing: -.03em; font-weight: 650; }
+  .line { margin: 0 0 22px; }
+  .line b { display: block; font-size: 15px; }
+  .line span { color: var(--muted); }
+  .ask { margin-top: 36px; display: flex; gap: 12px; }
+  input { flex: 1; min-height: 52px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font: inherit; }
+  button { min-height: 52px; padding: 0 18px; border: 0; border-radius: 10px; background: var(--accent); color: var(--ink); font: inherit; font-weight: 650; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px 32px; margin-top: 18px; }
+  .card h2 { margin: 0 0 8px; font-size: 22px; }
+  .card p { margin: 0; color: var(--muted); }
+  .flow { position: fixed; right: 20px; bottom: 18px; }
+  .flow a { color: var(--dim); margin-left: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="../../web/public/marvin-lockup.svg" alt="Marvin" />
+  <nav>
+    <a class="on" href="#" id="proj">dev</a>
+    <a href="#">Projects</a>
+    <a href="#">Settings</a>
+  </nav>
+  <span class="sp"></span>
+  <span class="who">Gil</span>
+</header>
+<main id="room">
+  <div class="kicker">Project</div>
+  <h1>dev</h1>
+  <p class="line"><b>Gil</b><span>Marvin, what is this repository about?</span></p>
+  <p class="line"><b>Marvin</b><span>A voice room with a coding agent. People talk, and the words land here.</span></p>
+  <p class="line"><b>Gil</b><span>Thanks. Leave the sidebar out.</span></p>
+  <form class="ask" onsubmit="return false"><input placeholder="Ask Marvin…" /><button type="submit">Send</button></form>
+</main>
+<main id="setup" hidden>
+  <div class="kicker">This machine</div>
+  <h1>Two things, then a project.</h1>
+  <p style="color:var(--muted);max-width:36em">A room stays closed until this machine has a GitHub account and a coding agent.</p>
+  <article class="card"><h2>GitHub</h2><p>Not connected. Marvin cannot clone a repo yet.</p></article>
+  <article class="card"><h2>Coding agent</h2><p>Not connected. Sign in with Grok, or paste a key.</p></article>
+</main>
+<p class="flow"><a href="?flow=room">In the project</a><a href="?flow=setup">Not connected</a></p>
+<script>
+  const setup = new URLSearchParams(location.search).get("flow") === "setup";
+  document.getElementById("room").hidden = setup;
+  document.getElementById("setup").hidden = !setup;
+  document.getElementById("proj").className = setup ? "" : "on";
+</script>
+</body>
+</html>

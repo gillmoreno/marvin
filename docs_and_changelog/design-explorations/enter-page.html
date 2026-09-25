@@ -1,0 +1,55 @@
+<!doctype html>
+<!-- PROTOTYPE. No bar, no sidebar. The project is a page. A text line is the only navigation. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>2 — A page</title>
+<style>
+  :root { --bg:#0f1115; --fg:#e8eaef; --muted:#b0b8c1; --dim:#8b93a2; --accent:#2dd4bf; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 18px/1.6 "Avenir Next", Avenir, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 88px 28px 100px; }
+  .nav { margin: 0 0 48px; color: var(--dim); font-size: 15px; }
+  .nav a { color: var(--dim); text-decoration: none; }
+  .nav a.on { color: var(--fg); }
+  h1 { margin: 0 0 8px; font-size: 52px; letter-spacing: -.04em; font-weight: 650; }
+  .sub { margin: 0 0 48px; color: var(--muted); }
+  article { margin: 0 0 32px; }
+  article b { display: block; margin-bottom: 4px; }
+  article p { margin: 0; }
+  .marvin p { color: var(--accent); }
+  hr { border: 0; border-top: 1px solid #252a34; margin: 40px 0; }
+  input { width: 100%; background: transparent; border: 0; border-bottom: 1px solid #252a34; color: var(--fg); font: inherit; padding: 12px 0; }
+  .step { margin-top: 36px; }
+  .step h2 { margin: 0 0 6px; font-size: 28px; }
+  .step p { margin: 0; color: var(--muted); }
+  .flow { position: fixed; right: 20px; bottom: 18px; font-size: 15px; }
+  .flow a { color: var(--dim); margin-left: 14px; }
+</style>
+</head>
+<body>
+<main id="room">
+  <p class="nav"><a href="#">Marvin</a> · <a class="on" href="#">dev</a> · <a href="#">Projects</a> · <a href="#">Settings</a> · Gil</p>
+  <h1>dev</h1>
+  <p class="sub">The marvin repo. Say the name when you want the agent.</p>
+  <article><b>Gil</b><p>Marvin, what is this repository about?</p></article>
+  <article class="marvin"><b>Marvin</b><p>A voice room with a coding agent. The words stay on this page.</p></article>
+  <article><b>Gil</b><p>Keep going. No column on the left.</p></article>
+  <hr />
+  <input placeholder="Ask Marvin…" />
+</main>
+<main id="setup" hidden>
+  <p class="nav"><a href="#">Marvin</a> · <a class="on" href="#">This machine</a> · Gil</p>
+  <h1>Not ready yet.</h1>
+  <p class="sub">Connect these two. Then the project opens on this same page.</p>
+  <section class="step"><h2>GitHub</h2><p>Missing. Paste a token or connect the account this machine should use.</p></section>
+  <section class="step"><h2>Coding agent</h2><p>Missing. Grok is the one to sign in first.</p></section>
+</main>
+<p class="flow"><a href="?flow=room">In the project</a><a href="?flow=setup">Not connected</a></p>
+<script>
+  const setup = new URLSearchParams(location.search).get("flow") === "setup";
+  document.getElementById("room").hidden = setup;
+  document.getElementById("setup").hidden = !setup;
+</script>
+</body>
+</html>

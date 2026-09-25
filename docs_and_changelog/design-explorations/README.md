@@ -3,6 +3,16 @@
 Clickable HTML prototypes. Nothing here is wired to the app; the goal is to pick a direction (or a mix) before
 touching `web/src`. Open `index.html` in a browser, no server needed.
 
+## No sidebar (2026-09-25)
+
+`enter.html` — throwaway. Four ways to open Marvin with no rail. Each file has the project you land in, and `?flow=setup` for the machine before GitHub and a coding agent exist.
+
+## Settings without a second sidebar (2026-09-25)
+
+`settings-tabs.html` — throwaway. The Marvin rail stays. The settings sections are not a second rail.
+Switch layouts with the bottom bar or `?variant=vtabs|htabs|stack`. `vtabs` is the one to judge:
+vertical tabs glued to the panel.
+
 ## Sidebar collapse (2026-09-17)
 
 `rail-collapse.html` — throwaway. Five ways to fold the shared rail, side by side, so we can pick one.

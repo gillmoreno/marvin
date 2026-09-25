@@ -2,6 +2,54 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-25-room-settings-nav",
+      "date": "2026-09-25",
+      "title": "Room settings stay with the room",
+      "summary": "A room’s settings are only about that room. Open rooms stay with Projects. Machine settings sit at the bottom of the sidebar, just above your name.",
+      "changes": [
+        {
+          "title": "Room settings live in the room",
+          "description": "Opening a room slides the sidebar away and the room fills the window. The Marvin logo and a back link sit in the room’s top bar. Changes uses the same connected tab as Settings. The sidebar itself is a calmer size."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-25-fuller-sidebar",
+      "date": "2026-09-25",
+      "title": "The sidebar is easier to see",
+      "summary": "Projects and Settings are large rows. The icons, the Marvin mark, and your name are bigger.",
+      "changes": [
+        {
+          "title": "Bigger navigation",
+          "description": "The two items in the sidebar use large icons and larger type. Fold the rail and the icons stay big."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-25-settings-space",
+      "date": "2026-09-25",
+      "title": "Settings is easier to read",
+      "summary": "Type on Settings is larger, and there is more space between the title, the tabs, and each section.",
+      "changes": [
+        {
+          "title": "More room on the page",
+          "description": "Headings, descriptions, and controls sit further apart. The row of tabs is larger too."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-25-settings-top-tabs",
+      "date": "2026-09-25",
+      "title": "Settings opens from a row of tabs",
+      "summary": "The Marvin sidebar is the only sidebar. Settings sections sit under the title, and the one you are in is marked on the card.",
+      "changes": [
+        {
+          "title": "No second sidebar",
+          "description": "Sign-in, GitHub, coding agents, sessions, and the rest are a row under Settings. The open tab uses the same dark surface as the card, with a teal line along its bottom."
+        }
+      ]
+    },
+    {
       "id": "2026-09-25-one-dark-theme",
       "date": "2026-09-25",
       "title": "The room matches the rest of Marvin",
