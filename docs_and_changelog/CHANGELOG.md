@@ -2,6 +2,16 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-25 — Colored diffs
+
+### Changed
+- A file’s diff shows additions in green and deletions in red, and formats TypeScript, Python, Go, Rust, C, C++, HTML, Markdown, and the other common languages.
+
+## 2026-09-25 — A quiet room
+
+### Changed
+- Inside a room, changed files sit in a folder tree on the left, with search. Transcript and Marvin take the rest of the window.
+
 ## 2026-09-25 — Room settings stay with the room
 
 ### Changed

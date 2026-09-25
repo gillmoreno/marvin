@@ -1,0 +1,360 @@
+<!doctype html>
+<!-- PROTOTYPE — throwaway. Question: inside a room, a real file tree on the left
+     and the room on the wide side?
+     A project has more than one repo, folders, a search that looks inside files,
+     and changes that sit three levels down. Switch with the bar or
+     ?variant=stage|page|editor -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Room layout — prototype</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161920; --panel-2: #1a1e26; --line: #252a34;
+    --fg: #e8eaef; --fg-2: #b0b8c1; --dim: #8b93a2;
+    --accent: #2dd4bf; --accent-fg: #042f2e; --add: #3fb950; --del: #f85149;
+    font: 15px/1.5 "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); }
+  button, input { font: inherit; color: inherit; }
+  button { background: none; border: 0; cursor: pointer; }
+  .brand { height: 22px; display: block; }
+  .back { display: inline-flex; align-items: center; gap: 2px; color: var(--dim); font-weight: 600; font-size: 14px; }
+  .back:hover { color: var(--fg); }
+  .room { color: var(--fg); font-weight: 650; letter-spacing: -.02em; }
+  .side-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 10px; }
+  .repos { display: flex; gap: 4px; padding: 0 12px 8px; }
+  .repos button { min-height: 28px; padding: 0 8px; border-radius: 7px; color: var(--dim); font-size: 12px; font-weight: 650; }
+  .repos button.on { color: var(--fg); background: var(--panel-2); }
+  .repos button small { font-weight: 500; color: var(--dim); }
+  .find { margin: 0 12px 8px; display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .find input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font-size: 13px; }
+  .find input::placeholder { color: var(--dim); }
+  .filters { display: flex; gap: 6px; padding: 0 12px 8px; }
+  .filters button { min-height: 26px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+  .filters button.on { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
+  .tree { flex: 1; min-height: 0; overflow: auto; padding: 0 8px 12px; }
+  .row { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 28px; padding-right: 6px; border-radius: 6px; text-align: left; font-size: 13px; color: var(--fg-2); }
+  .row:hover { color: var(--fg); }
+  .row.on { color: var(--fg); background: var(--panel-2); }
+  .row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row.gone .name { text-decoration: line-through; opacity: .75; }
+  .chev { width: 14px; flex: none; color: var(--dim); font-size: 10px; }
+  .kind { width: 14px; flex: none; color: var(--dim); font-size: 12px; }
+  .stat { margin-left: auto; flex: none; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .stat.add { color: var(--add); } .stat.del { color: var(--del); }
+  .dot { width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: var(--accent); flex: none; }
+  .hit { margin: -2px 8px 4px; color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty, .none { margin: 8px; color: var(--dim); font-size: 12px; }
+  .none button { color: var(--accent); }
+  .crumb { margin: 0 0 12px; color: var(--dim); font-size: 12px; }
+  .crumb b { color: var(--fg); font-weight: 650; }
+  .tabs { display: flex; align-items: flex-end; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--line); }
+  .tabs button { min-height: 42px; padding: 0 16px; color: var(--dim); border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0; font-size: 14px; }
+  .tabs button.on { color: var(--fg); background: var(--bg); border-bottom-color: var(--accent); font-weight: 650; }
+  .stage { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+  .body { flex: 1; min-height: 0; overflow: auto; padding: 28px 36px 90px; }
+  .who { font-weight: 650; }
+  .who.agent { color: var(--accent); }
+  .line { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); gap: 4px 14px; margin: 0 0 16px; }
+  .line time { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .diff { margin: 0; padding: 16px 18px; background: #0c1116; border: 1px solid var(--line); border-radius: 10px; font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+  .diff .p { color: var(--add); } .diff .m { color: var(--del); }
+  .note { color: var(--fg-2); }
+  .people { display: flex; gap: 14px; padding: 12px 14px; border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+  .people b { color: var(--fg); font-weight: 650; }
+  [hidden] { display: none !important; }
+
+  .stage-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100dvh; }
+  .stage-layout .side, .editor-layout .side { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+
+  .page-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); height: 100dvh; }
+  .page-layout .side { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .page-layout .main { background: var(--bg); overflow: auto; padding: 48px 64px 110px; }
+  .page-layout .kicker { color: var(--accent); font-size: 12px; font-weight: 650; letter-spacing: .06em; }
+  .page-layout h1 { margin: 6px 0 22px; font-size: 36px; letter-spacing: -.03em; font-weight: 650; }
+  .ask { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  .ask input { border: 0; background: transparent; font: inherit; font-size: 16px; outline: none; color: var(--fg); }
+  .ask input::placeholder { color: var(--dim); }
+  .ask .row2 { display: flex; justify-content: space-between; align-items: center; color: var(--dim); font-size: 13px; }
+  .ask .go { min-height: 32px; padding: 0 12px; border-radius: 8px; background: var(--accent); color: var(--accent-fg); font-weight: 650; }
+  .page-layout .chat { margin-top: 32px; }
+  .page-layout .chat h2 { margin: 0 0 14px; font-size: 11px; letter-spacing: .08em; color: var(--dim); }
+  .fold { margin-top: 32px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--fg-2); text-align: left; width: 100%; }
+  .fold:hover { color: var(--fg); }
+  .page-modes { display: flex; gap: 18px; margin: -8px 0 22px; }
+  .page-modes button { color: var(--dim); font-weight: 600; padding-bottom: 6px; border-bottom: 2px solid transparent; }
+  .page-modes button.on { color: var(--fg); border-bottom-color: var(--accent); }
+
+  .editor-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100dvh; }
+  .editor-layout .tabs { background: var(--panel); padding-top: 8px; overflow: auto; }
+  .editor-layout .tabs button.filetab { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+  .switcher {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px; padding: 6px;
+    background: #fff; color: #14181c; border-radius: 999px; box-shadow: 0 8px 28px rgba(0,0,0,.35); z-index: 5;
+  }
+  .switcher button { width: 32px; height: 32px; border-radius: 50%; background: #14181c; color: #fff; }
+  .switcher b { min-width: 22em; text-align: center; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="switcher" role="toolbar" aria-label="Prototype variants">
+  <button type="button" id="prev" aria-label="Previous layout">←</button>
+  <b id="label"></b>
+  <button type="button" id="next" aria-label="Next layout">→</button>
+</div>
+<script>
+const dir = (name, children) => ({ name, dir: true, children });
+const file = (name, extra) => ({ name, ...extra });
+const REPOS = [
+  {
+    name: "marvin", role: "working dir", branch: "main",
+    root: [
+      dir("docs_and_changelog", [
+        file("CHANGELOG.md", { status: "M", add: 21, del: 0, hit: "Room settings stay with the room" }),
+        dir("design-explorations", [
+          file("room-layout.html", { status: "A", add: 240, del: 0 }),
+          file("a-very-long-exploration-name-that-must-truncate.html"),
+        ]),
+      ]),
+      dir("web", [
+        dir("src", [
+          file("App.tsx", { status: "M", add: 28, del: 7, hit: "openProject when the logo is clicked" }),
+          dir("shell", [
+            file("Sidebar.tsx", { status: "M", add: 42, del: 12 }),
+            file("AppShell.tsx"),
+          ]),
+          file("styles.css", { status: "M", add: 63, del: 34, hit: "border-bottom-color: var(--accent)" }),
+          file("nav.ts", { status: "M", add: 53, del: 10 }),
+        ]),
+        dir("public", [
+          file("marvin-lockup.svg"),
+          file("og.png", { binary: true }),
+        ]),
+      ]),
+      dir("worker", [
+        dir("marvin", [ file("token_server.py") ]),
+      ]),
+      dir("scratch", []),
+      file("README.md"),
+      file("old-draft.md", { status: "D", add: 0, del: 40 }),
+    ],
+  },
+  {
+    name: "api", role: "library", branch: "trunk",
+    root: [
+      dir("src", [
+        file("client.ts", { status: "M", add: 4, del: 1, hit: "export function fetchRooms" }),
+        dir("empty", []),
+      ]),
+      file("package.json"),
+    ],
+  },
+];
+const VARIANTS = [
+  ["stage", "A — Files left, tabs on the wide side"],
+  ["page", "B — Quiet page, dark"],
+  ["editor", "C — Files open as tabs"],
+];
+
+let variant = new URLSearchParams(location.search).get("variant") || "page";
+if (!VARIANTS.some(([id]) => id === variant)) variant = "stage";
+let repo = 0;
+let query = "";
+let changesOnly = false;
+let tab = "transcript";
+let selected = "docs_and_changelog/CHANGELOG.md";
+const expanded = new Set(["docs_and_changelog", "web", "web/src"]);
+const openTabs = [];
+
+function dirty(node) {
+  if (node.status) return true;
+  return (node.children || []).some(dirty);
+}
+function selfMatch(node, q) {
+  return (node.name + " " + (node.hit || "")).toLowerCase().includes(q);
+}
+function branchMatch(node, q) {
+  if (!q) return true;
+  if (selfMatch(node, q)) return true;
+  return (node.children || []).some((child) => branchMatch(child, q));
+}
+function shown(node, q) {
+  if (changesOnly && !dirty(node)) return false;
+  if (q && !branchMatch(node, q)) return false;
+  return true;
+}
+function changeCount(nodes) {
+  let n = 0;
+  for (const node of nodes) {
+    if (node.status) n += 1;
+    if (node.children) n += changeCount(node.children);
+  }
+  return n;
+}
+function findNode(path) {
+  const parts = path.split("/");
+  let nodes = REPOS[repo].root;
+  let node = null;
+  for (const part of parts) {
+    node = (nodes || []).find((item) => item.name === part);
+    if (!node) return null;
+    nodes = node.children;
+  }
+  return node;
+}
+
+function treeHtml() {
+  const q = query.trim().toLowerCase();
+  const repoName = REPOS[repo].name;
+  let matches = 0;
+  function walk(nodes, prefix, depth) {
+    let html = "";
+    for (const node of nodes) {
+      if (!shown(node, q)) continue;
+      const path = prefix + node.name;
+      if (node.dir) {
+        const open = q ? branchMatch(node, q) && (node.children || []).some((child) => shown(child, q) || selfMatch(node, q)) : expanded.has(path);
+        const force = Boolean(q) && (node.children || []).some((child) => branchMatch(child, q));
+        const isOpen = force || (!q && expanded.has(path));
+        html += `<button type="button" class="row" style="padding-left:${8 + depth * 14}px" data-dir="${path}"><span class="chev">${isOpen ? "▾" : "▸"}</span><span class="kind">▦</span><span class="name">${node.name}</span>${dirty(node) ? `<span class="dot" title="Has changes"></span>` : ""}</button>`;
+        if (isOpen) {
+          if (!node.children.length) html += `<div class="empty" style="padding-left:${28 + depth * 14}px">Empty folder</div>`;
+          else html += walk(node.children, path + "/", depth + 1);
+        }
+      } else {
+        matches += 1;
+        const on = selected === path ? " on" : "";
+        const gone = node.status === "D" ? " gone" : "";
+        const mark = node.binary ? "◌" : node.status === "D" ? "D" : "·";
+        const stat = node.add ? `<span class="stat add">+${node.add}</span>` : node.del ? `<span class="stat del">−${node.del}</span>` : "";
+        html += `<button type="button" class="row${on}${gone}" style="padding-left:${8 + depth * 14}px" data-path="${path}"><span class="chev"></span><span class="kind">${node.status || mark}</span><span class="name">${node.name}</span>${stat}</button>`;
+        if (q && node.hit && node.hit.toLowerCase().includes(q)) html += `<div class="hit" style="padding-left:${36 + depth * 14}px">${node.hit}</div>`;
+      }
+    }
+    return html;
+  }
+  const body = walk(REPOS[repo].root, "", 0);
+  const none = !body
+    ? `<p class="none">${q ? `Nothing matches “${query.trim()}” in ${repoName}.` : "No changed files in this repo."} ${q ? `<button type="button" data-clear>Clear search</button>` : ""}</p>`
+    : body;
+  return `<div class="repos">${REPOS.map((item, i) => `<button type="button" data-repo="${i}" class="${i === repo ? "on" : ""}">${item.name} <small>${item.role}</small></button>`).join("")}</div>
+    <label class="find"><span aria-hidden>⌕</span><input data-search placeholder="Search files and contents" value="${query.replace(/"/g, "&quot;")}" /></label>
+    <div class="filters"><button type="button" data-changes class="${changesOnly ? "on" : ""}">Changes${changeCount(REPOS[repo].root) ? ` · ${changeCount(REPOS[repo].root)}` : ""}</button></div>
+    <div class="tree">${none}</div>`;
+}
+
+function filePane() {
+  const node = selected ? findNode(selected) : null;
+  if (!node) return `<p class="note">Choose a file. Folders with a teal dot contain uncommitted changes.</p>`;
+  const crumb = selected.split("/").map((part, i, all) => i === all.length - 1 ? `<b>${part}</b>` : part).join(" / ");
+  if (node.binary) return `<p class="crumb">${REPOS[repo].name} / ${crumb}</p><p class="note">Image file. There is no text diff to show.</p>`;
+  if (node.status === "D") return `<p class="crumb">${REPOS[repo].name} / ${crumb}</p><pre class="diff"><span class="m">− Deleted. ${node.del} lines removed.</span></pre>`;
+  if (!node.status) return `<p class="crumb">${REPOS[repo].name} / ${crumb}</p><p class="note">No uncommitted changes in this file. It is on ${REPOS[repo].branch}.</p>`;
+  return `<p class="crumb">${REPOS[repo].name} / ${crumb}</p><pre class="diff"><span class="m">− The file list was flat, so a change inside a folder was easy to miss.</span>
+<span class="p">+ ${node.hit || node.name} — folders stay visible, and search can find this line.</span></pre>`;
+}
+function transcript() {
+  return `<div class="line"><time>19:30</time><div><div class="who">Gil</div><div>Where did the change in shell go? I need the folder, not a flat list.</div></div></div>
+    <div class="line"><time>19:31</time><div><div class="who agent">Marvin</div><div>web / src / shell / Sidebar.tsx. The teal dot on web means something inside it changed. Search “accent” if you only remember a line.</div></div></div>`;
+}
+function marvin() {
+  return `<div class="line"><time>19:32</time><div><div class="who agent">Marvin</div><div>Two repos are on this room. marvin is the working directory. api is the shared library. Changes in either one stay in their own tree.</div></div></div>`;
+}
+
+function explorer() { return treeHtml(); }
+
+function render() {
+  const brand = `<img class="brand" src="../../web/public/marvin-lockup.svg" alt="Marvin" />`;
+  const back = `<button type="button" class="back">‹ Projects</button>`;
+  const head = `<div class="side-head">${brand}${back}<b class="room">#dev</b></div>`;
+  let html = "";
+  if (variant === "stage") {
+    const pane = tab === "transcript" ? transcript() : tab === "marvin" ? marvin() : filePane();
+    html = `<div class="stage-layout"><aside class="side">${head}${explorer()}<footer class="people"><span><b>Gil</b> admin</span><span><b>Marvin</b> quiet</span></footer></aside>
+      <section class="stage"><div class="tabs">${["transcript","marvin","file"].map((id) => `<button type="button" data-tab="${id}" class="${tab===id?"on":""}">${id === "file" ? "File" : id[0].toUpperCase()+id.slice(1)}</button>`).join("")}</div><div class="body">${pane}</div></section></div>`;
+  } else if (variant === "page") {
+    const showing = tab === "file";
+    const n = changeCount(REPOS[repo].root);
+    html = `<div class="page-layout"><aside class="side">${head}${explorer()}</aside><main class="main">
+      <div class="kicker">IN THE ROOM · ${REPOS[repo].branch}</div><h1>#dev</h1>
+      <div class="page-modes"><button type="button" data-tab="transcript" class="${tab==="transcript"?"on":""}">Transcript</button><button type="button" data-tab="marvin" class="${tab==="marvin"?"on":""}">Marvin</button></div>
+      ${showing ? filePane() : `${tab==="marvin" ? "" : `<div class="ask"><input placeholder="Ask Marvin about #dev…" /><div class="row2"><span>Said here, heard in the room.</span><button class="go" type="button">Send</button></div></div>`}
+        <div class="chat"><h2>${tab==="marvin"?"MARVIN":"TRANSCRIPT"}</h2>${tab==="marvin"?marvin():transcript()}</div>
+        <button type="button" class="fold" data-tab="file">Changes · ${n} file${n===1?"":"s"} in ${REPOS[repo].name}</button>`}
+    </main></div>`;
+  } else {
+    const pins = [["transcript", "Transcript"], ["marvin", "Marvin"]];
+    const files = openTabs.map((path) => [path, path.split("/").pop()]);
+    const pane = tab === "marvin" ? marvin() : tab === "transcript" || !findNode(tab) ? transcript() : filePane();
+    html = `<div class="editor-layout"><aside class="side">${head}${explorer()}</aside><section class="stage">
+      <div class="tabs">${pins.concat(files).map(([id, name]) => `<button type="button" data-tab="${id}" class="${tab===id?"on":""} ${pins.some(([p]) => p===id)?"":"filetab"}">${name}</button>`).join("")}</div>
+      <div class="body">${pane}</div></section></div>`;
+  }
+  const focus = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.search;
+  const caret = focus ? document.activeElement.selectionStart : null;
+  document.getElementById("root").innerHTML = html;
+  document.getElementById("label").textContent = VARIANTS.find(([id]) => id === variant)[1];
+  if (caret != null) {
+    const input = document.querySelector("[data-search]");
+    input.focus();
+    input.setSelectionRange(caret, caret);
+  }
+  document.querySelectorAll("[data-dir]").forEach((el) => el.onclick = () => {
+    const path = el.dataset.dir;
+    if (expanded.has(path)) expanded.delete(path); else expanded.add(path);
+    render();
+  });
+  document.querySelectorAll("[data-path]").forEach((el) => el.onclick = () => {
+    selected = el.dataset.path;
+    if (!openTabs.includes(selected)) openTabs.push(selected);
+    tab = variant === "editor" ? selected : "file";
+    render();
+  });
+  document.querySelectorAll("[data-tab]").forEach((el) => el.onclick = () => {
+    tab = el.dataset.tab;
+    if (variant === "editor" && findNode(tab)) selected = tab;
+    render();
+  });
+  document.querySelectorAll("[data-repo]").forEach((el) => el.onclick = () => {
+    repo = Number(el.dataset.repo);
+    selected = null;
+    query = "";
+    render();
+  });
+  document.querySelectorAll("[data-changes]").forEach((el) => el.onclick = () => { changesOnly = !changesOnly; render(); });
+  document.querySelectorAll("[data-clear]").forEach((el) => el.onclick = () => { query = ""; render(); });
+  document.querySelectorAll("[data-search]").forEach((el) => el.oninput = () => { query = el.value; render(); });
+}
+
+function setVariant(next) {
+  variant = next;
+  tab = "transcript";
+  const url = new URL(location.href);
+  url.searchParams.set("variant", next);
+  history.replaceState(null, "", url);
+  render();
+}
+document.getElementById("prev").onclick = () => {
+  const i = VARIANTS.findIndex(([id]) => id === variant);
+  setVariant(VARIANTS[(i + VARIANTS.length - 1) % VARIANTS.length][0]);
+};
+document.getElementById("next").onclick = () => {
+  const i = VARIANTS.findIndex(([id]) => id === variant);
+  setVariant(VARIANTS[(i + 1) % VARIANTS.length][0]);
+};
+document.addEventListener("keydown", (event) => {
+  if (event.target.matches("input, textarea")) return;
+  if (event.key === "ArrowLeft") document.getElementById("prev").click();
+  if (event.key === "ArrowRight") document.getElementById("next").click();
+});
+render();
+</script>
+</body>
+</html>

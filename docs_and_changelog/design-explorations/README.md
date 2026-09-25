@@ -3,6 +3,10 @@
 Clickable HTML prototypes. Nothing here is wired to the app; the goal is to pick a direction (or a mix) before
 touching `web/src`. Open `index.html` in a browser, no server needed.
 
+## Room with files on the left (2026-09-25)
+
+`room-layout.html` — throwaway. Inside a room, the file list is the left column and the wide side holds the room. Switch with the bottom bar or `?variant=stage|page|editor`.
+
 ## No sidebar (2026-09-25)
 
 `enter.html` — throwaway. Four ways to open Marvin with no rail. Each file has the project you land in, and `?flow=setup` for the machine before GitHub and a coding agent exist.

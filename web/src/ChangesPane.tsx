@@ -1,24 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ControlMessage } from "./protocol";
 import { agent } from "./agent";
+import { DiffView } from "./DiffView";
 import type { ProjectRepoInfo } from "./ProjectRepos";
 
-type ChangedFile = { path: string; status: string; additions: number; deletions: number };
-type Changes = { repo: string; git: boolean; branch: string | null; base: string | null; files: ChangedFile[] };
+export type ChangedFile = { path: string; status: string; additions: number; deletions: number };
+export type Changes = { repo: string; git: boolean; branch: string | null; base: string | null; files: ChangedFile[] };
 
-const STATUS: Record<string, string> = { M: "modified", A: "added", D: "deleted", R: "renamed", "?": "new" };
-
-/** What git knows about the project's repos: files changed vs the branch base, and the diff of any of them. A project
- *  with several repos gets a tab per repo. */
-export function ChangesPane({ room, repos, refreshKey, send }: { room: string; repos: ProjectRepoInfo[]; refreshKey: number; send: (m: ControlMessage) => void }) {
-  const [which, setWhich] = useState<string>("");  // repo path; "" = primary
-  const repo = repos.find((r) => r.path === which) ?? repos[0];
-  const repoQ = repo && repos.length > 1 ? `&repo=${encodeURIComponent(repo.path)}` : "";
+export function useChanges(room: string, repoPath: string | undefined, multi: boolean, refreshKey: number) {
+  const repoQ = multi && repoPath ? `&repo=${encodeURIComponent(repoPath)}` : "";
   const [data, setData] = useState<Changes | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [diff, setDiff] = useState<string>("");
-
   const load = useCallback(async () => {
     try {
       const r = await fetch(`/api/changes?room=${encodeURIComponent(room)}${repoQ}`);
@@ -30,12 +22,24 @@ export function ChangesPane({ room, repos, refreshKey, send }: { room: string; r
       setError(String(e instanceof Error ? e.message : e));
     }
   }, [room, repoQ]);
-
   useEffect(() => {
     void load();
     const t = setInterval(() => void load(), 8000);
     return () => clearInterval(t);
   }, [load, refreshKey]);
+  return { data, error, repoQ };
+}
+
+const STATUS: Record<string, string> = { M: "modified", A: "added", D: "deleted", R: "renamed", "?": "new" };
+
+/** What git knows about the project's repos: files changed vs the branch base, and the diff of any of them. A project
+ *  with several repos gets a tab per repo. */
+export function ChangesPane({ room, repos, refreshKey, send }: { room: string; repos: ProjectRepoInfo[]; refreshKey: number; send: (m: ControlMessage) => void }) {
+  const [which, setWhich] = useState<string>("");  // repo path; "" = primary
+  const repo = repos.find((r) => r.path === which) ?? repos[0];
+  const { data, error, repoQ } = useChanges(room, repo?.path, repos.length > 1, refreshKey);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [diff, setDiff] = useState<string>("");
 
   useEffect(() => {
     if (!selected) return;
@@ -55,7 +59,7 @@ export function ChangesPane({ room, repos, refreshKey, send }: { room: string; r
   const tabs = repos.length > 1 ? (
     <div className="repo-tabs">
       {repos.map((r, i) => (
-        <button key={r.path} className={(repo?.path === r.path) ? "on" : ""} onClick={() => { setWhich(i === 0 ? "" : r.path); setSelected(null); setData(null); }} title={r.path}>
+        <button key={r.path} className={(repo?.path === r.path) ? "on" : ""} onClick={() => { setWhich(i === 0 ? "" : r.path); setSelected(null); }} title={r.path}>
           {r.name}{r.role ? <span className="dim"> · {r.role}</span> : null}
         </button>
       ))}
@@ -94,17 +98,10 @@ export function ChangesPane({ room, repos, refreshKey, send }: { room: string; r
               </li>
             ))}
           </ul>
-          <pre className="diff">{renderDiff(diff)}</pre>
+          <DiffView text={diff} path={selected} />
         </div>
       )}
     </div>
   );
 }
 
-function renderDiff(text: string) {
-  if (!text) return <span className="dim">select a file</span>;
-  return text.split("\n").map((line, i) => {
-    const cls = line.startsWith("+++") || line.startsWith("---") ? "meta" : line.startsWith("@@") ? "hunk" : line.startsWith("+") ? "ins" : line.startsWith("-") ? "del" : line.startsWith("diff ") || line.startsWith("index ") ? "meta" : "";
-    return <span key={i} className={`dl ${cls}`}>{line}{"\n"}</span>;
-  });
-}

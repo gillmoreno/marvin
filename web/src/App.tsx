@@ -1,19 +1,15 @@
 import { useContext, useEffect, useState } from "react";
-import { LiveKitRoom, RoomAudioRenderer, ControlBar, StartAudio } from "@livekit/components-react";
-import { People } from "./People";
-import { MarvinPane } from "./MarvinPane";
-import { Transcript } from "./Transcript";
+import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import { useMarvin } from "./useMarvin";
 import { JoinGate } from "./JoinGate";
-import { Workspace } from "./Workspace";
 import { SettingsPage } from "./Settings";
 import { agent, loadAgentName } from "./agent";
 import { RoomAndMachine, useRoomInfo } from "./RoomSettings";
-import { Gutter, useColumns } from "./Columns";
 import { MeContext, fetchMe, login, type Me } from "./auth";
 import { MobileRoom, useIsMobile } from "./Mobile";
 import { useEnterprise } from "./License";
 import { useAppNav } from "./nav";
+import { QuietRoom } from "./QuietRoom";
 import { AppNavProvider, AppShell, BrandLogo, useProfile } from "./shell";
 
 type Join = { serverUrl: string; token: string; room: string; relayOnly: boolean };
@@ -140,11 +136,8 @@ function deviceHint(source: string, reason: string): string {
 function Room({ roomName, deviceError, setDeviceError }: { roomName: string; deviceError: string | null; setDeviceError: (s: string | null) => void }) {
   const nav = useAppNav();
   const marvin = useMarvin();
-  const columns = useColumns();
   const ee = useEnterprise();
   const profile = useProfile();
-  const [side, setSide] = useState<"marvin" | "transcript">("transcript"); // the live transcript is the default view
-  const [wanted, setWanted] = useState<string | null>(null);
   const roomInfoForSettings = useRoomInfo(roomName, 0);
   const last = marvin.turns[marvin.turns.length - 1];
   const refreshKey = marvin.turns.length * 2 + (last?.result ? 1 : 0); // re-read git when a turn starts and when it ends
@@ -196,70 +189,17 @@ function Room({ roomName, deviceError, setDeviceError }: { roomName: string; dev
 
   return (
     <AppShell ee={ee} section="projects" profile={profile} onProjects={nav.goProjects} onSettings={() => nav.openSettings()} room>
-      <div className="room-workspace" data-state={marvin.state}>
-        <header className="room-bar">
-          <button type="button" className="room-mark" onClick={nav.goProjects} title="Projects" aria-label="Projects">
-            <BrandLogo />
-          </button>
-          <button type="button" className="room-back" onClick={nav.goProjects}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m15 18-6-6 6-6" /></svg>
-            Projects
-          </button>
-          <span className="room-bar-rule" aria-hidden />
-          <b>#{roomName}</b>
-          <button type="button" className="room-settings" onClick={() => nav.openRoomSettings(roomName)}>Room settings</button>
-          {deviceError && <p className="error devhint">{deviceError}</p>}
-          <StartAudio label="Click to hear the room" />
-          <span className="sp" />
-          <div className="room-controls">
-            <ControlBar
-              variation="minimal"
-              controls={{ microphone: true, camera: false, screenShare: true, leave: true, chat: false }}
-              onDeviceError={({ source, error }) => setDeviceError(deviceHint(source, `${error.name} ${error.message}`))}
-            />
-          </div>
-        </header>
-        <div className="room-layout" style={columns.style}>
-          <main className="center">
-            <Workspace room={roomName} repos={repos} appLinks={marvin.appLinks} refreshKey={refreshKey} send={marvin.send} wanted={wanted} onShown={() => setWanted(null)} />
-          </main>
-          <Gutter side="right" resize={columns.resize} reset={columns.reset} />
-          <aside className="right">
-            <People agentState={marvin.state} />
-            <AppLinks links={marvin.appLinks} onOpen={setWanted} />
-            <div className="side-tabs">
-              <button
-                className={`${side === "marvin" ? "on" : ""} ${side !== "marvin" && marvin.state === "thinking" ? "busy" : ""} ${marvin.state === "waiting_approval" ? "attention" : ""}`.trim()}
-                onClick={() => setSide("marvin")}
-                title={marvin.state === "thinking" ? `${agent.name} is working` : marvin.state === "waiting_approval" ? `${agent.name} is waiting for an approval` : undefined}
-              >
-                <span className={`dot ${marvin.state}`} /> {agent.name}
-              </button>
-              <button className={side === "transcript" ? "on" : ""} onClick={() => setSide("transcript")}>Transcript</button>
-            </div>
-            {side === "marvin" ? <MarvinPane marvin={marvin} room={roomName} /> : <Transcript lines={marvin.transcript} />}
-          </aside>
-        </div>
-      </div>
+      <QuietRoom
+        roomName={roomName}
+        marvin={marvin}
+        repos={repos}
+        refreshKey={refreshKey}
+        deviceError={deviceError}
+        onProjects={nav.goProjects}
+        onRoomSettings={() => nav.openRoomSettings(roomName)}
+        setDeviceError={setDeviceError}
+      />
     </AppShell>
-  );
-}
-
-function AppLinks({ links, onOpen }: { links: { label: string; url: string }[]; onOpen: (url: string) => void }) {
-  if (links.length === 0) return null;
-  return (
-    <div className="applinks">
-      <h2 className="left-sect">app</h2>
-      {links.map((l) =>
-        l.url ? (
-          <a key={l.label + l.url} href={l.url} onClick={(e) => { e.preventDefault(); onOpen(l.url); }} title="open as a preview in the middle">
-            {l.label} <span className="url">{l.url.replace(/^https?:\/\//, "")}</span>
-          </a>
-        ) : (
-          <span key={l.label} className="applink-dead">{l.label}</span>
-        ),
-      )}
-    </div>
   );
 }
 

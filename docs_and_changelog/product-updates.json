@@ -2,6 +2,30 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-25-colored-diff",
+      "date": "2026-09-25",
+      "title": "Diffs show what changed",
+      "summary": "Added lines are green and removed lines are red. Code is formatted for the usual languages.",
+      "changes": [
+        {
+          "title": "Green, red, and formatted code",
+          "description": "Open a changed file and the additions are green, the deletions are red. TypeScript, Python, Go, Rust, C, C++, HTML, Markdown, and the other common languages are formatted."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-25-quiet-room",
+      "date": "2026-09-25",
+      "title": "The room is a quiet page",
+      "summary": "Changed files sit in a folder tree on the left. Transcript and Marvin use the rest of the window.",
+      "changes": [
+        {
+          "title": "Files on the left",
+          "description": "Open a room and the changes are a folder tree you can search. Transcript is the page, with Marvin beside it. Pick a file to read its diff."
+        }
+      ]
+    },
+    {
       "id": "2026-09-25-room-settings-nav",
       "date": "2026-09-25",
       "title": "Room settings stay with the room",
