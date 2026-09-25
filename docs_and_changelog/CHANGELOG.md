@@ -2,6 +2,11 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-25 — One dark theme for the room and Settings
+
+### Changed
+- The project workspace (diff, room bar, transcript, people) uses the same dark canvas as Projects and Settings. Settings cards are dark panels, not white islands on a dark page.
+
 ## 2026-09-24 — Transcript lines have a name, a time, and the words
 
 ### Changed

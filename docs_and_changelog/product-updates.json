@@ -2,6 +2,22 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-25-one-dark-theme",
+      "date": "2026-09-25",
+      "title": "The room matches the rest of Marvin",
+      "summary": "Projects, Settings, and the inside of a project are the same dark theme. Settings cards are no longer white panels on a dark page.",
+      "changes": [
+        {
+          "title": "One dark canvas",
+          "description": "The diff, the room bar, the transcript, and the people list use the same dark background as Projects and Settings."
+        },
+        {
+          "title": "Settings cards match the page",
+          "description": "Cards, fields, and buttons in Settings are dark, with light text. The teal accent stays for the primary action."
+        }
+      ]
+    },
+    {
       "id": "2026-09-24-transcript-name-and-gap",
       "date": "2026-09-24",
       "title": "The transcript reads as a conversation",

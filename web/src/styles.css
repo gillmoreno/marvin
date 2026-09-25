@@ -128,13 +128,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .chip { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 3px 10px; }
 .typed { display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); }
 .typed input { flex: 1; padding: 8px 10px; }
-.transcript .line { display: grid; grid-template-columns: 3.1rem minmax(0, 1fr); column-gap: 12px; margin: 0; padding: 12px 0 0; color: #1d2227; }
+.transcript .line { display: grid; grid-template-columns: 3.1rem minmax(0, 1fr); column-gap: 12px; margin: 0; padding: 12px 0 0; color: var(--fg); }
 .transcript .line.cont { padding-top: 3px; }
 .transcript .line.interim { opacity: 0.55; font-style: italic; }
-.transcript .t { grid-row: 1 / span 2; padding-top: 2px; color: #8a9198; font-variant-numeric: tabular-nums; font-size: 12px; font-family: var(--font-mono); }
+.transcript .t { grid-row: 1 / span 2; padding-top: 2px; color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; font-family: var(--font-mono); }
 .transcript .line.cont .t { grid-row: 1; padding-top: 1px; }
 .transcript .who { font-weight: 650; letter-spacing: -.01em; line-height: 1.2; }
-.transcript .line[data-speaker="agent"] .who { color: #0f766e; }
+.transcript .line[data-speaker="agent"] .who { color: var(--accent); }
 .transcript .txt { margin: 2px 0 0; line-height: 1.45; }
 .transcript .line.cont .txt { margin: 0; }
 .hint { color: var(--dim); }
@@ -358,7 +358,7 @@ body { background: var(--bg); letter-spacing: -.006em; }
 button { min-height: 36px; }
 button.ghost { background: transparent; }
 
-/* Room: dark navigation rail; conversation panel center/right intentionally lighter (unchanged for v1). */
+/* Room uses the same dark canvas as Projects and Settings. */
 .layout > .left {
   --bg: #0a0b0e; --panel: #161920; --panel-2: #0f1115; --line: #252a34; --sel: #1a1e26;
   --fg: #e8eaef; --fg-2: #b0b8c1; --dim: #8b93a2; --accent: #2dd4bf; --accent-fg: #042f2e;
@@ -371,17 +371,15 @@ button.ghost { background: transparent; }
 .left .people li { min-height: 38px; padding: 7px 9px; }
 .left .people li[data-speaking] { background: #1a1e26; }
 .left-foot { padding-top: 13px; border-top: 1px solid var(--line); }
-.center { background: #eef0f1; }
-.right { --bg: #fff; --panel: #fff; --panel-2: #f4f5f5; background: #fff; border-left: 1px solid #d9dadd; }
-.gutter { background: #d9dadd; }
-.side-tabs, .ws-tabs { min-height: 50px; padding: 9px 14px; background: #fff; }
-.side-tabs button.on, .ws-tabs button.on { background: #eef0f1; }
+.center { background: var(--bg); color: var(--fg); }
+.right { background: var(--panel); color: var(--fg); border-left: 1px solid var(--line); }
+.gutter { background: var(--line); }
+.side-tabs, .ws-tabs { min-height: 50px; padding: 9px 14px; background: var(--panel); }
+.side-tabs button.on, .ws-tabs button.on { background: var(--bg); }
 .turn { border-left-width: 2px; }
-.typed { background: #fff; }
-.typed input { background: #f6f7f7; }
-.workspace, .changes { background: #fff; }
-.changes-body { background: #fff; }
-.files { background: #f7f8f8; }
+.typed { background: var(--panel); }
+.typed input { background: var(--bg); color: var(--fg); }
+.workspace, .changes, .changes-body, .files { background: var(--bg); color: var(--fg); }
 
 /* Join workspace (Room First dark shell) */
 .join-workspace { min-height: 100dvh; display: grid; grid-template-columns: 244px minmax(0, 1fr); background: var(--bg); color: var(--fg); }
@@ -616,8 +614,8 @@ button.ghost { background: transparent; }
 .signin-ready { margin: 0; color: var(--ok); font-size: 12px; }
 .join-rail:has(.setup-rail-copy) nav { margin-top: 22px; }
 .room-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; height: 100%; }
-.room-bar { display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 18px; background: #fff; border-bottom: 1px solid #d9dadd; flex: none; }
-.room-bar b { font-size: 15px; letter-spacing: -.02em; color: #1d2227; }
+.room-bar { display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 18px; background: var(--panel); border-bottom: 1px solid var(--line); color: var(--fg); flex: none; }
+.room-bar b { font-size: 15px; letter-spacing: -.02em; color: var(--fg); }
 .room-bar .sp { flex: 1; }
 .room-bar .devhint { margin: 0; padding: 4px 8px; font-size: 11px; }
 .room-layout { display: grid; grid-template-columns: minmax(0, 1fr) 1px var(--right-w); flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
@@ -628,7 +626,7 @@ html .room-controls .lk-control-bar .lk-button,
 html .room-controls .lk-disconnect-button {
   width: 34px; height: 30px; padding: 0; flex: none; font-size: 0; overflow: hidden;
   display: inline-flex; align-items: center; justify-content: center;
-  background: #fff; color: #444b51; border: 1px solid #d9dadd; border-radius: 8px;
+  background: var(--bg); color: var(--fg-2); border: 1px solid var(--line); border-radius: 8px;
 }
 .room-controls .lk-button svg, .room-controls .lk-disconnect-button svg { width: 15px; height: 15px; }
 .right .people { padding: 14px 14px 8px; }

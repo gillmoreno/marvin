@@ -5,32 +5,32 @@
   flex-direction: column;
   gap: 16px;
   padding: 24px 26px 28px;
-  color: #1d2227;
-  background: #fff;
-  border: 1px solid #d9dadd;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 11px;
   box-shadow: var(--shadow);
 }
 .ui-card > h3 {
   margin: 0;
-  color: #1d2227;
+  color: var(--fg);
   font-size: 16px;
   font-weight: 650;
 }
 .ui-card > h4 {
   margin: 0;
-  color: #1d2227;
+  color: var(--fg);
   font-size: 13px;
   font-weight: 650;
 }
 
-.ui-text { margin: 0; max-width: 42em; color: #697078; font-size: 13px; line-height: 1.55; }
-.ui-text.ok { color: #278b5d; }
-.ui-text.bad { color: #bd3939; }
+.ui-text { margin: 0; max-width: 42em; color: var(--fg-2); font-size: 13px; line-height: 1.55; }
+.ui-text.ok { color: var(--ok); }
+.ui-text.bad { color: var(--bad); }
 
 .ui-lead {
   margin: 0;
-  color: #1d2227;
+  color: var(--fg);
   font-size: 28px;
   font-weight: 650;
   letter-spacing: -0.03em;
@@ -45,8 +45,8 @@
   gap: 16px 36px;
 }
 .ui-facts > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.ui-facts dt { color: #697078; font-size: 12px; font-weight: 500; }
-.ui-facts dd { margin: 0; color: #1d2227; font-size: 16px; font-weight: 650; }
+.ui-facts dt { color: var(--fg-2); font-size: 12px; font-weight: 500; }
+.ui-facts dd { margin: 0; color: var(--fg); font-size: 16px; font-weight: 650; }
 
 .ui-fields {
   display: grid;
@@ -56,21 +56,21 @@
 
 .ui-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .ui-field.wide { grid-column: 1 / -1; }
-.ui-field > span { color: #535b61; font-size: 12px; font-weight: 500; }
+.ui-field > span { color: var(--fg-2); font-size: 12px; font-weight: 500; }
 
 .ui-input, .ui-textarea, .ui-select {
   width: 100%;
   min-height: 40px;
   padding: 10px 12px;
-  color: #1d2227;
-  background: #fff;
-  border: 1px solid #d5d7d9;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: 8px;
   font: inherit;
 }
 .ui-textarea { min-height: 5.5rem; resize: vertical; line-height: 1.45; }
 .ui-input:focus-visible, .ui-textarea:focus-visible, .ui-select:focus-visible {
-  outline: 2px solid #1d2227;
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -80,25 +80,25 @@
   justify-content: center;
   min-height: 40px;
   padding: 0 16px;
-  color: #fff;
-  background: #1d2227;
-  border: 1px solid #1d2227;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: 1px solid var(--accent);
   border-radius: 8px;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
-.ui-btn:hover { background: #14181c; }
+.ui-btn:hover { filter: brightness(1.08); }
 .ui-btn:disabled { opacity: .45; cursor: default; }
 .ui-btn.ghost {
-  color: #444b51;
-  background: #fff;
-  border-color: #d5d7d9;
+  color: var(--fg-2);
+  background: transparent;
+  border-color: var(--line);
   font-weight: 500;
 }
-.ui-btn.ghost:hover { color: #1d2227; border-color: #aeb3b6; background: #fff; }
-.ui-btn.danger { color: #fff; background: #bd3939; border-color: #bd3939; }
+.ui-btn.ghost:hover { color: var(--fg); border-color: var(--fg-2); background: var(--panel-2); }
+.ui-btn.danger { color: #fff; background: var(--bad); border-color: var(--bad); }
 
 .ui-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ui-row { display: flex; gap: 8px; align-items: flex-start; min-width: 0; }
@@ -107,16 +107,16 @@
 
 .ui-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 12px; }
 .ui-steps li { display: flex; flex-direction: column; gap: 4px; }
-.ui-steps b { font-size: 13px; font-weight: 650; color: #1d2227; }
-.ui-steps span { color: #697078; font-size: 13px; line-height: 1.5; }
+.ui-steps b { font-size: 13px; font-weight: 650; color: var(--fg); }
+.ui-steps span { color: var(--fg-2); font-size: 13px; line-height: 1.5; }
 
 .ui-code {
   display: block;
   overflow: auto;
   padding: 12px 14px;
-  color: #1d2227;
-  background: #f7f8f8;
-  border: 1px solid #d9dadd;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: 8px;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -128,14 +128,14 @@
 .ui-chip {
   min-height: 34px;
   padding: 0 12px;
-  color: #444b51;
-  background: #f4f5f5;
-  border: 1px solid #d9dadd;
+  color: var(--fg-2);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 500;
 }
-.ui-chip.on { color: #fff; background: #1d2227; border-color: #1d2227; }
+.ui-chip.on { color: var(--accent-fg); background: var(--accent); border-color: var(--accent); }
 
 .ui-block {
   display: flex;
@@ -143,19 +143,19 @@
   gap: 12px;
   padding-top: 4px;
 }
-.ui-block + .ui-block { padding-top: 16px; border-top: 1px solid #eceeef; }
+.ui-block + .ui-block { padding-top: 16px; border-top: 1px solid var(--line); }
 
-.ui-check { display: flex; align-items: center; gap: 10px; color: #535b61; font-size: 13px; font-weight: 500; }
-.ui-check input { width: 16px; height: 16px; accent-color: #1d2227; }
+.ui-check { display: flex; align-items: center; gap: 10px; color: var(--fg-2); font-size: 13px; font-weight: 500; }
+.ui-check input { width: 16px; height: 16px; accent-color: var(--accent); }
 
 .ui-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .ui-list > li {
   display: flex; flex-direction: column; gap: 2px; padding: 12px 14px;
-  background: #f7f8f8; border: 1px solid #eceeef; border-radius: 8px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
 }
-.ui-list a { color: #1d2227; font-weight: 650; text-decoration: none; }
+.ui-list a { color: var(--fg); font-weight: 650; text-decoration: none; }
 .ui-list a:hover { text-decoration: underline; }
-.ui-list small { color: #697078; font-size: 12px; }
+.ui-list small { color: var(--fg-2); font-size: 12px; }
 
 .ui-lock-mark {
   display: inline;
@@ -167,11 +167,11 @@
 }
 .ui-lock-reason {
   margin: 0;
-  color: #a66b15;
+  color: var(--warn);
   font-size: 13px;
   line-height: 1.5;
 }
-.ui-lock-reason a { color: #a66b15; font-weight: 650; }
+.ui-lock-reason a { color: var(--warn); font-weight: 650; }
 .ui-lock-wrap { display: flex; flex-direction: column; gap: 12px; }
 .ui-locked {
   display: flex;

@@ -10,12 +10,14 @@ description: >-
 
 Settings, setup, and forms are a solved problem. Do not invent a new input, button, or card.
 
+After the screen exists, run the `frontend-qc` skill. Contrast and the logo are a separate check from picking the right control.
+
 ## Before you draw anything
 
 1. Import from `web/src/ui`.
 2. If the control does not exist yet, add it to `web/src/ui` and use it. Do not add a one-off `<input>` in a page.
 3. Use Tailwind only for **layout** (`flex`, `grid`, `gap-*`, `min-w-0`, `w-full`). Appearance lives on `.ui-*` in `web/src/ui/ui.css`.
-4. Keep Marvin's look: paper `#eef0f1`, cards white, ink `#1d2227`, gold `#f0ad3e` on the rail. Do not switch to Material, shadcn defaults, or a new palette.
+4. Keep Marvin's dark look: canvas `#0f1115`, cards `#161920`, ink `#e8eaef`, teal `#2dd4bf`. Do not put a white card on the dark shell. Do not switch to Material or shadcn.
 
 ## Controls
 
