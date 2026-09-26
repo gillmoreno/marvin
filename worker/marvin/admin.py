@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import logging
 import time
+from pathlib import Path
 
 from aiohttp import web
 
 from marvin.adapters import registry
 from marvin.changes import changes as repo_changes, file_diff
+from marvin.edits import recent as recent_edits, record as record_edit
+from marvin.files import list_files, read_image, read_text, write_text
 from marvin.github import GitHubConnect
 from marvin.harness_creds import HarnessCreds
 from marvin.access import Access
@@ -415,6 +418,81 @@ def make_admin_app(mgr: RoomManager, github: GitHubConnect | None = None, harnes
     app.router.add_get("/ports", ports)
     app.router.add_get("/changes", changes)
     app.router.add_get("/changes/file", changes_file)
+
+    def _docs_dir() -> Path:
+        base = mgr.state_file.parent if mgr.state_file else Path("/tmp/marvin-docs")
+        path = base / "docs"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _doc_key(room: str, repo: str, rel: str) -> Path:
+        import hashlib
+        digest = hashlib.sha256(f"{room}\0{repo}\0{rel}".encode()).hexdigest()
+        return _docs_dir() / digest
+
+    async def file_list(req: web.Request) -> web.Response:
+        repo = _repo_for(req)
+        if not repo:
+            return web.json_response({"error": "unknown room"}, status=404)
+        try:
+            return web.json_response({"files": await list_files(repo)})
+        except Exception as e:
+            return web.json_response({"error": f"{type(e).__name__}: {e}"}, status=500)
+
+    async def file_text(req: web.Request) -> web.Response:
+        repo = _repo_for(req)
+        if not repo:
+            return web.json_response({"error": "unknown room"}, status=404)
+        rel = req.query.get("path", "")
+        try:
+            body = read_text(repo, rel)
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        key = _doc_key(req.query.get("room", ""), repo, rel)
+        body["update"] = key.read_text() if key.exists() else None
+        return web.json_response(body)
+
+    async def file_save(req: web.Request) -> web.Response:
+        repo = _repo_for(req)
+        if not repo:
+            return web.json_response({"error": "unknown room"}, status=404)
+        try:
+            payload = await req.json()
+            rel = str(payload.get("path") or "")
+            text = payload.get("text")
+            if not isinstance(text, str):
+                raise ValueError("text required")
+            saved = write_text(repo, rel, text)
+            record_edit(mgr.state_file.parent if mgr.state_file else None, req.query.get("room", ""), path=rel, by=req.headers.get("X-Marvin-User", "someone"), source="person")
+            update = payload.get("update")
+            if isinstance(update, str) and update:
+                _doc_key(req.query.get("room", ""), repo, rel).write_text(update)
+            log.info("%s saved %s", who(req), rel)
+            return web.json_response(saved)
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    async def file_image(req: web.Request) -> web.Response:
+        repo = _repo_for(req)
+        if not repo:
+            return web.json_response({"error": "unknown room"}, status=404)
+        try:
+            raw, kind = read_image(repo, req.query.get("path", ""))
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        return web.Response(body=raw, content_type=kind)
+
+    async def edits(req: web.Request) -> web.Response:
+        room = req.query.get("room", "")
+        if room not in mgr.configs():
+            return web.json_response({"error": "unknown room"}, status=404)
+        return web.json_response({"edits": recent_edits(mgr.state_file.parent if mgr.state_file else None, room)})
+
+    app.router.add_get("/files", file_list)
+    app.router.add_get("/edits", edits)
+    app.router.add_get("/files/text", file_text)
+    app.router.add_get("/files/image", file_image)
+    app.router.add_put("/files/text", file_save)
 
     async def update_status(req: web.Request) -> web.Response:
         if not _is_admin(req):

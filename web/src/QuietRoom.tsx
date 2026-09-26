@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ControlBar, StartAudio } from "@livekit/components-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ControlBar, StartAudio, useDataChannel, useLocalParticipant } from "@livekit/components-react";
 import { agent } from "./agent";
 import { useChanges, type ChangedFile } from "./ChangesPane";
 import { MarvinPane } from "./MarvinPane";
@@ -8,6 +8,7 @@ import type { ProjectRepoInfo } from "./ProjectRepos";
 import { ScreenShareView, screenShareKey, screenShareLabel, useScreenShares } from "./ScreenShare";
 import { Transcript } from "./Transcript";
 import type { useMarvin } from "./useMarvin";
+import { DocEditor } from "./DocEditor";
 import { DiffView } from "./DiffView";
 import { BrandLogo } from "./shell";
 
@@ -39,6 +40,11 @@ function buildTree(files: ChangedFile[]): Node[] {
   return root;
 }
 
+function changed(node: Node): boolean {
+  if (node.file?.status) return true;
+  return node.children.some(changed);
+}
+
 function Tree({ nodes, depth, query, expanded, toggle, selected, onPick }: {
   nodes: Node[];
   depth: number;
@@ -61,7 +67,7 @@ function Tree({ nodes, depth, query, expanded, toggle, selected, onPick }: {
               <button type="button" className="quiet-row" style={{ paddingLeft: 8 + depth * 14 }} onClick={() => toggle(node.path)}>
                 <span className="quiet-chev">{open ? "▾" : "▸"}</span>
                 <span className="quiet-name">{node.name}</span>
-                <span className="quiet-dot" title="Has changes" />
+                {changed(node) && <span className="quiet-dot" title="Has changes" />}
               </button>
               {open && (
                 <Tree nodes={node.children} depth={depth + 1} query={query} expanded={expanded} toggle={toggle} selected={selected} onPick={onPick} />
@@ -74,7 +80,7 @@ function Tree({ nodes, depth, query, expanded, toggle, selected, onPick }: {
         return (
           <button type="button" key={node.path} className={`quiet-row${selected === node.path ? " on" : ""}${file?.status === "D" ? " gone" : ""}`} style={{ paddingLeft: 8 + depth * 14 }} onClick={() => onPick(node.path)}>
             <span className="quiet-chev" />
-            <span className="quiet-kind">{file?.status === "?" ? "A" : file?.status ?? "·"}</span>
+            <span className="quiet-kind">{file?.status ? (file.status === "?" ? "A" : file.status) : ""}</span>
             <span className="quiet-name">{node.name}</span>
             {file && file.additions > 0 && <span className="quiet-add">+{file.additions}</span>}
             {file && file.deletions > 0 && <span className="quiet-del">−{file.deletions}</span>}
@@ -110,7 +116,53 @@ export function QuietRoom({
   const screens = useScreenShares();
   const seenScreens = useRef(new Set<string>());
   const apps = marvin.appLinks.filter((link) => link.url);
-  const tree = useMemo(() => buildTree(data?.files ?? []), [data]);
+  const [paths, setPaths] = useState<string[] | null>(null);
+  const [showDiff, setShowDiff] = useState(false);
+  const [edits, setEdits] = useState<{ path: string; by: string; source: "person" | "agent" | "disk"; at: number; summary: string }[]>([]);
+  const { localParticipant } = useLocalParticipant();
+  const noteEdit = useCallback((path: string, summary: string, source: "person" | "agent" | "disk", by: string) => {
+    setEdits((prev) => {
+      const same = prev.find((edit) => edit.path === path && edit.source === source);
+      if (same?.summary === summary) return prev;
+      return [{ path, summary, source, by, at: Date.now() / 1000 }, ...prev.filter((edit) => !(edit.path === path && edit.source === source))].slice(0, 40);
+    });
+  }, []);
+  useDataChannel("marvin-edits", (msg) => {
+    try {
+      const body = JSON.parse(new TextDecoder().decode(msg.payload)) as { path?: string; summary?: string; by?: string };
+      if (body.path && body.summary) noteEdit(body.path, body.summary, "person", body.by || "someone");
+    } catch { /* not an edit note */ }
+  });
+  useEffect(() => {
+    for (const file of data?.files ?? []) {
+      noteEdit(file.path, `+${file.additions} −${file.deletions} on disk`, "disk", "");
+    }
+  }, [data, noteEdit]);
+  useEffect(() => {
+    for (const turn of marvin.turns) {
+      for (const tool of turn.tools) {
+        if (!["Write", "Edit", "MultiEdit", "NotebookEdit"].includes(tool.tool)) continue;
+        const path = String(tool.input.file_path || tool.input.path || tool.input.notebook_path || "");
+        if (!path) continue;
+        const summary = String(tool.input.new_string || tool.input.content || tool.input.old_string || tool.tool).replace(/\s+/g, " ").slice(0, 80);
+        noteEdit(path, summary, "agent", agent.name);
+      }
+    }
+  }, [marvin.turns, noteEdit]);
+  useEffect(() => {
+    const q = repos.length > 1 && repo?.path ? `&repo=${encodeURIComponent(repo.path)}` : "";
+    let alive = true;
+    fetch(`/api/files?room=${encodeURIComponent(roomName)}${q}`)
+      .then((r) => r.json())
+      .then((body) => { if (alive && Array.isArray(body.files)) setPaths(body.files); })
+      .catch(() => { if (alive) setPaths(null); });
+    return () => { alive = false; };
+  }, [roomName, repo?.path, repos.length, refreshKey]);
+  const tree = useMemo(() => {
+    const status = new Map((data?.files ?? []).map((file) => [file.path, file]));
+    const names = paths ?? (data?.files ?? []).map((file) => file.path);
+    return buildTree(names.map((path) => status.get(path) ?? { path, status: "", additions: 0, deletions: 0 }));
+  }, [paths, data]);
   useEffect(() => {
     const key = repo?.path ?? "";
     if (!tree.length || seeded.current === key) return;
@@ -165,6 +217,7 @@ export function QuietRoom({
           <b className="room">#{roomName}</b>
         </div>
         <button type="button" className="room-settings quiet-settings" onClick={onRoomSettings}>Room settings</button>
+        <button type="button" className={`quiet-edits-link${mode === "edits" ? " on" : ""}`} onClick={() => setMode("edits")}>Edits</button>
         {repos.length > 1 && (
           <div className="quiet-repos">
             {repos.map((item, i) => (
@@ -176,14 +229,14 @@ export function QuietRoom({
         )}
         <label className="quiet-find">
           <span aria-hidden>⌕</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search changed files" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" />
         </label>
         <div className="quiet-tree">
           {error && <p className="quiet-empty">{error}</p>}
           {!error && !data && <p className="quiet-empty">Reading git…</p>}
           {data && !data.git && <p className="quiet-empty">This folder is not a git repository yet.</p>}
-          {data?.git && fileCount === 0 && <p className="quiet-empty">Nothing changed on {data.branch ?? "this branch"}.</p>}
-          {data?.git && fileCount > 0 && (
+          {paths && paths.length === 0 && <p className="quiet-empty">This repo has no files yet.</p>}
+          {tree.length > 0 && (
             <Tree nodes={tree} depth={0} query={query} expanded={expanded} toggle={toggle} selected={selected} onPick={pick} />
           )}
         </div>
@@ -213,6 +266,7 @@ export function QuietRoom({
         </header>
         <div className="page-modes">
           <button type="button" className={mode === "transcript" ? "on" : ""} onClick={() => setMode("transcript")}>Transcript</button>
+          <button type="button" className={mode === "edits" ? "on" : ""} onClick={() => setMode("edits")}>Edits</button>
           <button type="button" className={mode === "marvin" ? "on" : ""} onClick={() => setMode("marvin")}>
             <span className={`dot ${marvin.state}`} /> {agent.name}
           </button>
@@ -234,15 +288,48 @@ export function QuietRoom({
             <div className="quiet-transcript"><Transcript lines={marvin.transcript} /></div>
           </>
         )}
+        {mode === "edits" && (
+          <div className="quiet-edits">
+            {edits.length === 0 && <p className="quiet-empty">Edits you make in a file, and files Marvin writes, show up here.</p>}
+            {edits.map((edit, i) => (
+              <button type="button" key={`${edit.at}-${edit.path}-${i}`} className="quiet-edit" onClick={() => pick(edit.path)}>
+                <b>{edit.source === "agent" ? edit.by : edit.source === "disk" ? "Changed" : "You"}</b>
+                <span>{edit.path}{edit.summary ? <small>{edit.summary}</small> : null}</span>
+                <time>{new Date(edit.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+              </button>
+            ))}
+          </div>
+        )}
         {mode === "marvin" && <div className="quiet-marvin"><MarvinPane marvin={marvin} room={roomName} /></div>}
-        {mode === "file" && selected && (
+        {mode === "file" && selected && /\.(jpe?g|png|gif|webp|svg|ico)$/i.test(selected) && (
+          <div className="quiet-file">
+            <p className="quiet-crumb">{repo?.name ?? roomName} / {selected.split("/").map((part, i, all) => i === all.length - 1 ? <b key={part}>{part}</b> : <span key={part}>{part} / </span>)}</p>
+            <div className="quiet-image">
+              <img src={`/api/files/image?room=${encodeURIComponent(roomName)}${repos.length > 1 && repo?.path ? `&repo=${encodeURIComponent(repo.path)}` : ""}&path=${encodeURIComponent(selected)}`} alt={selected} />
+            </div>
+          </div>
+        )}
+        {mode === "file" && selected && !/\.(jpe?g|png|gif|webp|svg|ico)$/i.test(selected) && (
           <div className="quiet-file">
             <p className="quiet-crumb">{repo?.name ?? roomName} / {selected.split("/").map((part, i, all) => i === all.length - 1 ? <b key={part}>{part}</b> : <span key={part}>{part} / </span>)}</p>
             <div className="quiet-file-actions">
+              <button type="button" className={showDiff ? "ghost" : ""} onClick={() => setShowDiff(false)}>Edit</button>
+              <button type="button" className={showDiff ? "" : "ghost"} onClick={() => setShowDiff(true)}>Diff</button>
               <button type="button" className="ghost" disabled={fileCount === 0} onClick={() => marvin.send({ action: "ask", text: `commit the current changes${repo && repos.length > 1 ? ` in ${repo.name}` : ""} with a clear message` })}>commit</button>
               <button type="button" disabled={!data?.branch || data.branch === "main" || data.branch === "master"} onClick={() => marvin.send({ action: "ask", text: `push the branch${repo && repos.length > 1 ? ` in ${repo.name}` : ""} and open a pull request` })}>open PR</button>
             </div>
-            <DiffView text={diff} path={selected} />
+            {showDiff ? <DiffView text={diff} path={selected} /> : (
+              <DocEditor
+                room={roomName}
+                repo={repos.length > 1 ? (repo?.path ?? "") : ""}
+                path={selected}
+                onActivity={(summary) => {
+                  const who = localParticipant.name || localParticipant.identity || "you";
+                  noteEdit(selected, summary, "person", who);
+                  void localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ path: selected, summary, by: who })), { reliable: true, topic: "marvin-edits" });
+                }}
+              />
+            )}
           </div>
         )}
         {screen && <ScreenShareView track={screen} />}

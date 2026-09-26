@@ -31,7 +31,7 @@ WEB_DIST = os.environ.get("MARVIN_WEB_DIST")  # directory with the built web UI;
 # Proxied admin routes. Everything needs a session; writes need `admin`; the machine notes need `admin` even to read
 # (they are a prompt-injection surface into every room).
 PROXIED = (
-    "/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/models", "/api/harnesses", "/api/notes",
+    "/api/rooms", "/api/rooms/{name}", "/api/repos", "/api/repos/clone", "/api/ports", "/api/changes", "/api/changes/file", "/api/files", "/api/files/text", "/api/files/image", "/api/edits", "/api/models", "/api/harnesses", "/api/notes",
     "/api/setup",
     "/api/github/me", "/api/github/connect", "/api/github/connect/{flow}", "/api/github/config", "/api/github/machine", "/api/github/repos",
     "/api/harness-creds", "/api/harness-creds/default", "/api/harness-creds/{id}",
@@ -47,7 +47,7 @@ PROXIED = (
 )
 ADMIN_ONLY_PREFIXES = ("/api/notes", "/api/github/config", "/api/github/machine", "/api/github/app", "/api/harness-creds", "/api/update", "/api/access", "/api/export")
 # Self-service: every signed-in user may write here, because it only touches their own record (keyed by X-Marvin-User).
-SELF_SERVICE_PREFIXES = ("/api/github/",)
+SELF_SERVICE_PREFIXES = ("/api/github/", "/api/files/text")
 
 
 def auth_of(req: web.Request) -> Auth:

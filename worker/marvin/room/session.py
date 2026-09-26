@@ -18,6 +18,7 @@ from marvin.adapters.registry import create_harness
 from marvin.bridge import Timeline
 from marvin.config import RoomConfig
 from marvin.audit import Audit
+from marvin.edits import record_tool
 from marvin.github import GitIdentity
 from marvin.harness_creds import HarnessCreds
 from marvin.sandbox import Sandbox
@@ -235,6 +236,7 @@ class RoomSession:
                 self._save_state(session_id=event["session_id"])
             if self.audit:
                 self._audit_event(event)
+            record_tool(self.state_file.parent if self.state_file else None, cfg.name, event, self.agent_name)
             await self.room.local_participant.publish_data(encode(event), reliable=True, topic=TOPIC_EVENTS)
 
         if self.git_identity:

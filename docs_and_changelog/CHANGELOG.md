@@ -2,6 +2,21 @@
 
 All notable changes to Marvin. Entries are dated; the newest is on top.
 
+## 2026-09-26 — Who edited a file
+
+### Changed
+- The room has an Edits tab. A save from the editor is listed as you. A file Marvin writes is listed under Marvin.
+
+## 2026-09-26 — Images in the file view
+
+### Changed
+- Opening a JPEG, PNG, GIF, WebP, or SVG shows the picture instead of an empty editor.
+
+## 2026-09-25 — Live files
+
+### Changed
+- The room lists every file in the repo, not only the ones git has changed. Opening one edits it together: keystrokes sync to everyone in the room, and the file on disk updates a moment later.
+
 ## 2026-09-25 — Colored diffs
 
 ### Changed

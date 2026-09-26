@@ -2,6 +2,42 @@
   "schema_version": 1,
   "releases": [
     {
+      "id": "2026-09-26-who-edited",
+      "date": "2026-09-26",
+      "title": "See who edited a file",
+      "summary": "Edits lists what you saved in the editor and what Marvin wrote, separately.",
+      "changes": [
+        {
+          "title": "An Edits tab",
+          "description": "Open Edits to see the latest file saves. Yours are marked as you. Marvin’s writes are marked as Marvin."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-26-view-images",
+      "date": "2026-09-26",
+      "title": "Pictures open in the room",
+      "summary": "JPEG, PNG, GIF, WebP, and SVG files show the image instead of a blank editor.",
+      "changes": [
+        {
+          "title": "Open a picture",
+          "description": "Click a JPEG or other image in the file list and the picture fills the page."
+        }
+      ]
+    },
+    {
+      "id": "2026-09-25-live-files",
+      "date": "2026-09-25",
+      "title": "Every file, edited together",
+      "summary": "The room lists every file. Open one and what you type shows up for everyone else in the room.",
+      "changes": [
+        {
+          "title": "A shared editor",
+          "description": "The file list is the whole repo. Open a file to edit it. Keystrokes sync to the other people in the room, and the file on disk updates a moment later. Diff is still there when you want the red and green."
+        }
+      ]
+    },
+    {
       "id": "2026-09-25-colored-diff",
       "date": "2026-09-25",
       "title": "Diffs show what changed",
